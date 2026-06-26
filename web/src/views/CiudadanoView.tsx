@@ -82,11 +82,7 @@ export default function CiudadanoView() {
       {/* Zona del mapa */}
       <div className="relative flex-1 h-full min-w-0">
         <div className="absolute inset-0">
-          <MapaNecesidades
-            necesidades={filtradas}
-            acopios={acopiosVisibles}
-            marcadorTemporal={coordAuto}
-          />
+          <MapaNecesidades necesidades={filtradas} acopios={acopiosVisibles} />
         </div>
 
         {/* Encabezado + filtros */}

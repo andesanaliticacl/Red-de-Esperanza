@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { iconoNecesidad, iconoAcopio } from '../lib/iconos'
 import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
 import {
@@ -8,29 +8,12 @@ import {
   type CentroAcopio,
 } from '../lib/types'
 
-function CapturarClic({
-  onClic,
-}: {
-  onClic?: (lat: number, lng: number) => void
-}) {
-  useMapEvents({
-    click(e) {
-      onClic?.(e.latlng.lat, e.latlng.lng)
-    },
-  })
-  return null
-}
-
 export default function MapaNecesidades({
   necesidades,
   acopios = [],
-  onClicMapa,
-  marcadorTemporal,
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
-  onClicMapa?: (lat: number, lng: number) => void
-  marcadorTemporal?: { lat: number; lng: number } | null
 }) {
   return (
     <MapContainer
@@ -43,8 +26,6 @@ export default function MapaNecesidades({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-
-      <CapturarClic onClic={onClicMapa} />
 
       {necesidades
         .filter((n) => n.lat != null && n.lng != null)
@@ -101,15 +82,6 @@ export default function MapaNecesidades({
           </Popup>
         </Marker>
       ))}
-
-      {marcadorTemporal && (
-        <Marker
-          position={[marcadorTemporal.lat, marcadorTemporal.lng]}
-          icon={iconoNecesidad('otro', 'sin_verificar')}
-        >
-          <Popup>📍 Tu ubicación</Popup>
-        </Marker>
-      )}
     </MapContainer>
   )
 }

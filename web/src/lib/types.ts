@@ -114,6 +114,7 @@ export interface CentroAcopio {
   nombre: string
   descripcion: string | null
   pais: string
+  estado: string | null
   ciudad: string | null
   direccion: string | null
   lat: number

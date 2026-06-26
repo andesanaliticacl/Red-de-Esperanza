@@ -7,12 +7,8 @@ import {
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
-import type { CentroAcopio } from '../lib/types'
-
-const PAISES_SUGERIDOS = [
-  'Venezuela', 'Chile', 'Colombia', 'Perú', 'Ecuador', 'Argentina',
-  'Brasil', 'Panamá', 'México', 'España', 'Estados Unidos', 'Portugal',
-]
+import { PAISES_MUNDO } from '../lib/paises'
+import { ESTADOS_VENEZUELA, type CentroAcopio } from '../lib/types'
 
 export default function CentrosAcopioView() {
   const { perfil, rol } = useAuth()
@@ -22,6 +18,11 @@ export default function CentrosAcopioView() {
   const [cargando, setCargando] = useState(true)
   const [yo, setYo] = useState<{ lat: number; lng: number } | null>(null)
   const [abrirForm, setAbrirForm] = useState(false)
+
+  // Filtros
+  const [fPais, setFPais] = useState('')
+  const [fEstado, setFEstado] = useState('')
+  const [fCiudad, setFCiudad] = useState('')
 
   async function cargar() {
     const { data } = await supabase
@@ -36,10 +37,47 @@ export default function CentrosAcopioView() {
     cargar()
   }, [])
 
+  // Opciones de filtro derivadas de los datos existentes.
+  const paisesDisponibles = useMemo(
+    () => [...new Set(centros.map((c) => c.pais).filter(Boolean))].sort(),
+    [centros],
+  )
+  const estadosDisponibles = useMemo(
+    () =>
+      [
+        ...new Set(
+          centros
+            .filter((c) => !fPais || c.pais === fPais)
+            .map((c) => c.estado)
+            .filter((x): x is string => Boolean(x)),
+        ),
+      ].sort(),
+    [centros, fPais],
+  )
+
+  const centrosFiltrados = useMemo(
+    () =>
+      centros.filter((c) => {
+        if (fPais && c.pais !== fPais) return false
+        if (fEstado && (c.estado ?? '') !== fEstado) return false
+        if (
+          fCiudad.trim() &&
+          !(c.ciudad ?? '')
+            .toLowerCase()
+            .includes(fCiudad.trim().toLowerCase())
+        )
+          return false
+        return true
+      }),
+    [centros, fPais, fEstado, fCiudad],
+  )
+
+  const hayFiltro = Boolean(fPais || fEstado || fCiudad.trim())
+
   // Agrupa por país; dentro, ordena por cercanía si hay ubicación, si no por nombre.
   const porPais = useMemo(() => {
     const grupos = new Map<string, CentroAcopio[]>()
-    for (const c of centros) {
+    for (const c of centrosFiltrados) {
       const k = c.pais || 'Otro'
       if (!grupos.has(k)) grupos.set(k, [])
       grupos.get(k)!.push(c)
@@ -61,7 +99,7 @@ export default function CentrosAcopioView() {
       if (b[0] === 'Venezuela') return 1
       return a[0].localeCompare(b[0])
     })
-  }, [centros, yo])
+  }, [centrosFiltrados, yo])
 
   async function usarMiUbicacion() {
     try {
@@ -105,7 +143,6 @@ export default function CentrosAcopioView() {
       {abrirForm && puedeRegistrar && (
         <FormCentro
           creadoPor={perfil?.id ?? null}
-          paisInicial={perfil?.estado ? 'Venezuela' : 'Venezuela'}
           onCreado={() => {
             setAbrirForm(false)
             cargar()
@@ -113,11 +150,69 @@ export default function CentrosAcopioView() {
         />
       )}
 
+      {/* Filtros: país (mundo) · estado · ciudad */}
+      <div className="card grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <select
+          className="input"
+          value={fPais}
+          onChange={(e) => {
+            setFPais(e.target.value)
+            setFEstado('')
+          }}
+        >
+          <option value="">🌎 Todos los países</option>
+          {paisesDisponibles.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input"
+          value={fEstado}
+          onChange={(e) => setFEstado(e.target.value)}
+        >
+          <option value="">Todos los estados</option>
+          {estadosDisponibles.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input"
+          placeholder="Buscar ciudad…"
+          value={fCiudad}
+          onChange={(e) => setFCiudad(e.target.value)}
+        />
+      </div>
+      {hayFiltro && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">
+            {centrosFiltrados.length} resultado(s)
+          </span>
+          <button
+            onClick={() => {
+              setFPais('')
+              setFEstado('')
+              setFCiudad('')
+            }}
+            className="text-bandera-rojo font-semibold"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      )}
+
       {cargando ? (
         <div className="card text-center text-gray-500 py-8">Cargando…</div>
       ) : centros.length === 0 ? (
         <div className="card text-center text-gray-500 py-8">
           Aún no hay centros de acopio registrados.
+        </div>
+      ) : centrosFiltrados.length === 0 ? (
+        <div className="card text-center text-gray-500 py-8">
+          No hay centros que coincidan con el filtro.
         </div>
       ) : (
         porPais.map(([pais, lista]) => (
@@ -143,9 +238,12 @@ export default function CentrosAcopioView() {
                       </span>
                     )}
                   </div>
-                  {(c.ciudad || c.direccion) && (
+                  {(c.ciudad || c.direccion || c.estado) && (
                     <div className="text-sm text-gray-600">
-                      📍 {[c.direccion, c.ciudad].filter(Boolean).join(', ')}
+                      📍{' '}
+                      {[c.direccion, c.ciudad, c.estado]
+                        .filter(Boolean)
+                        .join(', ')}
                     </div>
                   )}
                   {c.descripcion && (
@@ -178,15 +276,14 @@ export default function CentrosAcopioView() {
 
 function FormCentro({
   creadoPor,
-  paisInicial,
   onCreado,
 }: {
   creadoPor: string | null
-  paisInicial: string
   onCreado: () => void
 }) {
   const [nombre, setNombre] = useState('')
-  const [pais, setPais] = useState(paisInicial)
+  const [pais, setPais] = useState('Venezuela')
+  const [region, setRegion] = useState('') // estado / región
   const [ciudad, setCiudad] = useState('')
   const [direccion, setDireccion] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -218,6 +315,7 @@ function FormCentro({
     const { error } = await supabase.from('centros_acopio').insert({
       nombre: nombre.trim(),
       pais: pais.trim() || 'Venezuela',
+      estado: region.trim() || null,
       ciudad: ciudad.trim() || null,
       direccion: direccion.trim() || null,
       descripcion: descripcion.trim() || null,
@@ -244,26 +342,49 @@ function FormCentro({
         onChange={(e) => setNombre(e.target.value)}
       />
       <div className="grid grid-cols-2 gap-2">
-        <input
+        <select
           className="input"
-          placeholder="País"
-          list="paises-acopio"
           required
           value={pais}
-          onChange={(e) => setPais(e.target.value)}
-        />
-        <datalist id="paises-acopio">
-          {PAISES_SUGERIDOS.map((p) => (
-            <option key={p} value={p} />
+          onChange={(e) => {
+            setPais(e.target.value)
+            setRegion('')
+          }}
+        >
+          {PAISES_MUNDO.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
           ))}
-        </datalist>
-        <input
-          className="input"
-          placeholder="Ciudad"
-          value={ciudad}
-          onChange={(e) => setCiudad(e.target.value)}
-        />
+        </select>
+        {pais === 'Venezuela' ? (
+          <select
+            className="input"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
+            <option value="">Estado…</option>
+            {ESTADOS_VENEZUELA.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className="input"
+            placeholder="Estado / región"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          />
+        )}
       </div>
+      <input
+        className="input"
+        placeholder="Ciudad"
+        value={ciudad}
+        onChange={(e) => setCiudad(e.target.value)}
+      />
       <input
         className="input"
         placeholder="Dirección (calle, número, referencia)"

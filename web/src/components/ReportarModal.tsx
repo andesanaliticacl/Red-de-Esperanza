@@ -294,10 +294,18 @@ export default function ReportarModal({
               </p>
             </div>
             <div>
-              <p className="font-bold mb-2">Contacto (opcional, privado)</p>
+              <p className="font-bold mb-1">
+                Contacto{' '}
+                <span className="text-bandera-rojo">(ideal)</span>
+              </p>
+              <p className="text-xs text-gray-500 mb-2">
+                Déjalo para que el rescatista o voluntario que tome tu caso pueda
+                comunicarse contigo. Es privado: solo lo ve quien te ayuda.
+              </p>
               <input
                 className="input"
-                placeholder="Teléfono o usuario — solo lo ven los voluntarios"
+                placeholder="Teléfono o WhatsApp — solo lo ven los voluntarios"
+                inputMode="tel"
                 value={contacto}
                 onChange={(e) => setContacto(e.target.value)}
               />

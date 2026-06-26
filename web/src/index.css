@@ -7,9 +7,24 @@ html, body, #root {
   margin: 0;
 }
 
+/* Forzamos esquema claro: en móviles con modo oscuro, el navegador invertía
+   los inputs y el texto quedaba casi invisible (blanco sobre blanco). */
+html {
+  color-scheme: light;
+}
+
 body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Controles de formulario siempre legibles, sin importar el tema del SO. */
+input, select, textarea {
+  color: #111827;
+  background-color: #ffffff;
+}
+input::placeholder, textarea::placeholder {
+  color: #9ca3af;
 }
 
 /* Botones accesibles: cómodos en móvil, sin exagerar en escritorio */

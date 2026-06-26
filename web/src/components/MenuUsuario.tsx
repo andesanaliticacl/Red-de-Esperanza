@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ROL_META } from '../lib/types'
@@ -63,7 +64,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
         <span className="text-xs opacity-70">▾</span>
       </button>
 
-      {abierto && (
+      {abierto && createPortal(
         <>
           {/* Capa para cerrar al tocar fuera */}
           <div className="fixed inset-0 z-[2400]" onClick={cerrar} />
@@ -161,16 +162,19 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
 
-      {chat && (
-        <div className="fixed inset-0 z-[2600] bg-black/50 flex items-stretch sm:items-center justify-center sm:p-4">
-          <div className="bg-white w-full sm:max-w-md h-full sm:h-[80vh] sm:rounded-3xl overflow-hidden flex flex-col">
-            <ChatGlobal onCerrar={() => setChat(false)} />
-          </div>
-        </div>
-      )}
+      {chat &&
+        createPortal(
+          <div className="fixed inset-0 z-[2600] bg-black/50 flex items-stretch sm:items-center justify-center sm:p-4">
+            <div className="bg-white w-full sm:max-w-md h-full sm:h-[80vh] sm:rounded-3xl overflow-hidden flex flex-col">
+              <ChatGlobal onCerrar={() => setChat(false)} />
+            </div>
+          </div>,
+          document.body,
+        )}
     </>
   )
 }
