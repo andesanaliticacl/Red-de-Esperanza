@@ -16,6 +16,9 @@ const VoluntarioView = lazy(() => import('./views/VoluntarioView'))
 const PerfilView = lazy(() => import('./views/PerfilView'))
 const EditarPerfilView = lazy(() => import('./views/EditarPerfilView'))
 const HistorialView = lazy(() => import('./views/HistorialView'))
+const MisConversacionesView = lazy(
+  () => import('./views/MisConversacionesView'),
+)
 const AdminView = lazy(() => import('./views/AdminView'))
 
 function Cargando() {
@@ -70,6 +73,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <HistorialView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/conversaciones"
+              element={
+                <ProtectedRoute>
+                  <MisConversacionesView />
                 </ProtectedRoute>
               }
             />

@@ -104,6 +104,14 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
               )}
               {session && (
                 <ItemLink
+                  to="/conversaciones"
+                  emoji="💬"
+                  texto="Mis conversaciones"
+                  onClick={cerrar}
+                />
+              )}
+              {session && (
+                <ItemLink
                   to="/historial"
                   emoji="🕘"
                   texto="Historial"
