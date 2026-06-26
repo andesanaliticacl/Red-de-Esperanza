@@ -17,6 +17,7 @@ const TIPOS: NecesidadTipo[] = [
   'agua_comida',
   'medicinas',
   'refugio',
+  'derrumbe',
   'otro',
 ]
 

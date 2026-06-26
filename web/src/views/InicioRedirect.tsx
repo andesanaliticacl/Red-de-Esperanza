@@ -21,6 +21,8 @@ export default function InicioRedirect() {
     case 'voluntario':
     case 'rescatista':
       return <Navigate to="/voluntario" replace />
+    case 'centro_acopio':
+      return <Navigate to="/acopios" replace />
     default:
       return <Navigate to="/" replace />
   }

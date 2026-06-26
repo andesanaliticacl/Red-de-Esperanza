@@ -15,6 +15,7 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
   'agua_comida',
   'medicinas',
   'refugio',
+  'derrumbe',
   'otro',
 ]
 
@@ -29,6 +30,8 @@ export default function CiudadanoView() {
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
+  // Tipo con el que se abre el modal de reporte (null = elige el usuario).
+  const [tipoReporte, setTipoReporte] = useState<NecesidadTipo | null>(null)
   const [coordTocada, setCoordTocada] = useState<{ lat: number; lng: number } | null>(
     null,
   )
@@ -127,7 +130,20 @@ export default function CiudadanoView() {
             🆘 SOS / Necesito rescate
           </button>
           <button
-            onClick={() => setAbrirReporte(true)}
+            onClick={() => {
+              setTipoReporte('derrumbe')
+              setAbrirReporte(true)
+            }}
+            className="w-full text-base sm:text-lg py-3.5 rounded-2xl font-extrabold text-white shadow-lg"
+            style={{ backgroundColor: TIPO_META.derrumbe.color }}
+          >
+            🏚️ Reportar edificio derrumbado
+          </button>
+          <button
+            onClick={() => {
+              setTipoReporte(null)
+              setAbrirReporte(true)
+            }}
             className="btn-azul w-full text-base sm:text-lg py-3.5"
           >
             ➕ Reportar necesidad
@@ -138,6 +154,7 @@ export default function CiudadanoView() {
       {abrirReporte && (
         <ReportarModal
           coordPreseleccionada={coordTocada}
+          tipoInicial={tipoReporte ?? undefined}
           onCerrar={() => setAbrirReporte(false)}
           onCreado={() => {
             setAbrirReporte(false)

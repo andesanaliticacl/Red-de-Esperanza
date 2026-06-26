@@ -12,6 +12,7 @@ const TIPOS: NecesidadTipo[] = [
   'agua_comida',
   'medicinas',
   'refugio',
+  'derrumbe',
   'otro',
 ]
 const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
@@ -23,20 +24,26 @@ const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
 /**
  * Formulario de 3 pasos: tipo → descripción + urgencia → ubicación.
  * `coordPreseleccionada` viene si el usuario tocó el mapa antes.
+ * `tipoInicial` permite abrir el modal con un tipo ya elegido (p. ej. el botón
+ * de "departamentos derrumbados"), saltando directo al paso 2.
  */
 export default function ReportarModal({
   onCerrar,
   onCreado,
   coordPreseleccionada,
+  tipoInicial,
 }: {
   onCerrar: () => void
   onCreado: () => void
   coordPreseleccionada?: { lat: number; lng: number } | null
+  tipoInicial?: NecesidadTipo
 }) {
-  const [paso, setPaso] = useState(1)
-  const [tipo, setTipo] = useState<NecesidadTipo>('otro')
+  const [paso, setPaso] = useState(tipoInicial ? 2 : 1)
+  const [tipo, setTipo] = useState<NecesidadTipo>(tipoInicial ?? 'otro')
   const [descripcion, setDescripcion] = useState('')
-  const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
+  const [urgencia, setUrgencia] = useState<NecesidadUrgencia>(
+    tipoInicial === 'derrumbe' ? 'alta' : 'media',
+  )
   const [zona, setZona] = useState('')
   const [contacto, setContacto] = useState('')
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(

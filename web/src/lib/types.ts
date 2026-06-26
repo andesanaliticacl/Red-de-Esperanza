@@ -5,6 +5,7 @@ export type NecesidadTipo =
   | 'agua_comida'
   | 'medicinas'
   | 'refugio'
+  | 'derrumbe'
   | 'otro'
   | 'acopio'
 
@@ -144,6 +145,7 @@ export const TIPO_META: Record<
   agua_comida: { etiqueta: 'Agua / Comida', emoji: '🥫', color: '#EA580C' },
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
+  derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
 }
