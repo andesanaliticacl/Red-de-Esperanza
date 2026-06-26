@@ -27,6 +27,21 @@ export default function MisReportesView() {
   const [cargando, setCargando] = useState(true)
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
+  const [borrando, setBorrando] = useState<string | null>(null)
+
+  async function borrar(n: Necesidad) {
+    if (
+      !confirm(
+        '¿Eliminar este reporte? Se borrará para siempre, junto con su chat.',
+      )
+    )
+      return
+    setBorrando(n.id)
+    const { error } = await supabase.from('necesidades').delete().eq('id', n.id)
+    if (error) alert('No se pudo eliminar: ' + error.message)
+    else setLista((prev) => prev.filter((x) => x.id !== n.id))
+    setBorrando(null)
+  }
 
   // Aviso sonoro cuando quien me atiende escribe en alguno de mis reportes.
   useAvisoMensajes(
@@ -92,12 +107,21 @@ export default function MisReportesView() {
                     </div>
                   )}
               </div>
-              <button
-                onClick={() => setChat(n)}
-                className="btn-azul py-2.5 px-4 whitespace-nowrap"
-              >
-                💬 Mensajes
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setChat(n)}
+                  className="btn-azul py-2.5 px-4 whitespace-nowrap"
+                >
+                  💬 Mensajes
+                </button>
+                <button
+                  onClick={() => borrar(n)}
+                  disabled={borrando === n.id}
+                  className="py-2.5 px-4 whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-rojo text-bandera-rojo disabled:opacity-60"
+                >
+                  🗑️ Eliminar
+                </button>
+              </div>
             </div>
           ))}
         </div>

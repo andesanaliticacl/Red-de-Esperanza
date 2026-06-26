@@ -3,7 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { ESTADOS_VENEZUELA, ROL_META } from '../lib/types'
+import {
+  ESTADOS_VENEZUELA,
+  ROL_META,
+  type RolRegistro,
+} from '../lib/types'
+
+const ROLES_ELEGIBLES: RolRegistro[] = [
+  'ciudadano',
+  'voluntario',
+  'rescatista',
+  'centro_acopio',
+]
 
 /** Editar mis datos de perfil y subir/cambiar mi foto. */
 export default function EditarPerfilView() {
@@ -16,11 +27,18 @@ export default function EditarPerfilView() {
   const [ciudad, setCiudad] = useState(perfil?.ciudad ?? '')
   const [estado, setEstado] = useState(perfil?.estado ?? '')
   const [fotoUrl, setFotoUrl] = useState(perfil?.foto_url ?? '')
+  const [nuevoRol, setNuevoRol] = useState<RolRegistro | null>(
+    rol && (ROLES_ELEGIBLES as string[]).includes(rol)
+      ? (rol as RolRegistro)
+      : null,
+  )
 
   const [subiendo, setSubiendo] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const meta = rol ? ROL_META[rol] : null
+  // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
+  const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
 
   async function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -65,6 +83,8 @@ export default function EditarPerfilView() {
         ciudad: ciudad.trim() || null,
         estado: estado || null,
         foto_url: fotoUrl || null,
+        // Solo cambia el rol si es un rol elegible (no admin/verificador).
+        ...(puedeCambiarRol && nuevoRol ? { rol: nuevoRol } : {}),
       })
       .eq('id', perfil.id)
     if (error) {
@@ -110,6 +130,29 @@ export default function EditarPerfilView() {
             {subiendo ? 'Subiendo…' : '📷 Elegir foto'}
           </button>
         </div>
+
+        {/* Cambiar mi rol (solo entre roles elegibles) */}
+        {puedeCambiarRol && (
+          <div>
+            <p className="text-sm font-semibold mb-2">¿Cómo participas?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {ROLES_ELEGIBLES.map((r) => (
+                <button
+                  type="button"
+                  key={r}
+                  onClick={() => setNuevoRol(r)}
+                  className={`card text-left p-3 border-2 ${
+                    nuevoRol === r ? 'border-bandera-azul' : 'border-transparent'
+                  }`}
+                >
+                  <div className="font-bold text-sm">
+                    {ROL_META[r].emoji} {ROL_META[r].etiqueta}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <label className="block text-sm font-semibold">
           Nombre
