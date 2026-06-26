@@ -7,7 +7,11 @@ import {
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
-import { PAISES_MUNDO, banderaDe } from '../lib/paises'
+import { PAISES_MUNDO, isoDe } from '../lib/paises'
+import Bandera from '../components/Bandera'
+import SelectorBandera, {
+  type OpcionBandera,
+} from '../components/SelectorBandera'
 import { ESTADOS_VENEZUELA, type CentroAcopio } from '../lib/types'
 
 export default function CentrosAcopioView() {
@@ -166,21 +170,20 @@ export default function CentrosAcopioView() {
 
       {/* Filtros: país (mundo) · estado · ciudad */}
       <div className="card grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <select
-          className="input"
-          value={fPais}
-          onChange={(e) => {
-            setFPais(e.target.value)
+        <SelectorBandera
+          opciones={[
+            { value: '', iso: '', etiqueta: 'Todos los países' },
+            ...paisesDisponibles.map(
+              (p): OpcionBandera => ({ value: p, iso: isoDe(p), etiqueta: p }),
+            ),
+          ]}
+          valor={fPais}
+          onChange={(v) => {
+            setFPais(v)
             setFEstado('')
           }}
-        >
-          <option value="">🌎 Todos los países</option>
-          {paisesDisponibles.map((p) => (
-            <option key={p} value={p}>
-              {banderaDe(p)} {p}
-            </option>
-          ))}
-        </select>
+          placeholder="Todos los países"
+        />
         <select
           className="input"
           value={fEstado}
@@ -232,7 +235,7 @@ export default function CentrosAcopioView() {
         porPais.map(([pais, lista]) => (
           <section key={pais} className="space-y-2">
             <h2 className="font-bold text-lg flex items-center gap-2">
-              <span className="text-xl">{banderaDe(pais)}</span>
+              <Bandera iso={isoDe(pais)} />
               {pais}{' '}
               <span className="text-sm font-normal text-gray-400">
                 ({lista.length})
@@ -311,16 +314,21 @@ function FormCentro({
   const [descripcion, setDescripcion] = useState('')
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
+  const [gps, setGps] = useState<'idle' | 'buscando' | 'error'>('idle')
   const [estado, setEstado] = useState<'idle' | 'guardando'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  const hayUbicacion = !Number.isNaN(parseFloat(lat)) && !Number.isNaN(parseFloat(lng))
+
   async function usarGPS() {
+    setGps('buscando')
     try {
       const u = await obtenerUbicacion()
       setLat(u.lat.toFixed(6))
       setLng(u.lng.toFixed(6))
+      setGps('idle')
     } catch {
-      setErrorMsg('No pudimos obtener la ubicación. Escríbela a mano.')
+      setGps('error')
     }
   }
 
@@ -330,7 +338,7 @@ function FormCentro({
     const nLat = parseFloat(lat)
     const nLng = parseFloat(lng)
     if (Number.isNaN(nLat) || Number.isNaN(nLng)) {
-      setErrorMsg('Falta la ubicación (lat/lng). Usa el botón de GPS.')
+      setErrorMsg('La ubicación es obligatoria. Toca “Usar mi ubicación GPS”.')
       return
     }
     setEstado('guardando')
@@ -364,21 +372,18 @@ function FormCentro({
         onChange={(e) => setNombre(e.target.value)}
       />
       <div className="grid grid-cols-2 gap-2">
-        <select
-          className="input"
-          required
-          value={pais}
-          onChange={(e) => {
-            setPais(e.target.value)
+        <SelectorBandera
+          opciones={PAISES_MUNDO.map((p) => ({
+            value: p.nombre,
+            iso: p.iso,
+            etiqueta: p.nombre,
+          }))}
+          valor={pais}
+          onChange={(v) => {
+            setPais(v)
             setRegion('')
           }}
-        >
-          {PAISES_MUNDO.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
-              {p.bandera} {p.nombre}
-            </option>
-          ))}
-        </select>
+        />
         {pais === 'Venezuela' ? (
           <select
             className="input"
@@ -419,22 +424,43 @@ function FormCentro({
         value={descripcion}
         onChange={(e) => setDescripcion(e.target.value)}
       />
-      <div className="flex gap-2">
-        <input
-          className="input"
-          placeholder="Lat"
-          value={lat}
-          onChange={(e) => setLat(e.target.value)}
-        />
-        <input
-          className="input"
-          placeholder="Lng"
-          value={lng}
-          onChange={(e) => setLng(e.target.value)}
-        />
-        <button type="button" onClick={usarGPS} className="btn-gris px-3">
-          📍
+      {/* Ubicación obligatoria */}
+      <div
+        className={`rounded-xl border-2 p-3 ${
+          hayUbicacion ? 'border-green-300 bg-green-50' : 'border-gray-200'
+        }`}
+      >
+        <p className="font-semibold text-sm mb-2">
+          Ubicación del centro <span className="text-bandera-rojo">*</span>
+        </p>
+        <button
+          type="button"
+          onClick={usarGPS}
+          disabled={gps === 'buscando'}
+          className="btn-azul w-full disabled:opacity-70"
+        >
+          {gps === 'buscando' ? (
+            <>
+              <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+              Detectando ubicación…
+            </>
+          ) : hayUbicacion ? (
+            <>🔄 Actualizar mi ubicación</>
+          ) : (
+            <>📍 Usar mi ubicación GPS</>
+          )}
         </button>
+        {hayUbicacion && (
+          <p className="text-sm text-green-700 mt-2">
+            ✅ Ubicación lista: {parseFloat(lat).toFixed(4)},{' '}
+            {parseFloat(lng).toFixed(4)}
+          </p>
+        )}
+        {gps === 'error' && (
+          <p className="text-sm text-bandera-rojo mt-2">
+            No pudimos obtener tu ubicación. Activa el GPS e inténtalo de nuevo.
+          </p>
+        )}
       </div>
       {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
       <button
