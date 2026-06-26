@@ -37,16 +37,17 @@ export interface Necesidad {
   urgencia: NecesidadUrgencia
   estado: NecesidadEstado
   descripcion: string
-  texto_crudo: string | null
   zona: string | null
   lat: number | null
   lng: number | null
   origen: string | null
   reportado_por: string | null
   asignado_a: string | null
-  verificada_por: string | null
   creado_en: string
-  actualizado_en: string
+  // Campos pesados/sensibles que no se traen en las vistas públicas.
+  texto_crudo?: string | null
+  verificada_por?: string | null
+  actualizado_en?: string
 }
 
 export interface Mensaje {

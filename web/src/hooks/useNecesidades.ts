@@ -2,9 +2,23 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Necesidad, CentroAcopio } from '../lib/types'
 
+// Solo las columnas que usan las vistas (no traemos texto_crudo, verificada_por,
+// actualizado_en ni nada sensible). Reduce muchísimo el tráfico. (Fase 2)
+const COLS_NECESIDAD =
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en'
+
+// Tope de registros por carga: nadie puede ver decenas de miles. (Fase 4)
+const LIMITE = 500
+
 /**
  * Carga necesidades + centros de acopio y se mantiene al día por Realtime.
- * `filtroEstados` (opcional) restringe qué estados se traen.
+ *
+ * Optimizaciones de escala:
+ *  - Fase 1: Realtime aplica cambios de forma incremental (INSERT/UPDATE/DELETE)
+ *    sobre el estado de React. NO se vuelve a hacer un SELECT por cada evento.
+ *  - Fase 2: se piden solo las columnas necesarias.
+ *  - Fase 4: límite de registros.
+ *  - Fase 25: canal Realtime dedicado solo a la tabla `necesidades`.
  */
 export function useNecesidades(filtroEstados?: Necesidad['estado'][]) {
   const [necesidades, setNecesidades] = useState<Necesidad[]>([])
@@ -12,35 +26,62 @@ export function useNecesidades(filtroEstados?: Necesidad['estado'][]) {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // ¿Una fila entra en el filtro de estados activo?
+  function pasaFiltro(n: { estado: Necesidad['estado'] }): boolean {
+    if (!filtroEstados || filtroEstados.length === 0) return true
+    return filtroEstados.includes(n.estado)
+  }
+
   async function cargar() {
     let q = supabase
       .from('necesidades')
-      .select('*')
+      .select(COLS_NECESIDAD)
       .order('creado_en', { ascending: false })
-    if (filtroEstados && filtroEstados.length)
-      q = q.in('estado', filtroEstados)
+      .limit(LIMITE)
+    if (filtroEstados && filtroEstados.length) q = q.in('estado', filtroEstados)
 
     const [nec, ac] = await Promise.all([
       q,
-      supabase.from('centros_acopio').select('*'),
+      supabase
+        .from('centros_acopio')
+        .select('id, nombre, descripcion, pais, estado, ciudad, direccion, lat, lng'),
     ])
 
     if (nec.error) setError(nec.error.message)
-    else setNecesidades((nec.data ?? []) as Necesidad[])
-    if (!ac.error) setAcopios((ac.data ?? []) as CentroAcopio[])
+    else setNecesidades((nec.data ?? []) as unknown as Necesidad[])
+    if (!ac.error) setAcopios((ac.data ?? []) as unknown as CentroAcopio[])
     setCargando(false)
   }
 
   useEffect(() => {
     cargar()
 
-    // Realtime: cualquier cambio en `necesidades` refresca la lista.
+    // Realtime incremental: parchea el estado en lugar de recargar toda la tabla.
     const canal = supabase
-      .channel('necesidades-vivo')
+      .channel('necesidades-cambios')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'necesidades' },
-        () => cargar(),
+        (payload) => {
+          setNecesidades((prev) => {
+            if (payload.eventType === 'DELETE') {
+              const viejo = payload.old as { id?: string }
+              return viejo.id ? prev.filter((n) => n.id !== viejo.id) : prev
+            }
+            const fila = payload.new as unknown as Necesidad
+            if (payload.eventType === 'INSERT') {
+              if (!pasaFiltro(fila) || prev.some((n) => n.id === fila.id))
+                return prev
+              return [fila, ...prev]
+            }
+            // UPDATE
+            if (!pasaFiltro(fila)) return prev.filter((n) => n.id !== fila.id)
+            const existe = prev.some((n) => n.id === fila.id)
+            return existe
+              ? prev.map((n) => (n.id === fila.id ? { ...n, ...fila } : n))
+              : [fila, ...prev]
+          })
+        },
       )
       .subscribe()
 

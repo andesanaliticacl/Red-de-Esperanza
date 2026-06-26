@@ -30,7 +30,9 @@ export default function HistorialView() {
       const consultas = [
         supabase
           .from('necesidades')
-          .select('*')
+          .select(
+            'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en',
+          )
           .eq('reportado_por', perfil!.id)
           .order('creado_en', { ascending: false }),
         esStaff

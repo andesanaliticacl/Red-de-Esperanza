@@ -31,7 +31,9 @@ export default function MisReportesView() {
     if (!perfil?.id) return
     supabase
       .from('necesidades')
-      .select('*')
+      .select(
+        'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en',
+      )
       .eq('reportado_por', perfil.id)
       .order('creado_en', { ascending: false })
       .then(({ data }) => {
