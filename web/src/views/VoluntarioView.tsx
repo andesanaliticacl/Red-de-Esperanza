@@ -229,14 +229,25 @@ export default function VoluntarioView() {
                     <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
                 )}
-                {/* Solo los rescatistas (y admin) pueden contactar/atender SOS */}
+                {/* Solo los rescatistas (y admin) pueden tomar/atender un SOS.
+                    "Voy en camino" lo pasa a en_proceso → en el mapa aparece el
+                    cartelito y al creador le llega el aviso de que ya lo atienden. */}
                 {esRescatista && (
-                  <button
-                    onClick={() => setChat(n)}
-                    className="btn-gris py-2 px-3 text-sm whitespace-nowrap"
-                  >
-                    💬 Contactar
-                  </button>
+                  <>
+                    <button
+                      onClick={() => asignarme(n)}
+                      disabled={trabajando === n.id}
+                      className="btn-verde py-2 px-3 text-sm whitespace-nowrap disabled:opacity-60"
+                    >
+                      🚑 Voy en camino
+                    </button>
+                    <button
+                      onClick={() => setChat(n)}
+                      className="btn-gris py-2 px-3 text-sm whitespace-nowrap"
+                    >
+                      💬 Contactar
+                    </button>
+                  </>
                 )}
               </div>
             </div>

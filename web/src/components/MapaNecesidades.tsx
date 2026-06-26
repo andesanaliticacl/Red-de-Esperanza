@@ -75,38 +75,61 @@ function separarSolapados(
   return posiciones
 }
 
-/** Botón flotante para centrar el mapa en mi ubicación. */
-function BotonCentrarme({
-  ubicacion,
+/**
+ * Controles flotantes del mapa (abajo a la derecha, apilados):
+ *  · "Ver Venezuela": centra el mapa en el país para que quien esté fuera
+ *    pueda ver de un vistazo todas las emergencias reportadas allá.
+ *  · "Mi ubicación": centra el mapa donde está el usuario (solo si la tenemos).
+ * Ambos son responsivos: el texto se acorta en pantallas pequeñas.
+ */
+function ControlesMapa({
+  miUbicacion,
 }: {
-  ubicacion: { lat: number; lng: number }
+  miUbicacion?: { lat: number; lng: number } | null
 }) {
   const map = useMap()
   return (
-    <button
-      onClick={() => map.setView([ubicacion.lat, ubicacion.lng], 16)}
-      className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] bg-white text-bandera-azul rounded-full h-11 w-11 shadow-lg border flex items-center justify-center hover:bg-gray-50"
-      title="Centrar en mi ubicación"
-      aria-label="Centrar en mi ubicación"
-    >
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <div className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] flex flex-col items-end gap-2">
+      <button
+        onClick={() => map.setView(CENTRO_VENEZUELA, 6)}
+        className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
+        title="Ver las emergencias reportadas en Venezuela"
+        aria-label="Ver Venezuela"
       >
-        <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
-        <circle cx="12" cy="12" r="7" />
-        <line x1="12" y1="1.5" x2="12" y2="4.5" />
-        <line x1="12" y1="19.5" x2="12" y2="22.5" />
-        <line x1="1.5" y1="12" x2="4.5" y2="12" />
-        <line x1="19.5" y1="12" x2="22.5" y2="12" />
-      </svg>
-    </button>
+        <span className="text-base leading-none">🇻🇪</span>
+        <span className="whitespace-nowrap">
+          Ver <span className="hidden sm:inline">emergencias en </span>Venezuela
+        </span>
+      </button>
+
+      {miUbicacion && (
+        <button
+          onClick={() => map.setView([miUbicacion.lat, miUbicacion.lng], 16)}
+          className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
+          title="Centrar en mi ubicación actual"
+          aria-label="Mi ubicación actual"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+            <circle cx="12" cy="12" r="7" />
+            <line x1="12" y1="1.5" x2="12" y2="4.5" />
+            <line x1="12" y1="19.5" x2="12" y2="22.5" />
+            <line x1="1.5" y1="12" x2="4.5" y2="12" />
+            <line x1="19.5" y1="12" x2="22.5" y2="12" />
+          </svg>
+          <span className="whitespace-nowrap">Mi ubicación</span>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -268,19 +291,19 @@ export default function MapaNecesidades({
           </Marker>
         ))}
 
-      {/* Mi ubicación: marcador con mi foto + botón para centrarme. */}
+      {/* Mi ubicación: marcador con mi foto. */}
       {miUbicacion && (
-        <>
-          <Marker
-            position={[miUbicacion.lat, miUbicacion.lng]}
-            icon={iconoUsuario(miFoto)}
-            zIndexOffset={1000}
-          >
-            <Popup>📍 Tú estás aquí</Popup>
-          </Marker>
-          <BotonCentrarme ubicacion={miUbicacion} />
-        </>
+        <Marker
+          position={[miUbicacion.lat, miUbicacion.lng]}
+          icon={iconoUsuario(miFoto)}
+          zIndexOffset={1000}
+        >
+          <Popup>📍 Tú estás aquí</Popup>
+        </Marker>
       )}
+
+      {/* Controles: "Ver Venezuela" (siempre) y "Mi ubicación" (si la tenemos). */}
+      <ControlesMapa miUbicacion={miUbicacion} />
     </MapContainer>
   )
 }

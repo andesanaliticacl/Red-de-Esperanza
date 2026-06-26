@@ -21,13 +21,12 @@ export function iconoNecesidad(
         ? '3px solid #16A34A'
         : '3px solid #ffffff'
   const opacidad = estado === 'resuelta' ? 0.5 : 1
-  // Pequeña insignia de estado encima del pin.
+  // Pequeña insignia de estado encima del pin (solo "resuelta" lleva insignia;
+  // "en proceso" se anuncia con un cartelito debajo, ver más abajo).
   const insignia =
-    estado === 'en_proceso'
-      ? '<span style="position:absolute;top:-6px;right:-6px;background:#002FA7;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">⏳</span>'
-      : estado === 'resuelta'
-        ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
-        : ''
+    estado === 'resuelta'
+      ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
+      : ''
 
   // El derrumbe se ve más explícito: pin más grande, halo que late y una
   // insignia ⚠️ para que se entienda al instante que es un edificio colapsado.
@@ -38,6 +37,16 @@ export function iconoNecesidad(
   const insigniaPeligro =
     esDerrumbe && estado !== 'en_proceso' && estado !== 'resuelta'
       ? '<span style="position:absolute;top:-7px;right:-7px;font-size:14px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">⚠️</span>'
+      : ''
+
+  // Cuando alguien ya tomó la necesidad, mostramos un cartelito visible debajo
+  // del pin para que NADIE pierda el tiempo yendo dos veces al mismo punto.
+  const etiquetaEnCamino =
+    estado === 'en_proceso'
+      ? `<div style="position:absolute;top:${tam + 1}px;left:50%;transform:translateX(-50%);
+            background:#002FA7;color:#fff;font-size:10px;font-weight:700;line-height:1.2;
+            padding:2px 7px;border-radius:9999px;white-space:nowrap;
+            box-shadow:0 1px 3px rgba(0,0,0,.45);border:1px solid #fff;">🚑 Alguien va en camino</div>`
       : ''
 
   return L.divIcon({
@@ -55,7 +64,7 @@ export function iconoNecesidad(
           display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
         </div>
-        ${insignia}${insigniaPeligro}
+        ${insignia}${insigniaPeligro}${etiquetaEnCamino}
       </div>`,
     iconSize: [tam, tam],
     iconAnchor: [tam / 2, tam],
