@@ -1,5 +1,55 @@
 # Red de Esperanza — Guía de construcción para Claude Code (v2)
 
+> ## ⚠️ Estado real del proyecto (actualizado) — leer primero
+>
+> Esta guía v2 es el plan **original**. El proyecto construido **evolucionó** y
+> algunas piezas de esta guía **ya NO aplican**. Lo de abajo manda sobre el
+> resto del documento.
+>
+> ### ❌ Eliminado (ya no existe en el proyecto)
+> - **Bot de Telegram** completo (carpeta `bot/`, `grammY`, `TELEGRAM_BOT_TOKEN`).
+> - **IA / Google Gemini** para extraer datos (`GEMINI_API_KEY`, `GEMINI_MODEL`).
+>   Ya no hace falta: el ciudadano reporta **dentro de la app** con un formulario
+>   que entrega datos estructurados (tipo, urgencia, ubicación) directamente.
+> - **Hosting en Render** y el **webhook** de Telegram.
+> - **`SUPABASE_SERVICE_KEY`** (secret) en el cliente: la web usa solo la
+>   **publishable key**; la seguridad la da el RLS.
+> - **Magic link como método principal** de acceso (ahora es secundario).
+> - El valor `'telegram'` de la columna `origen` (queda solo `'web'` y `'sos'`).
+>   La columna `texto_crudo` se conserva pero la UI ya no la usa.
+>
+> ### ✅ Agregado / cambiado respecto a la guía
+> - **Seguridad del contacto:** el campo `contacto` se aisló en la tabla
+>   `contactos_necesidad` (RLS no filtra columnas y Realtime entrega la fila
+>   completa). Legible solo por personal interno.
+> - **Registro con correo + contraseña** y formulario completo: nombre,
+>   **cédula/pasaporte**, **estado de Venezuela** + ciudad, teléfono y rol.
+>   El trigger **sanea el rol**: nadie se auto-asigna verificador/admin.
+> - **Roles ampliados:** además de ciudadano/voluntario/verificador/admin, se
+>   añadieron **`rescatista`** y **`centro_acopio`**.
+> - **Mensajería (chat) por necesidad** entre el reportante y quien atiende:
+>   tabla `mensajes` + RLS (staff o dueño del reporte) + Realtime. Vistas:
+>   `ChatNecesidad`, `MisReportesView`, botón 💬 en voluntario/verificador.
+> - **Analítica:** tabla `eventos` + triggers que registran cada acción
+>   (reportes, SOS, verificaciones, asignaciones, atenciones, mensajes, cuentas)
+>   y vista `estadisticas_usuario`. Archivo `supabase/02_analitica_y_emergencias.sql`.
+> - **SOS:** botón de **llamada al 911** (no es auto-llamada: el navegador no
+>   puede marcar solo) y **feed de emergencias en tiempo real** para rescatistas.
+> - **Ubicación:** GPS con **respaldo por IP** si el GPS falla, con indicador de
+>   carga. Botón **"🧭 Cómo llegar"** que abre Google Maps con ruta y tiempo.
+> - **UI responsiva:** botones de tamaño contenido en escritorio; leyenda visible.
+>
+> ### 📦 Estructura actual
+> ```
+> red-de-esperanza/
+> ├── web/        → PWA (todo el frontend)
+> ├── supabase/   → schema.sql + 02_analitica_y_emergencias.sql
+> └── README.md
+> ```
+> El stack real es: React + Vite + TS · Tailwind · Leaflet/OSM · Supabase
+> (Postgres + Auth + Realtime) · Vercel. **Sin** Telegram, **sin** Gemini,
+> **sin** Render.
+
 **Objetivo:** una herramienta de emergencia (web + móvil) donde la gente reporta necesidades por un bot de Telegram o por la web, una IA las estructura, **voluntarios verificadores las confirman**, y aparecen en un mapa colaborativo público en tiempo casi real.
 
 **Estrategia "web + móvil":** **PWA** (Progressive Web App) en React + Vite. Un solo código que funciona en navegador y se **instala en el celular como app** (iOS y Android) sin tiendas. Lo más rápido para una emergencia.

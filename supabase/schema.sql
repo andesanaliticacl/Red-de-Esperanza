@@ -72,7 +72,7 @@ create table necesidades (
   zona text,
   lat double precision,
   lng double precision,
-  origen text default 'web',        -- 'web' | 'telegram' | 'sos'
+  origen text default 'web',        -- 'web' | 'sos'
   reportado_por uuid references perfiles(id), -- null si el reporte es anónimo
   asignado_a uuid references perfiles(id),
   verificada_por uuid references perfiles(id),

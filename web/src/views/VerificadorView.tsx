@@ -148,7 +148,7 @@ function TarjetaVerificacion({
     <div className="card space-y-3 border-l-4" style={{ borderLeftColor: TIPO_META[n.tipo].color }}>
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm text-gray-500">
-          {n.origen === 'telegram' ? '📨 Telegram' : n.origen === 'sos' ? '🆘 SOS' : '🌐 Web'} ·{' '}
+          {n.origen === 'sos' ? '🆘 SOS' : '🌐 Web'} ·{' '}
           {new Date(n.creado_en).toLocaleString('es-VE')}
         </div>
         {n.tipo === 'rescate' && (
