@@ -49,11 +49,14 @@ export default function MapaNecesidades({
   acopios = [],
   miUbicacion,
   miFoto,
+  onMensaje,
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
   miUbicacion?: { lat: number; lng: number } | null
   miFoto?: string | null
+  /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
+  onMensaje?: (n: Necesidad) => void
 }) {
   return (
     <MapContainer
@@ -91,14 +94,24 @@ export default function MapaNecesidades({
                     {n.estado === 'en_proceso' ? '🔵 En proceso' : '✅ Resuelta'}
                   </div>
                 )}
-                <a
-                  href={enlaceComoLlegar(n.lat as number, n.lng as number)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-1 bg-bandera-azul text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
-                >
-                  <IconoRuta className="mr-1" /> Cómo llegar
-                </a>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  <a
+                    href={enlaceComoLlegar(n.lat as number, n.lng as number)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-bandera-azul text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
+                  >
+                    <IconoRuta className="mr-1" /> Cómo llegar
+                  </a>
+                  {onMensaje && (
+                    <button
+                      onClick={() => onMensaje(n)}
+                      className="inline-block bg-gray-200 text-gray-800 font-semibold px-3 py-1.5 rounded-lg"
+                    >
+                      💬 Mensaje
+                    </button>
+                  )}
+                </div>
               </div>
             </Popup>
           </Marker>
