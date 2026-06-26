@@ -102,3 +102,22 @@ export function iconoUsuario(fotoUrl?: string | null): L.DivIcon {
     popupAnchor: [0, -13],
   })
 }
+
+// Ícono para personas desaparecidas
+export const iconoDesaparecido = (encontrado: boolean) =>
+  L.divIcon({
+    className: '',
+    html: `
+      <div style="
+        width:36px; height:36px; border-radius:50%;
+        background:${encontrado ? '#16a34a' : '#7c3aed'};
+        border: 3px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        display:flex; align-items:center; justify-content:center;
+        font-size:18px;
+      ">${encontrado ? '✅' : '🔍'}</div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
+  })

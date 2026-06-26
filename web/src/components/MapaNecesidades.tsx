@@ -1,7 +1,13 @@
 import { useEffect } from 'react'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import { iconoNecesidad, iconoAcopio, iconoUsuario } from '../lib/iconos'
+import type { Desaparecido } from '../hooks/useDesaparecidos'
+import {
+  iconoDesaparecido,
+  iconoNecesidad,
+  iconoAcopio,
+  iconoUsuario,
+} from '../lib/iconos'
 import IconoRuta from './IconoRuta'
 
 /** Ajusta el zoom/centro para que se vean todos los puntos dados. */
@@ -107,6 +113,7 @@ function BotonCentrarme({
 export default function MapaNecesidades({
   necesidades,
   acopios = [],
+  desaparecidos = [],
   miUbicacion,
   miFoto,
   onMensaje,
@@ -114,6 +121,7 @@ export default function MapaNecesidades({
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
+  desaparecidos?: Desaparecido[]
   miUbicacion?: { lat: number; lng: number } | null
   miFoto?: string | null
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
@@ -219,6 +227,46 @@ export default function MapaNecesidades({
           </Popup>
         </Marker>
       ))}
+
+      {/* Desaparecidos */}
+      {desaparecidos
+        .filter((d) => d.lat != null && d.lng != null)
+        .map((d) => (
+          <Marker
+            key={d.id}
+            position={[d.lat as number, d.lng as number]}
+            icon={iconoDesaparecido(d.estado === 'encontrado')}
+            zIndexOffset={500}
+          >
+            <Popup>
+              <div className="space-y-1 min-w-[180px]">
+                <div className="font-bold text-sm">
+                  {d.estado === 'encontrado' ? '✅ Encontrado/a' : '🔍 Por localizar'}
+                </div>
+                <div className="font-semibold">{d.nombre}</div>
+                {d.edad && (
+                  <div className="text-xs text-gray-600">
+                    {d.edad} años {d.genero ? `· ${d.genero}` : ''}
+                  </div>
+                )}
+                {d.ultima_ubicacion && (
+                  <div className="text-xs text-gray-600">📍 {d.ultima_ubicacion}</div>
+                )}
+                {d.fecha_desaparicion && (
+                  <div className="text-xs text-gray-600">
+                    📅 Desapareció: {d.fecha_desaparicion}
+                  </div>
+                )}
+                {d.contacto_familiar && (
+                  <div className="text-xs font-semibold text-bandera-azul">
+                    📞 {d.contacto_familiar}
+                  </div>
+                )}
+                <div className="text-xs text-gray-400 mt-1">Fuente: Venezuela Te Busca</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
       {/* Mi ubicación: marcador con mi foto + botón para centrarme. */}
       {miUbicacion && (

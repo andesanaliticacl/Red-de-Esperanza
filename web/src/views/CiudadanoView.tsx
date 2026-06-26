@@ -8,6 +8,7 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
+import { useDesaparecidos } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -34,6 +35,7 @@ export default function CiudadanoView() {
     'verificada',
     'en_proceso',
   ])
+  const { desaparecidos } = useDesaparecidos()
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
   const { perfil, session } = useAuth()
@@ -128,6 +130,7 @@ export default function CiudadanoView() {
           <MapaNecesidades
             necesidades={filtradas}
             acopios={acopiosVisibles}
+            desaparecidos={desaparecidos}
             miUbicacion={coordAuto}
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
