@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Variables de entorno (NUNCA subir llaves)
+.env
+.env.local
+**/.env
+**/.env.local
+
+# Builds
+dist/
+**/dist/
+build/
+**/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / SO
+.DS_Store
+.vscode/
+*.swp
