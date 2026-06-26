@@ -1,4 +1,7 @@
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import { iconoNecesidad, iconoAcopio } from '../lib/iconos'
 import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
 import {
@@ -27,7 +30,10 @@ export default function MapaNecesidades({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {necesidades
+      {/* Fase 5: agrupamos los marcadores en clusters para que el mapa siga
+          fluido aunque haya miles de reportes. */}
+      <MarkerClusterGroup chunkedLoading maxClusterRadius={60}>
+        {necesidades
         .filter((n) => n.lat != null && n.lng != null)
         .map((n) => (
           <Marker
@@ -62,6 +68,7 @@ export default function MapaNecesidades({
             </Popup>
           </Marker>
         ))}
+      </MarkerClusterGroup>
 
       {acopios.map((a) => (
         <Marker key={a.id} position={[a.lat, a.lng]} icon={iconoAcopio}>
