@@ -63,8 +63,10 @@ export function useNecesidades(
     cargar()
 
     // Realtime incremental: parchea el estado en lugar de recargar toda la tabla.
+    // Canal único por instancia: evita el conflicto "subscribe multiple times"
+    // que dejaba una vista sin recibir cambios (p. ej. "Abiertas" desfasada del mapa).
     const canal = supabase
-      .channel('necesidades-cambios')
+      .channel(`necesidades-cambios:${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'necesidades' },

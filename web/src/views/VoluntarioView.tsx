@@ -192,7 +192,9 @@ export default function VoluntarioView() {
           <h2 className="font-extrabold text-bandera-rojo flex items-center gap-2">
             🆘 Emergencias SOS entrantes ({sos.length})
             <span className="text-xs font-normal text-red-700">
-              atiende según prioridad
+              {esRescatista
+                ? 'atiende según prioridad'
+                : 'solo rescatistas las atienden'}
             </span>
           </h2>
           {sos.map((n) => (
@@ -224,12 +226,15 @@ export default function VoluntarioView() {
                     <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
                 )}
-                <button
-                  onClick={() => setChat(n)}
-                  className="btn-gris py-2 px-3 text-sm whitespace-nowrap"
-                >
-                  💬
-                </button>
+                {/* Solo los rescatistas (y admin) pueden contactar/atender SOS */}
+                {esRescatista && (
+                  <button
+                    onClick={() => setChat(n)}
+                    className="btn-gris py-2 px-3 text-sm whitespace-nowrap"
+                  >
+                    💬 Contactar
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -403,7 +408,7 @@ function Fila({
           onClick={onChat}
           className="btn-gris py-2.5 px-4 whitespace-nowrap"
         >
-          💬 Mensajes
+          💬 Contactar
         </button>
         {onRetirar && (
           <button
