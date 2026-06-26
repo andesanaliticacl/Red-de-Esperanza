@@ -3,8 +3,9 @@ import { Routes, Route } from 'react-router-dom'
 import BarraSuperior from './components/BarraSuperior'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
-// CiudadanoView es la pantalla principal (y el comodín *): se carga de una vez.
+// CiudadanoView es la pantalla principal: se carga de una vez.
 import CiudadanoView from './views/CiudadanoView'
+import NoEncontrada from './views/NoEncontrada'
 
 // El resto de vistas se cargan bajo demanda (Fase 24: lazy loading), para que
 // la primera carga del mapa sea lo más liviana posible.
@@ -107,7 +108,7 @@ export default function App() {
               }
             />
 
-            <Route path="*" element={<CiudadanoView />} />
+            <Route path="*" element={<NoEncontrada />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
