@@ -94,8 +94,12 @@ export interface CentroAcopio {
   id: string
   nombre: string
   descripcion: string | null
+  pais: string
+  ciudad: string | null
+  direccion: string | null
   lat: number
   lng: number
+  creado_por: string | null
   creado_en: string
 }
 

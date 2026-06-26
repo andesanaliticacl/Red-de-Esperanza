@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useNecesidades } from '../hooks/useNecesidades'
 import type { Perfil, RolUsuario } from '../lib/types'
 
-const ROLES: RolUsuario[] = ['ciudadano', 'voluntario', 'verificador', 'admin']
+// PAUSADO: 'verificador' se mantiene fuera de la lista mientras la verificación
+// está oculta. Para reactivarla, vuelve a añadirlo aquí.
+const ROLES: RolUsuario[] = [
+  'ciudadano',
+  'voluntario',
+  'rescatista',
+  'centro_acopio',
+  'admin',
+]
 
 export default function AdminView() {
   const { necesidades } = useNecesidades([
@@ -30,12 +39,12 @@ export default function AdminView() {
     const c = (estado: string) =>
       necesidades.filter((n) => n.estado === estado).length
     return {
-      sin_verificar: c('sin_verificar'),
-      verificada: c('verificada'),
+      // Sin verificación: "recibidas" = nuevas + (datos previos ya verificados).
+      recibidas: c('sin_verificar') + c('verificada'),
       en_proceso: c('en_proceso'),
       resuelta: c('resuelta'),
       voluntarios: perfiles.filter(
-        (p) => p.rol === 'voluntario' || p.rol === 'verificador',
+        (p) => p.rol === 'voluntario' || p.rol === 'rescatista',
       ).length,
     }
   }, [necesidades, perfiles])
@@ -56,9 +65,8 @@ export default function AdminView() {
       </h1>
 
       {/* Panel de estadísticas */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Tarjeta n={stats.sin_verificar} etiqueta="Sin verificar" color="#475569" />
-        <Tarjeta n={stats.verificada} etiqueta="Verificadas" color="#16A34A" />
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Tarjeta n={stats.recibidas} etiqueta="Recibidas" color="#475569" />
         <Tarjeta n={stats.en_proceso} etiqueta="En proceso" color="#002FA7" />
         <Tarjeta n={stats.resuelta} etiqueta="Resueltas" color="#0891B2" />
         <Tarjeta n={stats.voluntarios} etiqueta="Equipo activo" color="#CF9B00" />
@@ -106,8 +114,22 @@ export default function AdminView() {
         </div>
       </section>
 
-      {/* Crear centro de acopio */}
-      <FormAcopio />
+      {/* Centros de acopio: gestión unificada (también internacionales) */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">Centros de acopio</h2>
+        <Link to="/acopios" className="card flex items-center gap-3 no-underline">
+          <span className="text-2xl">📦</span>
+          <div className="flex-1">
+            <div className="font-semibold text-bandera-azul">
+              Ver y registrar centros de acopio
+            </div>
+            <div className="text-sm text-gray-600">
+              Incluye centros internacionales para enviar ayuda a Venezuela.
+            </div>
+          </div>
+          <span className="text-bandera-azul">→</span>
+        </Link>
+      </section>
     </div>
   )
 }
@@ -131,90 +153,3 @@ function Tarjeta({
   )
 }
 
-function FormAcopio() {
-  const [nombre, setNombre] = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const [lat, setLat] = useState('')
-  const [lng, setLng] = useState('')
-  const [estado, setEstado] = useState<'idle' | 'guardando' | 'ok'>('idle')
-
-  function usarGPS() {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setLat(pos.coords.latitude.toString())
-      setLng(pos.coords.longitude.toString())
-    })
-  }
-
-  async function guardar(e: React.FormEvent) {
-    e.preventDefault()
-    setEstado('guardando')
-    const { error } = await supabase.from('centros_acopio').insert({
-      nombre: nombre.trim(),
-      descripcion: descripcion.trim() || null,
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
-    })
-    if (error) {
-      alert('Error: ' + error.message)
-      setEstado('idle')
-    } else {
-      setEstado('ok')
-      setNombre('')
-      setDescripcion('')
-      setLat('')
-      setLng('')
-      setTimeout(() => setEstado('idle'), 2500)
-    }
-  }
-
-  return (
-    <section>
-      <h2 className="font-bold text-lg mb-2">Nuevo centro de acopio</h2>
-      <form onSubmit={guardar} className="card space-y-3">
-        <input
-          className="input"
-          placeholder="Nombre del centro"
-          required
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-        />
-        <input
-          className="input"
-          placeholder="Descripción (qué reciben, horario…)"
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-        />
-        <div className="flex gap-2">
-          <input
-            className="input"
-            placeholder="Lat"
-            required
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="Lng"
-            required
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-          />
-          <button type="button" onClick={usarGPS} className="btn-gris px-3">
-            📍
-          </button>
-        </div>
-        <button
-          type="submit"
-          disabled={estado === 'guardando'}
-          className="btn-azul w-full disabled:opacity-60"
-        >
-          {estado === 'ok'
-            ? '✅ Guardado'
-            : estado === 'guardando'
-              ? 'Guardando…'
-              : 'Crear centro de acopio'}
-        </button>
-      </form>
-    </section>
-  )
-}

@@ -22,13 +22,22 @@ const TIPOS: NecesidadTipo[] = [
 
 export default function VoluntarioView() {
   const { perfil } = useAuth()
-  // Verificadas (abiertas) y en proceso (para poder marcarlas atendidas).
-  const { necesidades, recargar } = useNecesidades(['verificada', 'en_proceso'])
-  // Emergencias SOS aún sin verificar: se muestran al instante (Realtime).
-  const { necesidades: sinVerificar } = useNecesidades(['sin_verificar'])
+  // Sin verificación: los reportes nuevos (y los de datos previos ya
+  // verificados) se atienden directamente, más los que están en proceso.
+  const { necesidades, recargar } = useNecesidades([
+    'sin_verificar',
+    'verificada',
+    'en_proceso',
+  ])
+  // Emergencias SOS: siempre visibles arriba, sin importar los filtros.
   const sos = useMemo(
-    () => sinVerificar.filter((n) => n.tipo === 'rescate' || n.origen === 'sos'),
-    [sinVerificar],
+    () =>
+      necesidades.filter(
+        (n) =>
+          (n.estado === 'sin_verificar' || n.estado === 'verificada') &&
+          (n.tipo === 'rescate' || n.origen === 'sos'),
+      ),
+    [necesidades],
   )
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
@@ -60,7 +69,8 @@ export default function VoluntarioView() {
       .from('necesidades')
       .update({ estado: 'en_proceso', asignado_a: perfil?.id ?? null })
       .eq('id', n.id)
-      .eq('estado', 'verificada') // evita que dos voluntarios tomen la misma
+      // evita que dos voluntarios tomen la misma
+      .in('estado', ['sin_verificar', 'verificada'])
     if (error) alert('Error: ' + error.message)
     await recargar()
     setTrabajando(null)
@@ -78,12 +88,17 @@ export default function VoluntarioView() {
   }
 
   const mias = lista.filter((n) => n.estado === 'en_proceso')
-  const abiertas = lista.filter((n) => n.estado === 'verificada')
+  // Abiertas = reportes por atender que NO son SOS (esos van en su sección).
+  const abiertas = lista.filter(
+    (n) =>
+      (n.estado === 'sin_verificar' || n.estado === 'verificada') &&
+      !(n.tipo === 'rescate' || n.origen === 'sos'),
+  )
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-extrabold text-bandera-azul">
-        Necesidades verificadas
+        Necesidades reportadas
       </h1>
 
       {/* Emergencias SOS entrantes (sin verificar) — visibles al instante */}
@@ -92,7 +107,7 @@ export default function VoluntarioView() {
           <h2 className="font-extrabold text-bandera-rojo flex items-center gap-2">
             🆘 Emergencias SOS entrantes ({sos.length})
             <span className="text-xs font-normal text-red-700">
-              sin verificar — actúa con criterio
+              atiende según prioridad
             </span>
           </h2>
           {sos.map((n) => (

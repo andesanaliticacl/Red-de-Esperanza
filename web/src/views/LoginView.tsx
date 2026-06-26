@@ -6,6 +6,7 @@ export default function LoginView() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [verPass, setVerPass] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [aviso, setAviso] = useState('')
@@ -72,14 +73,25 @@ export default function LoginView() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <input
-              type="password"
-              required
-              className="input"
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                type={verPass ? 'text' : 'password'}
+                required
+                className="input pr-12"
+                placeholder="Contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setVerPass((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-lg"
+                aria-label={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
+                title={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                {verPass ? '🙈' : '👁️'}
+              </button>
+            </div>
             {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
             <button
               type="submit"

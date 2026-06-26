@@ -16,8 +16,8 @@ export default function InicioRedirect() {
   switch (rol) {
     case 'admin':
       return <Navigate to="/admin" replace />
+    // PAUSADO: el verificador, por ahora, entra como el resto del personal.
     case 'verificador':
-      return <Navigate to="/verificar" replace />
     case 'voluntario':
     case 'rescatista':
       return <Navigate to="/voluntario" replace />

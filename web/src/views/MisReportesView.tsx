@@ -10,11 +10,11 @@ import {
 } from '../lib/types'
 
 const ESTADO_META: Record<NecesidadEstado, { etiqueta: string; clase: string }> = {
-  sin_verificar: { etiqueta: '⚪ Sin verificar', clase: 'bg-gray-100 text-gray-700' },
-  verificada: { etiqueta: '🟢 Verificada', clase: 'bg-green-100 text-green-700' },
+  sin_verificar: { etiqueta: '📩 Recibido', clase: 'bg-gray-100 text-gray-700' },
+  verificada: { etiqueta: '📩 Recibido', clase: 'bg-gray-100 text-gray-700' },
   en_proceso: { etiqueta: '🔧 En proceso', clase: 'bg-blue-100 text-blue-700' },
-  resuelta: { etiqueta: '✅ Resuelta', clase: 'bg-green-100 text-green-700' },
-  rechazada: { etiqueta: '✖️ Rechazada', clase: 'bg-red-100 text-red-700' },
+  resuelta: { etiqueta: '✅ Atendido', clase: 'bg-green-100 text-green-700' },
+  rechazada: { etiqueta: '✖️ Cerrado', clase: 'bg-red-100 text-red-700' },
 }
 
 /** Reportes que creó el usuario autenticado, con acceso al chat de cada uno. */

@@ -18,8 +18,9 @@ export default function BarraSuperior() {
     rol === 'admin'
   )
     enlaces.push({ to: '/voluntario', etiqueta: 'Atender' })
-  if (rol === 'verificador' || rol === 'admin')
-    enlaces.push({ to: '/verificar', etiqueta: 'Verificar' })
+  // PAUSADO: enlace de verificación oculto por ahora.
+  // if (rol === 'verificador' || rol === 'admin')
+  //   enlaces.push({ to: '/verificar', etiqueta: 'Verificar' })
   if (rol === 'admin') enlaces.push({ to: '/admin', etiqueta: 'Admin' })
 
   return (

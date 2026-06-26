@@ -3,16 +3,15 @@ import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
 
 /**
  * Íconos de Leaflet como divIcon (sin imágenes externas → evita el clásico
- * problema de marcadores invisibles con Vite). El color sale del tipo;
- * un anillo punteado indica que el reporte aún está 'sin_verificar'.
+ * problema de marcadores invisibles con Vite). El color sale del tipo.
+ * (Verificación pausada: ya no se distingue 'sin verificar' con borde punteado.)
  */
 export function iconoNecesidad(
   tipo: NecesidadTipo,
   estado: NecesidadEstado,
 ): L.DivIcon {
   const { color, emoji } = TIPO_META[tipo]
-  const sinVerificar = estado === 'sin_verificar'
-  const borde = sinVerificar ? '3px dashed #ffffff' : '3px solid #ffffff'
+  const borde = '3px solid #ffffff'
   const opacidad = estado === 'resuelta' ? 0.45 : 1
 
   return L.divIcon({

@@ -64,17 +64,11 @@ export default function MapaNecesidades({
                 <div className="text-xs">
                   Urgencia: {URGENCIA_META[n.urgencia].etiqueta}
                 </div>
-                <div className="text-xs font-semibold">
-                  {n.estado === 'sin_verificar'
-                    ? '⚪ Sin verificar'
-                    : n.estado === 'verificada'
-                      ? '🟢 Verificado'
-                      : n.estado === 'en_proceso'
-                        ? '🔵 En proceso'
-                        : n.estado === 'resuelta'
-                          ? '✅ Resuelta'
-                          : n.estado}
-                </div>
+                {(n.estado === 'en_proceso' || n.estado === 'resuelta') && (
+                  <div className="text-xs font-semibold">
+                    {n.estado === 'en_proceso' ? '🔵 En proceso' : '✅ Resuelta'}
+                  </div>
+                )}
                 <a
                   href={enlaceComoLlegar(n.lat as number, n.lng as number)}
                   target="_blank"
@@ -92,7 +86,18 @@ export default function MapaNecesidades({
         <Marker key={a.id} position={[a.lat, a.lng]} icon={iconoAcopio}>
           <Popup>
             <div className="font-bold">📦 {a.nombre}</div>
+            <div className="text-xs text-gray-600">
+              {[a.ciudad, a.pais].filter(Boolean).join(', ')}
+            </div>
             {a.descripcion && <div className="text-sm">{a.descripcion}</div>}
+            <a
+              href={enlaceComoLlegar(a.lat, a.lng)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-1 bg-bandera-azul text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
+            >
+              🧭 Cómo llegar
+            </a>
           </Popup>
         </Marker>
       ))}

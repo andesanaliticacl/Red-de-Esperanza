@@ -5,9 +5,12 @@ import CiudadanoView from './views/CiudadanoView'
 import LoginView from './views/LoginView'
 import RegistroView from './views/RegistroView'
 import MisReportesView from './views/MisReportesView'
+import CentrosAcopioView from './views/CentrosAcopioView'
 import InicioRedirect from './views/InicioRedirect'
 import VoluntarioView from './views/VoluntarioView'
-import VerificadorView from './views/VerificadorView'
+// PAUSADO: la verificación se ocultó por ahora. El código se conserva para
+// restaurarla en el futuro. Ver VerificadorView.tsx.
+// import VerificadorView from './views/VerificadorView'
 import AdminView from './views/AdminView'
 
 export default function App() {
@@ -20,6 +23,7 @@ export default function App() {
           <Route path="/" element={<CiudadanoView />} />
           <Route path="/login" element={<LoginView />} />
           <Route path="/registro" element={<RegistroView />} />
+          <Route path="/acopios" element={<CentrosAcopioView />} />
           <Route path="/inicio" element={<InicioRedirect />} />
 
           {/* Cualquier usuario autenticado: sus reportes y chats */}
@@ -44,7 +48,7 @@ export default function App() {
             }
           />
 
-          {/* Verificador y admin */}
+          {/* PAUSADO: verificación oculta por ahora (se conserva para el futuro)
           <Route
             path="/verificar"
             element={
@@ -53,6 +57,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          */}
 
           {/* Solo admin */}
           <Route

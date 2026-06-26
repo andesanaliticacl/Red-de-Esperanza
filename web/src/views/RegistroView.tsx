@@ -22,6 +22,33 @@ const DESCRIPCION_ROL: Record<RolRegistro, string> = {
   centro_acopio: 'Gestiono donaciones y suministros.',
 }
 
+// Convierte el error de Supabase en un mensaje claro en español.
+// Siempre deja el detalle crudo en la consola para poder diagnosticar.
+function mensajeDeError(error: unknown): string {
+  console.error('[registro] error completo:', error)
+  const crudo =
+    (typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof (error as { message: unknown }).message === 'string' &&
+      (error as { message: string }).message) ||
+    ''
+  const t = crudo.toLowerCase()
+  if (t.includes('already registered') || t.includes('already been registered'))
+    return 'Ya existe una cuenta con este correo. Inicia sesión.'
+  if (t.includes('invalid') && t.includes('email'))
+    return 'El correo no tiene un formato válido.'
+  if (t.includes('password'))
+    return 'La contraseña no cumple los requisitos (mínimo 6 caracteres).'
+  if (t.includes('database error') || t.includes('saving new user'))
+    return 'No pudimos guardar tu cuenta en el servidor. Revisa que todos los campos estén completos e inténtalo de nuevo.'
+  if (t.includes('failed to fetch') || t.includes('network'))
+    return 'Sin conexión con el servidor. Revisa tu internet e inténtalo otra vez.'
+  if (t.includes('rate limit') || t.includes('too many'))
+    return 'Demasiados intentos seguidos. Espera unos minutos e inténtalo de nuevo.'
+  return crudo || 'Ocurrió un error inesperado al crear la cuenta. Revisa la consola (F12) para más detalle.'
+}
+
 export default function RegistroView() {
   const navigate = useNavigate()
   const [nombre, setNombre] = useState('')
@@ -34,6 +61,7 @@ export default function RegistroView() {
   const [estado, setEstado] = useState('')
   const [ciudad, setCiudad] = useState('')
 
+  const [verPass, setVerPass] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [listo, setListo] = useState<'no' | 'confirmar' | 'sesion'>('no')
@@ -46,34 +74,39 @@ export default function RegistroView() {
       return
     }
     setEnviando(true)
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/inicio`,
-        data: {
-          nombre: nombre.trim(),
-          rol,
-          tipo_documento: tipoDoc,
-          documento: documento.trim(),
-          telefono: telefono.trim(),
-          ciudad: ciudad.trim(),
-          estado,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/inicio`,
+          data: {
+            nombre: nombre.trim(),
+            rol,
+            tipo_documento: tipoDoc,
+            documento: documento.trim(),
+            telefono: telefono.trim(),
+            ciudad: ciudad.trim(),
+            estado,
+          },
         },
-      },
-    })
-    if (error) {
-      setErrorMsg(error.message)
+      })
+      if (error) {
+        setErrorMsg(mensajeDeError(error))
+        setEnviando(false)
+        return
+      }
+      // Si el proyecto exige confirmación por correo no habrá sesión todavía.
+      if (data.session) {
+        navigate('/inicio', { replace: true })
+      } else {
+        setListo('confirmar')
+      }
+    } catch (err) {
+      setErrorMsg(mensajeDeError(err))
+    } finally {
       setEnviando(false)
-      return
     }
-    // Si el proyecto exige confirmación por correo no habrá sesión todavía.
-    if (data.session) {
-      navigate('/inicio', { replace: true })
-    } else {
-      setListo('confirmar')
-    }
-    setEnviando(false)
   }
 
   if (listo === 'confirmar') {
@@ -211,16 +244,29 @@ export default function RegistroView() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <input
-            type="password"
-            className="input"
-            placeholder="Contraseña (mínimo 6 caracteres)"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="relative">
+            <input
+              type={verPass ? 'text' : 'password'}
+              className="input pr-12"
+              placeholder="Contraseña (mínimo 6 caracteres)"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setVerPass((v) => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-lg"
+              aria-label={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
+              title={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {verPass ? '🙈' : '👁️'}
+            </button>
+          </div>
 
-          {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
+          {errorMsg && (
+            <p className="text-bandera-rojo text-sm font-medium">⚠️ {errorMsg}</p>
+          )}
 
           <button
             type="submit"

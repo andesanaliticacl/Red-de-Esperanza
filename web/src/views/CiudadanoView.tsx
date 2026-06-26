@@ -27,7 +27,6 @@ export default function CiudadanoView() {
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
-  const [soloVerificadas, setSoloVerificadas] = useState(false)
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
   const [coordTocada, setCoordTocada] = useState<{ lat: number; lng: number } | null>(
@@ -39,10 +38,9 @@ export default function CiudadanoView() {
       necesidades.filter((n) => {
         if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
         if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
-        if (soloVerificadas && n.estado === 'sin_verificar') return false
         return true
       }),
-    [necesidades, tipoFiltro, urgFiltro, soloVerificadas],
+    [necesidades, tipoFiltro, urgFiltro],
   )
 
   return (
@@ -64,8 +62,14 @@ export default function CiudadanoView() {
             🕊️ Esperanza
           </span>
           <Link
-            to="/login"
+            to="/acopios"
             className="ml-auto bg-white/95 text-bandera-azul font-semibold px-3 py-2 rounded-xl shadow"
+          >
+            📦 Acopios
+          </Link>
+          <Link
+            to="/login"
+            className="bg-white/95 text-bandera-azul font-semibold px-3 py-2 rounded-xl shadow"
           >
             Ingresar
           </Link>
@@ -98,14 +102,6 @@ export default function CiudadanoView() {
             <option value="media">Media</option>
             <option value="baja">Baja</option>
           </select>
-          <label className="flex items-center gap-1 text-sm whitespace-nowrap px-2">
-            <input
-              type="checkbox"
-              checked={soloVerificadas}
-              onChange={(e) => setSoloVerificadas(e.target.checked)}
-            />
-            Solo verificadas
-          </label>
         </div>
 
         {coordTocada && (
@@ -124,10 +120,6 @@ export default function CiudadanoView() {
       {/* Botones flotantes: SOS + Reportar (con leyenda integrada arriba) */}
       <div className="absolute bottom-4 left-0 right-0 z-[1000] px-4 pointer-events-none">
         <div className="mx-auto w-full max-w-md flex flex-col gap-2 pointer-events-auto">
-          <div className="self-center bg-white/95 rounded-full shadow px-3 py-1 text-xs flex items-center gap-3">
-            <span>🟢 Verificado</span>
-            <span>⚪ Sin verificar</span>
-          </div>
           <button
             onClick={() => setAbrirSos(true)}
             className="btn-rojo w-full text-base sm:text-lg py-3.5 animate-pulse"
