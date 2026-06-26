@@ -9,11 +9,16 @@
 alter table perfiles add column if not exists pais text;
 
 -- Al registrarse: se guarda el país y se sanea el rol según el país.
+-- IMPORTANTE: el registro NUNCA debe fallar por la base de datos. Si algo
+-- en el insert completo falla (p. ej. una columna que aún no existe), se
+-- captura el error y se crea al menos un perfil mínimo, para que la persona
+-- siempre pueda entrar. En una app de emergencia esto es prioritario.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 declare
   v_pais text := nullif(new.raw_user_meta_data->>'pais','');
   v_pedido text := new.raw_user_meta_data->>'rol';
+  v_nombre text := coalesce(nullif(new.raw_user_meta_data->>'nombre',''), new.email);
   v_rol rol_usuario;
 begin
   if v_pedido in ('voluntario','rescatista','centro_acopio') then
@@ -31,7 +36,7 @@ begin
     (id, nombre, rol, tipo_documento, documento, telefono, ciudad, estado, pais)
   values (
     new.id,
-    coalesce(nullif(new.raw_user_meta_data->>'nombre',''), new.email),
+    v_nombre,
     v_rol,
     nullif(new.raw_user_meta_data->>'tipo_documento',''),
     nullif(new.raw_user_meta_data->>'documento',''),
@@ -40,6 +45,13 @@ begin
     nullif(new.raw_user_meta_data->>'estado',''),
     v_pais
   );
+  return new;
+exception when others then
+  -- Red de seguridad: si el insert completo falló por cualquier motivo,
+  -- creamos un perfil mínimo para no bloquear el registro de la persona.
+  insert into public.perfiles (id, nombre, rol)
+  values (new.id, v_nombre, v_rol)
+  on conflict (id) do nothing;
   return new;
 end; $$;
 
