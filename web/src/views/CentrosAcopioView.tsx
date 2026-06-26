@@ -7,7 +7,7 @@ import {
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
-import { PAISES_MUNDO } from '../lib/paises'
+import { PAISES_MUNDO, banderaDe } from '../lib/paises'
 import { ESTADOS_VENEZUELA, type CentroAcopio } from '../lib/types'
 
 export default function CentrosAcopioView() {
@@ -110,13 +110,27 @@ export default function CentrosAcopioView() {
     }
   }
 
+  // El dueño (o un admin) puede borrar el centro que creó.
+  async function borrarCentro(c: CentroAcopio) {
+    if (!confirm(`¿Eliminar el centro "${c.nombre}"?`)) return
+    const { error } = await supabase
+      .from('centros_acopio')
+      .delete()
+      .eq('id', c.id)
+    if (error) alert('No se pudo eliminar: ' + error.message)
+    else cargar()
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Link to="/" className="text-bandera-azul font-semibold">
+      <div className="relative flex items-center justify-center">
+        <Link
+          to="/"
+          className="absolute left-0 text-bandera-azul font-semibold"
+        >
           ← Mapa
         </Link>
-        <h1 className="text-2xl font-extrabold text-bandera-azul ml-auto">
+        <h1 className="text-2xl font-extrabold text-bandera-azul text-center">
           Centros de acopio
         </h1>
       </div>
@@ -163,7 +177,7 @@ export default function CentrosAcopioView() {
           <option value="">🌎 Todos los países</option>
           {paisesDisponibles.map((p) => (
             <option key={p} value={p}>
-              {p}
+              {banderaDe(p)} {p}
             </option>
           ))}
         </select>
@@ -218,9 +232,7 @@ export default function CentrosAcopioView() {
         porPais.map(([pais, lista]) => (
           <section key={pais} className="space-y-2">
             <h2 className="font-bold text-lg flex items-center gap-2">
-              <span className="text-xl">
-                {pais === 'Venezuela' ? '🇻🇪' : '🌎'}
-              </span>
+              <span className="text-xl">{banderaDe(pais)}</span>
               {pais}{' '}
               <span className="text-sm font-normal text-gray-400">
                 ({lista.length})
@@ -257,14 +269,24 @@ export default function CentrosAcopioView() {
                     </div>
                   )}
                 </div>
-                <a
-                  href={enlaceComoLlegar(c.lat, c.lng)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-amber py-2 px-3 text-sm whitespace-nowrap no-underline"
-                >
-                  🧭 Ir
-                </a>
+                <div className="flex flex-col gap-2">
+                  <a
+                    href={enlaceComoLlegar(c.lat, c.lng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-amber py-2 px-3 text-sm whitespace-nowrap no-underline text-center"
+                  >
+                    🧭 Ir
+                  </a>
+                  {(c.creado_por === perfil?.id || rol === 'admin') && (
+                    <button
+                      onClick={() => borrarCentro(c)}
+                      className="py-2 px-3 text-sm whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-rojo text-bandera-rojo"
+                    >
+                      🗑️ Borrar
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </section>
@@ -352,8 +374,8 @@ function FormCentro({
           }}
         >
           {PAISES_MUNDO.map((p) => (
-            <option key={p} value={p}>
-              {p}
+            <option key={p.nombre} value={p.nombre}>
+              {p.bandera} {p.nombre}
             </option>
           ))}
         </select>
