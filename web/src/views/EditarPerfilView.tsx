@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import EntradaTelefono from '../components/EntradaTelefono'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
   type RolRegistro,
+  type TipoDocumento,
 } from '../lib/types'
 
 const ROLES_ELEGIBLES: RolRegistro[] = [
@@ -24,6 +26,10 @@ export default function EditarPerfilView() {
 
   const [nombre, setNombre] = useState(perfil?.nombre ?? '')
   const [telefono, setTelefono] = useState(perfil?.telefono ?? '')
+  const [tipoDoc, setTipoDoc] = useState<TipoDocumento>(
+    perfil?.tipo_documento ?? 'cedula',
+  )
+  const [documento, setDocumento] = useState(perfil?.documento ?? '')
   const [ciudad, setCiudad] = useState(perfil?.ciudad ?? '')
   const [estado, setEstado] = useState(perfil?.estado ?? '')
   const [fotoUrl, setFotoUrl] = useState(perfil?.foto_url ?? '')
@@ -80,6 +86,8 @@ export default function EditarPerfilView() {
       .update({
         nombre: nombre.trim() || null,
         telefono: telefono.trim() || null,
+        tipo_documento: tipoDoc,
+        documento: documento.trim() || null,
         ciudad: ciudad.trim() || null,
         estado: estado || null,
         foto_url: fotoUrl || null,
@@ -164,16 +172,37 @@ export default function EditarPerfilView() {
           />
         </label>
 
-        <label className="block text-sm font-semibold">
-          Teléfono
+        <div>
+          <p className="text-sm font-semibold mb-1">Teléfono</p>
+          <EntradaTelefono valor={telefono} onChange={setTelefono} />
+        </div>
+
+        {/* Documento: cédula o pasaporte */}
+        <div>
+          <p className="text-sm font-semibold mb-1">Documento</p>
+          <div className="flex gap-2 mb-2">
+            {(['cedula', 'pasaporte'] as TipoDocumento[]).map((t) => (
+              <button
+                type="button"
+                key={t}
+                onClick={() => setTipoDoc(t)}
+                className={`flex-1 rounded-xl py-2 text-sm font-semibold border-2 ${
+                  tipoDoc === t
+                    ? 'border-bandera-azul text-bandera-azul'
+                    : 'border-gray-200 text-gray-500'
+                }`}
+              >
+                {t === 'cedula' ? 'Cédula' : 'Pasaporte'}
+              </button>
+            ))}
+          </div>
           <input
-            className="input mt-1"
-            inputMode="tel"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="Teléfono"
+            className="input"
+            value={documento}
+            onChange={(e) => setDocumento(e.target.value)}
+            placeholder={tipoDoc === 'cedula' ? 'Ej: V-12345678' : 'N.º de pasaporte'}
           />
-        </label>
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <label className="block text-sm font-semibold">

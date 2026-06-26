@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import EntradaTelefono from '../components/EntradaTelefono'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -226,13 +227,10 @@ export default function RegistroView() {
             />
           </div>
 
-          <input
-            className="input"
-            placeholder="Teléfono (opcional)"
-            inputMode="tel"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-          />
+          <div>
+            <p className="text-sm font-semibold mb-1">Teléfono (opcional)</p>
+            <EntradaTelefono valor={telefono} onChange={setTelefono} />
+          </div>
 
           <hr className="border-gray-100" />
 
