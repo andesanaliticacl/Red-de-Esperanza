@@ -100,6 +100,21 @@ export default function VoluntarioView() {
     setTrabajando(null)
   }
 
+  // El voluntario que se asignó pero ya no puede continuar se retira: la
+  // necesidad vuelve al pool abierto para que otra persona la tome.
+  async function retirarme(n: Necesidad) {
+    if (!confirm('¿Retirarte de esta necesidad? Volverá a quedar disponible para otros.'))
+      return
+    setTrabajando(n.id)
+    const { error } = await supabase
+      .from('necesidades')
+      .update({ estado: 'sin_verificar', asignado_a: null })
+      .eq('id', n.id)
+    if (error) alert('Error: ' + error.message)
+    await recargar()
+    setTrabajando(null)
+  }
+
   const enCurso = lista.filter((n) => n.estado === 'en_proceso')
   const mias = enCurso.filter((n) => n.asignado_a === perfil?.id)
   const deOtros = enCurso.filter((n) => n.asignado_a !== perfil?.id)
@@ -208,6 +223,7 @@ export default function VoluntarioView() {
                 accion="atender"
                 onAccion={() => atender(n)}
                 onChat={() => setChat(n)}
+                onRetirar={() => retirarme(n)}
               />
             ))}
           </div>
@@ -279,6 +295,7 @@ function Fila({
   accion,
   onAccion,
   onChat,
+  onRetirar,
   atendidaPor,
 }: {
   n: Necesidad
@@ -286,6 +303,7 @@ function Fila({
   accion: 'asignar' | 'atender' | null
   onAccion?: () => void
   onChat: () => void
+  onRetirar?: () => void
   atendidaPor?: string | null
 }) {
   return (
@@ -332,6 +350,15 @@ function Fila({
         >
           💬 Mensajes
         </button>
+        {onRetirar && (
+          <button
+            onClick={onRetirar}
+            disabled={trabajando}
+            className="py-2.5 px-4 whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-rojo text-bandera-rojo disabled:opacity-60"
+          >
+            ✋ Retirarme
+          </button>
+        )}
         {n.lat != null && n.lng != null && (
           <a
             href={enlaceComoLlegar(n.lat, n.lng)}
