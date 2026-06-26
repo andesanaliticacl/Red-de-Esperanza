@@ -6,15 +6,17 @@ export function normalizarCiudad(ciudad: string): string {
   return ciudad.trim().toLowerCase()
 }
 
-/** Últimos mensajes del chat de una ciudad, en orden cronológico. */
+/** Últimos mensajes del chat (solo de los últimos 3 días), en orden cronológico. */
 export async function listarChat(
   ciudad: string,
   limite = 100,
 ): Promise<MensajeGlobal[]> {
+  const hace3dias = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from('chat_global')
-    .select('*')
+    .select('id, ciudad, nombre, cuerpo, autor, creado_en')
     .eq('ciudad', normalizarCiudad(ciudad))
+    .gte('creado_en', hace3dias)
     .order('creado_en', { ascending: false })
     .limit(limite)
   if (error) throw error
@@ -46,8 +48,10 @@ export function suscribirChat(
   alLlegar: (m: MensajeGlobal) => void,
 ): () => void {
   const sala = normalizarCiudad(ciudad)
+  // Canal único por suscriptor: evita el error "subscribe multiple times"
+  // cuando coexisten la barra lateral y el modal del chat en la misma página.
   const canal = supabase
-    .channel(`chat-global:${sala}`)
+    .channel(`chat-global:${sala}:${Math.random().toString(36).slice(2)}`)
     .on(
       'postgres_changes',
       {
