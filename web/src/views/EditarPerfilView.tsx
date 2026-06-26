@@ -4,6 +4,7 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import EntradaTelefono from '../components/EntradaTelefono'
+import RolesInfoModal from '../components/RolesInfoModal'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -42,6 +43,7 @@ export default function EditarPerfilView() {
   const [subiendo, setSubiendo] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [verRoles, setVerRoles] = useState(false)
   const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
@@ -142,7 +144,16 @@ export default function EditarPerfilView() {
         {/* Cambiar mi rol (solo entre roles elegibles) */}
         {puedeCambiarRol && (
           <div>
-            <p className="text-sm font-semibold mb-2">¿Cómo participas?</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">¿Cómo participas?</p>
+              <button
+                type="button"
+                onClick={() => setVerRoles(true)}
+                className="text-xs text-bandera-azul font-semibold underline"
+              >
+                ¿Qué rol elegir?
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {ROLES_ELEGIBLES.map((r) => (
                 <button
@@ -250,6 +261,7 @@ export default function EditarPerfilView() {
           </button>
         </div>
       </form>
+      {verRoles && <RolesInfoModal onCerrar={() => setVerRoles(false)} />}
     </div>
   )
 }

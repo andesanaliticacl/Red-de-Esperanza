@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
 import { nombresPublicos } from '../lib/perfiles'
-import { sonarSOS } from '../lib/sonidos'
+import { sonarSOS, sonarMensaje } from '../lib/sonidos'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import { enlaceComoLlegar } from '../lib/geo'
@@ -27,14 +27,19 @@ const TIPOS: NecesidadTipo[] = [
 ]
 
 export default function VoluntarioView() {
-  const { perfil } = useAuth()
+  const { perfil, rol } = useAuth()
+  const esRescatista = rol === 'rescatista' || rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
-  // Al llegar un SOS nuevo, suena la alarma para el personal.
+  // Al llegar un SOS: el rescatista oye la alarma fuerte (emergencias); el
+  // voluntario recibe un aviso más suave (su foco es la logística).
   const { necesidades, recargar } = useNecesidades(
     ['sin_verificar', 'verificada', 'en_proceso'],
     (n) => {
-      if (n.tipo === 'rescate' || n.origen === 'sos') sonarSOS()
+      if (n.tipo === 'rescate' || n.origen === 'sos') {
+        if (esRescatista) sonarSOS()
+        else sonarMensaje()
+      }
     },
   )
   // Emergencias SOS: siempre visibles arriba, sin importar los filtros.
@@ -63,6 +68,22 @@ export default function VoluntarioView() {
   const [trabajando, setTrabajando] = useState<string | null>(null)
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
+  const [verAviso, setVerAviso] = useState(() => {
+    try {
+      return localStorage.getItem('esperanza.avisoSeguridad') !== '1'
+    } catch {
+      return true
+    }
+  })
+
+  function cerrarAviso() {
+    try {
+      localStorage.setItem('esperanza.avisoSeguridad', '1')
+    } catch {
+      /* ignorar */
+    }
+    setVerAviso(false)
+  }
 
   // Resuelve los nombres de quienes ya tomaron una necesidad (asignado_a).
   useEffect(() => {
@@ -145,6 +166,25 @@ export default function VoluntarioView() {
       <h1 className="text-2xl font-extrabold text-bandera-azul">
         Necesidades reportadas
       </h1>
+
+      {/* Aviso de seguridad (sutil, se puede cerrar) */}
+      {verAviso && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2 text-sm text-amber-900">
+          <span className="text-lg leading-none">⚠️</span>
+          <p className="flex-1">
+            <b>Tu seguridad primero.</b> No arriesgues tu vida innecesariamente.
+            Si la situación es muy peligrosa, no entres: avisa a los organismos
+            de rescate y coordina desde un lugar seguro.
+          </p>
+          <button
+            onClick={cerrarAviso}
+            className="text-amber-700 font-bold leading-none"
+            aria-label="Cerrar aviso"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Emergencias SOS entrantes (sin verificar) — visibles al instante */}
       {sos.length > 0 && (

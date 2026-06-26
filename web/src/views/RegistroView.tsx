@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EntradaTelefono from '../components/EntradaTelefono'
+import RolesInfoModal from '../components/RolesInfoModal'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -66,6 +67,7 @@ export default function RegistroView() {
   const [enviando, setEnviando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [listo, setListo] = useState<'no' | 'confirmar' | 'sesion'>('no')
+  const [verRoles, setVerRoles] = useState(false)
 
   async function registrar(e: React.FormEvent) {
     e.preventDefault()
@@ -144,7 +146,16 @@ export default function RegistroView() {
         <form onSubmit={registrar} className="space-y-4">
           {/* Rol */}
           <div>
-            <p className="font-bold mb-2 text-sm">¿Cómo participas?</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-bold text-sm">¿Cómo participas?</p>
+              <button
+                type="button"
+                onClick={() => setVerRoles(true)}
+                className="text-xs text-bandera-azul font-semibold underline"
+              >
+                ¿Qué rol elegir?
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {ROLES_REGISTRO.map((r) => (
                 <button
@@ -291,6 +302,7 @@ export default function RegistroView() {
           ← Volver al mapa
         </Link>
       </div>
+      {verRoles && <RolesInfoModal onCerrar={() => setVerRoles(false)} />}
     </div>
   )
 }
