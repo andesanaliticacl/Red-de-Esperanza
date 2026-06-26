@@ -27,6 +27,48 @@ import {
   type CentroAcopio,
 } from '../lib/types'
 
+/**
+ * Separa los marcadores que caen casi en el mismo punto GPS para que no
+ * queden uno encima de otro (p. ej. un SOS y "Medicinas" reportados desde
+ * el mismo lugar). Los que comparten posición se reparten en un pequeño
+ * círculo a su alrededor; los que están solos no se mueven.
+ *
+ * Devuelve un mapa id → posición visual desplazada.
+ */
+function separarSolapados(
+  items: { id: string; lat: number; lng: number }[],
+): Map<string, [number, number]> {
+  const RADIO = 0.00012 // ≈ 13 m: suficiente para distinguirlos sin "mentir"
+  const grupos = new Map<string, { id: string; lat: number; lng: number }[]>()
+  for (const it of items) {
+    // Redondeamos a ~5 decimales (≈ 1 m) para agrupar los que coinciden.
+    const clave = `${it.lat.toFixed(5)},${it.lng.toFixed(5)}`
+    const g = grupos.get(clave)
+    if (g) g.push(it)
+    else grupos.set(clave, [it])
+  }
+
+  const posiciones = new Map<string, [number, number]>()
+  for (const grupo of grupos.values()) {
+    if (grupo.length === 1) {
+      const it = grupo[0]
+      posiciones.set(it.id, [it.lat, it.lng])
+      continue
+    }
+    // Varios en el mismo punto → los repartimos en círculo.
+    const n = grupo.length
+    grupo.forEach((it, i) => {
+      const angulo = (2 * Math.PI * i) / n
+      // Corregimos la longitud por la latitud para que el círculo se vea redondo.
+      const cosLat = Math.cos((it.lat * Math.PI) / 180) || 1
+      const lat = it.lat + RADIO * Math.cos(angulo)
+      const lng = it.lng + (RADIO * Math.sin(angulo)) / cosLat
+      posiciones.set(it.id, [lat, lng])
+    })
+  }
+  return posiciones
+}
+
 /** Botón flotante para centrar el mapa en mi ubicación. */
 function BotonCentrarme({
   ubicacion,
@@ -83,6 +125,16 @@ export default function MapaNecesidades({
     .filter((n) => n.lat != null && n.lng != null)
     .map((n) => [n.lat as number, n.lng as number])
 
+  // Repartimos en círculo los marcadores que caen casi en el mismo sitio,
+  // así nunca queda uno escondido debajo de otro. Mezclamos necesidades y
+  // acopios para que también se separen entre sí.
+  const posiciones = separarSolapados([
+    ...necesidades
+      .filter((n) => n.lat != null && n.lng != null)
+      .map((n) => ({ id: n.id, lat: n.lat as number, lng: n.lng as number })),
+    ...acopios.map((a) => ({ id: `acopio:${a.id}`, lat: a.lat, lng: a.lng })),
+  ])
+
   return (
     <MapContainer
       center={CENTRO_VENEZUELA}
@@ -103,7 +155,7 @@ export default function MapaNecesidades({
         .map((n) => (
           <Marker
             key={n.id}
-            position={[n.lat as number, n.lng as number]}
+            position={posiciones.get(n.id) ?? [n.lat as number, n.lng as number]}
             icon={iconoNecesidad(n.tipo, n.estado)}
           >
             <Popup>
@@ -145,7 +197,11 @@ export default function MapaNecesidades({
         ))}
 
       {acopios.map((a) => (
-        <Marker key={a.id} position={[a.lat, a.lng]} icon={iconoAcopio}>
+        <Marker
+          key={a.id}
+          position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
+          icon={iconoAcopio}
+        >
           <Popup>
             <div className="font-bold">📦 {a.nombre}</div>
             <div className="text-xs text-gray-600">
