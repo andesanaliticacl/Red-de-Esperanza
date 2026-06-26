@@ -44,6 +44,24 @@ export default function CiudadanoView() {
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
   const [chatNec, setChatNec] = useState<Necesidad | null>(null)
+  const [chatAbierto, setChatAbierto] = useState(() => {
+    try {
+      return localStorage.getItem('esperanza.chatLateral') !== 'cerrado'
+    } catch {
+      return true
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'esperanza.chatLateral',
+        chatAbierto ? 'abierto' : 'cerrado',
+      )
+    } catch {
+      /* ignorar */
+    }
+  }, [chatAbierto])
 
   // Contactar a quien reportó: si hay sesión abre el chat; si no, va al login.
   function contactar(n: Necesidad) {
@@ -87,13 +105,25 @@ export default function CiudadanoView() {
 
   return (
     <div className="relative h-full w-full md:flex">
-      {/* Chat comunitario lateral (solo escritorio; en móvil va en el menú) */}
-      <aside className="hidden md:flex md:w-80 lg:w-96 h-full flex-col border-r border-gray-200 shrink-0">
-        <ChatGlobal />
-      </aside>
+      {/* Chat comunitario lateral (solo escritorio; en móvil va en el menú).
+          Se puede abrir/cerrar con el botón ✕ de su cabecera. */}
+      {chatAbierto && (
+        <aside className="hidden md:flex md:w-80 lg:w-96 h-full flex-col border-r border-gray-200 shrink-0">
+          <ChatGlobal onCerrar={() => setChatAbierto(false)} />
+        </aside>
+      )}
 
       {/* Zona del mapa */}
       <div className="relative flex-1 h-full min-w-0">
+        {/* Botón para reabrir el chat (solo escritorio, cuando está cerrado) */}
+        {!chatAbierto && (
+          <button
+            onClick={() => setChatAbierto(true)}
+            className="hidden md:flex absolute left-3 bottom-4 z-[1000] items-center gap-2 bg-bandera-azul text-white font-semibold px-4 py-2.5 rounded-full shadow-lg"
+          >
+            💬 Chat en vivo
+          </button>
+        )}
         <div className="absolute inset-0">
           <MapaNecesidades
             necesidades={filtradas}
