@@ -1,8 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
-import 'leaflet.markercluster/dist/MarkerCluster.css'
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
-import { iconoNecesidad, iconoAcopio } from '../lib/iconos'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { iconoNecesidad, iconoAcopio, iconoUsuario } from '../lib/iconos'
 import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
 import {
   TIPO_META,
@@ -11,12 +8,35 @@ import {
   type CentroAcopio,
 } from '../lib/types'
 
+/** Botón flotante para centrar el mapa en mi ubicación. */
+function BotonCentrarme({
+  ubicacion,
+}: {
+  ubicacion: { lat: number; lng: number }
+}) {
+  const map = useMap()
+  return (
+    <button
+      onClick={() => map.setView([ubicacion.lat, ubicacion.lng], 16)}
+      className="absolute bottom-24 right-3 z-[1000] bg-white text-bandera-azul rounded-full h-11 w-11 shadow-lg border flex items-center justify-center text-xl"
+      title="Centrar en mi ubicación"
+      aria-label="Centrar en mi ubicación"
+    >
+      🎯
+    </button>
+  )
+}
+
 export default function MapaNecesidades({
   necesidades,
   acopios = [],
+  miUbicacion,
+  miFoto,
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
+  miUbicacion?: { lat: number; lng: number } | null
+  miFoto?: string | null
 }) {
   return (
     <MapContainer
@@ -30,10 +50,8 @@ export default function MapaNecesidades({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* Fase 5: agrupamos los marcadores en clusters para que el mapa siga
-          fluido aunque haya miles de reportes. */}
-      <MarkerClusterGroup chunkedLoading maxClusterRadius={60}>
-        {necesidades
+      {/* Todos los marcadores se muestran siempre (sin agrupar). */}
+      {necesidades
         .filter((n) => n.lat != null && n.lng != null)
         .map((n) => (
           <Marker
@@ -68,7 +86,6 @@ export default function MapaNecesidades({
             </Popup>
           </Marker>
         ))}
-      </MarkerClusterGroup>
 
       {acopios.map((a) => (
         <Marker key={a.id} position={[a.lat, a.lng]} icon={iconoAcopio}>
@@ -89,6 +106,20 @@ export default function MapaNecesidades({
           </Popup>
         </Marker>
       ))}
+
+      {/* Mi ubicación: marcador con mi foto + botón para centrarme. */}
+      {miUbicacion && (
+        <>
+          <Marker
+            position={[miUbicacion.lat, miUbicacion.lng]}
+            icon={iconoUsuario(miFoto)}
+            zIndexOffset={1000}
+          >
+            <Popup>📍 Tú estás aquí</Popup>
+          </Marker>
+          <BotonCentrarme ubicacion={miUbicacion} />
+        </>
+      )}
     </MapContainer>
   )
 }

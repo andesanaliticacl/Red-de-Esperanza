@@ -52,3 +52,27 @@ export function iconoNecesidad(
 }
 
 export const iconoAcopio: L.DivIcon = iconoNecesidad('acopio', 'verificada')
+
+/**
+ * Marcador de "mi ubicación": un círculo azul con la foto de perfil dentro
+ * (o un emoji de persona si no hay foto). Distinto a los demás para reconocerse.
+ */
+export function iconoUsuario(fotoUrl?: string | null): L.DivIcon {
+  const contenido = fotoUrl
+    ? `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+    : `<span style="font-size:18px;">📍</span>`
+  return L.divIcon({
+    className: 'marcador-usuario',
+    html: `
+      <div style="
+        width:40px;height:40px;border-radius:50%;
+        border:3px solid #002FA7;background:#fff;
+        box-shadow:0 0 0 3px rgba(0,47,167,.25),0 2px 6px rgba(0,0,0,.4);
+        overflow:hidden;display:flex;align-items:center;justify-content:center;">
+        ${contenido}
+      </div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
+  })
+}

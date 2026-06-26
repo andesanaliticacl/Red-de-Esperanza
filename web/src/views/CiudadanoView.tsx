@@ -7,6 +7,7 @@ import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
+import { useAuth } from '../context/AuthContext'
 import {
   TIPO_META,
   type NecesidadTipo,
@@ -32,6 +33,7 @@ export default function CiudadanoView() {
   ])
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
+  const { perfil } = useAuth()
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
@@ -82,7 +84,12 @@ export default function CiudadanoView() {
       {/* Zona del mapa */}
       <div className="relative flex-1 h-full min-w-0">
         <div className="absolute inset-0">
-          <MapaNecesidades necesidades={filtradas} acopios={acopiosVisibles} />
+          <MapaNecesidades
+            necesidades={filtradas}
+            acopios={acopiosVisibles}
+            miUbicacion={coordAuto}
+            miFoto={perfil?.foto_url}
+          />
         </div>
 
         {/* Encabezado + filtros */}
