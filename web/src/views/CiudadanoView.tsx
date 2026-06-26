@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
 import ChatGlobal from '../components/ChatGlobal'
+import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
@@ -10,6 +12,7 @@ import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import {
   TIPO_META,
+  type Necesidad,
   type NecesidadTipo,
   type NecesidadUrgencia,
 } from '../lib/types'
@@ -33,12 +36,20 @@ export default function CiudadanoView() {
   ])
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
-  const { perfil } = useAuth()
+  const { perfil, session } = useAuth()
+  const navigate = useNavigate()
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
+  const [chatNec, setChatNec] = useState<Necesidad | null>(null)
+
+  // Contactar a quien reportó: si hay sesión abre el chat; si no, va al login.
+  function contactar(n: Necesidad) {
+    if (session) setChatNec(n)
+    else navigate('/login')
+  }
   // El tutorial se muestra automáticamente la primera vez que se abre la app.
   const [abrirTutorial, setAbrirTutorial] = useState(false)
 
@@ -89,6 +100,7 @@ export default function CiudadanoView() {
             acopios={acopiosVisibles}
             miUbicacion={coordAuto}
             miFoto={perfil?.foto_url}
+            onMensaje={contactar}
           />
         </div>
 
@@ -179,6 +191,15 @@ export default function CiudadanoView() {
       )}
       {abrirSos && <SosModal onCerrar={() => setAbrirSos(false)} />}
       {abrirTutorial && <TutorialModal onCerrar={cerrarTutorial} />}
+      {chatNec && (
+        <ChatNecesidad
+          necesidadId={chatNec.id}
+          titulo={`${TIPO_META[chatNec.tipo].etiqueta}${
+            chatNec.zona ? ' · ' + chatNec.zona : ''
+          }`}
+          onCerrar={() => setChatNec(null)}
+        />
+      )}
     </div>
   )
 }

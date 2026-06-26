@@ -221,7 +221,7 @@ export default function VoluntarioView() {
                     rel="noopener noreferrer"
                     className="btn-rojo py-2 px-3 text-sm whitespace-nowrap no-underline"
                   >
-                    <IconoRuta className="mr-1" /> Ir
+                    <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
                 )}
                 <button

@@ -280,7 +280,7 @@ export default function CentrosAcopioView() {
                     rel="noopener noreferrer"
                     className="btn-amber py-2 px-3 text-sm whitespace-nowrap no-underline text-center"
                   >
-                    <IconoRuta className="mr-1" /> Ir
+                    <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
                   {(c.creado_por === perfil?.id || rol === 'admin') && (
                     <button

@@ -99,16 +99,16 @@ export default function MapaNecesidades({
                     href={enlaceComoLlegar(n.lat as number, n.lng as number)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block bg-bandera-azul text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
+                    className="inline-flex items-center bg-bandera-azul !text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
                   >
                     <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
                   {onMensaje && (
                     <button
                       onClick={() => onMensaje(n)}
-                      className="inline-block bg-gray-200 text-gray-800 font-semibold px-3 py-1.5 rounded-lg"
+                      className="inline-flex items-center bg-green-600 !text-white font-semibold px-3 py-1.5 rounded-lg"
                     >
-                      💬 Mensaje
+                      💬 Contactar
                     </button>
                   )}
                 </div>
@@ -129,9 +129,9 @@ export default function MapaNecesidades({
               href={enlaceComoLlegar(a.lat, a.lng)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block mt-1 bg-bandera-azul text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
+              className="inline-flex items-center mt-1 bg-bandera-azul !text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
             >
-              🧭 Cómo llegar
+              <IconoRuta className="mr-1" /> Cómo llegar
             </a>
           </Popup>
         </Marker>
