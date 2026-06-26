@@ -10,6 +10,13 @@ import {
 import { PAISES_MUNDO, isoDe } from '../lib/paises'
 import Bandera from '../components/Bandera'
 import IconoRuta from '../components/IconoRuta'
+import EntradaTelefono from '../components/EntradaTelefono'
+
+/** Enlace de WhatsApp a partir de un teléfono (solo dígitos). */
+function enlaceWhatsApp(contacto: string): string {
+  const digitos = contacto.replace(/\D/g, '')
+  return `https://wa.me/${digitos}`
+}
 import SelectorBandera, {
   type OpcionBandera,
 } from '../components/SelectorBandera'
@@ -282,6 +289,16 @@ export default function CentrosAcopioView() {
                   >
                     <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
+                  {c.contacto && (
+                    <a
+                      href={enlaceWhatsApp(c.contacto)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-verde py-2 px-3 text-sm whitespace-nowrap no-underline text-center"
+                    >
+                      💬 Contactar
+                    </a>
+                  )}
                   {(c.creado_por === perfil?.id || rol === 'admin') && (
                     <button
                       onClick={() => borrarCentro(c)}
@@ -312,6 +329,7 @@ function FormCentro({
   const [region, setRegion] = useState('') // estado / región
   const [ciudad, setCiudad] = useState('')
   const [direccion, setDireccion] = useState('')
+  const [contacto, setContacto] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
@@ -349,6 +367,7 @@ function FormCentro({
       estado: region.trim() || null,
       ciudad: ciudad.trim() || null,
       direccion: direccion.trim() || null,
+      contacto: contacto.trim() || null,
       descripcion: descripcion.trim() || null,
       lat: nLat,
       lng: nLng,
@@ -425,6 +444,15 @@ function FormCentro({
         value={descripcion}
         onChange={(e) => setDescripcion(e.target.value)}
       />
+      <div>
+        <p className="text-sm font-semibold mb-1">
+          Contacto del encargado (WhatsApp)
+        </p>
+        <EntradaTelefono valor={contacto} onChange={setContacto} />
+        <p className="text-xs text-gray-500 mt-1">
+          Para que la gente pueda escribirte y coordinar la ayuda.
+        </p>
+      </div>
       {/* Ubicación obligatoria */}
       <div
         className={`rounded-xl border-2 p-3 ${

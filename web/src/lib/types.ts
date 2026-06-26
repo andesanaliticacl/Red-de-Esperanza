@@ -74,6 +74,7 @@ export interface PerfilPublico {
   nombre: string | null
   rol: RolUsuario
   foto_url?: string | null
+  ciudad?: string | null
 }
 
 export type EventoTipo =
@@ -118,6 +119,7 @@ export interface CentroAcopio {
   estado: string | null
   ciudad: string | null
   direccion: string | null
+  contacto: string | null
   lat: number
   lng: number
   creado_por: string | null

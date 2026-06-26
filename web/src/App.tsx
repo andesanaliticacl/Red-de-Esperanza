@@ -12,7 +12,6 @@ const LoginView = lazy(() => import('./views/LoginView'))
 const RegistroView = lazy(() => import('./views/RegistroView'))
 const MisReportesView = lazy(() => import('./views/MisReportesView'))
 const CentrosAcopioView = lazy(() => import('./views/CentrosAcopioView'))
-const InicioRedirect = lazy(() => import('./views/InicioRedirect'))
 const VoluntarioView = lazy(() => import('./views/VoluntarioView'))
 const PerfilView = lazy(() => import('./views/PerfilView'))
 const EditarPerfilView = lazy(() => import('./views/EditarPerfilView'))
@@ -40,7 +39,6 @@ export default function App() {
             <Route path="/login" element={<LoginView />} />
             <Route path="/registro" element={<RegistroView />} />
             <Route path="/acopios" element={<CentrosAcopioView />} />
-            <Route path="/inicio" element={<InicioRedirect />} />
 
             {/* Cualquier usuario autenticado: sus reportes y chats */}
             <Route
