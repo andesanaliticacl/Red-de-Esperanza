@@ -29,25 +29,37 @@ export function iconoNecesidad(
         ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
         : ''
 
+  // El derrumbe se ve más explícito: pin más grande, halo que late y una
+  // insignia ⚠️ para que se entienda al instante que es un edificio colapsado.
+  const esDerrumbe = tipo === 'derrumbe'
+  const tam = esDerrumbe ? 42 : 34
+  const fuente = esDerrumbe ? 20 : 16
+  const halo = esDerrumbe ? '<span class="pulso-derrumbe"></span>' : ''
+  const insigniaPeligro =
+    esDerrumbe && estado !== 'en_proceso' && estado !== 'resuelta'
+      ? '<span style="position:absolute;top:-7px;right:-7px;font-size:14px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">⚠️</span>'
+      : ''
+
   return L.divIcon({
     className: 'marcador-necesidad',
     html: `
-      <div style="position:relative;">
+      <div style="position:relative;width:${tam}px;height:${tam}px;">
+        ${halo}
         <div style="
           background:${color};
-          width:34px;height:34px;border-radius:50% 50% 50% 0;
+          width:${tam}px;height:${tam}px;border-radius:50% 50% 50% 0;
           transform:rotate(-45deg);
           border:${borde};
           box-shadow:0 2px 6px rgba(0,0,0,.4);
           opacity:${opacidad};
           display:flex;align-items:center;justify-content:center;">
-          <span style="transform:rotate(45deg);font-size:16px;line-height:1;">${emoji}</span>
+          <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
         </div>
-        ${insignia}
+        ${insignia}${insigniaPeligro}
       </div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 34],
-    popupAnchor: [0, -32],
+    iconSize: [tam, tam],
+    iconAnchor: [tam / 2, tam],
+    popupAnchor: [0, -tam + 2],
   })
 }
 

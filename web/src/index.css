@@ -67,3 +67,21 @@ input::placeholder, textarea::placeholder {
   0% { transform: scale(0.55); opacity: 0.7; }
   100% { transform: scale(2.2); opacity: 0; }
 }
+
+/* Halo que late en el marcador de derrumbe (lo hace más visible) */
+.pulso-derrumbe {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 42px;
+  height: 42px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(127, 29, 29, 0.4);
+  animation: pulso-derrumbe-key 1.6s ease-out infinite;
+  z-index: -1;
+}
+@keyframes pulso-derrumbe-key {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.75; }
+  100% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+}
