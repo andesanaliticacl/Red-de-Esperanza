@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useNecesidades } from '../hooks/useNecesidades'
+import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
 import { nombresPublicos } from '../lib/perfiles'
+import { sonarSOS } from '../lib/sonidos'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import { enlaceComoLlegar } from '../lib/geo'
@@ -27,11 +29,13 @@ export default function VoluntarioView() {
   const { perfil } = useAuth()
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
-  const { necesidades, recargar } = useNecesidades([
-    'sin_verificar',
-    'verificada',
-    'en_proceso',
-  ])
+  // Al llegar un SOS nuevo, suena la alarma para el personal.
+  const { necesidades, recargar } = useNecesidades(
+    ['sin_verificar', 'verificada', 'en_proceso'],
+    (n) => {
+      if (n.tipo === 'rescate' || n.origen === 'sos') sonarSOS()
+    },
+  )
   // Emergencias SOS: siempre visibles arriba, sin importar los filtros.
   const sos = useMemo(
     () =>
@@ -42,6 +46,16 @@ export default function VoluntarioView() {
       ),
     [necesidades],
   )
+
+  // Aviso sonoro al llegar mensajes en las necesidades que estoy atendiendo.
+  const misIds = useMemo(
+    () =>
+      necesidades
+        .filter((n) => n.asignado_a === perfil?.id)
+        .map((n) => n.id),
+    [necesidades, perfil?.id],
+  )
+  useAvisoMensajes(misIds, perfil?.id)
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [zonaFiltro, setZonaFiltro] = useState('')

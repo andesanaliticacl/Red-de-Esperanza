@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Necesidad, CentroAcopio } from '../lib/types'
 
@@ -20,11 +20,17 @@ const LIMITE = 500
  *  - Fase 4: límite de registros.
  *  - Fase 25: canal Realtime dedicado solo a la tabla `necesidades`.
  */
-export function useNecesidades(filtroEstados?: Necesidad['estado'][]) {
+export function useNecesidades(
+  filtroEstados?: Necesidad['estado'][],
+  onNueva?: (n: Necesidad) => void,
+) {
   const [necesidades, setNecesidades] = useState<Necesidad[]>([])
   const [acopios, setAcopios] = useState<CentroAcopio[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Ref para tener siempre el callback más reciente sin recrear la suscripción.
+  const onNuevaRef = useRef(onNueva)
+  onNuevaRef.current = onNueva
 
   // ¿Una fila entra en el filtro de estados activo?
   function pasaFiltro(n: { estado: Necesidad['estado'] }): boolean {
@@ -70,8 +76,10 @@ export function useNecesidades(filtroEstados?: Necesidad['estado'][]) {
             }
             const fila = payload.new as unknown as Necesidad
             if (payload.eventType === 'INSERT') {
-              if (!pasaFiltro(fila) || prev.some((n) => n.id === fila.id))
-                return prev
+              if (prev.some((n) => n.id === fila.id)) return prev
+              // Aviso a quien escuche (p. ej. para sonar al llegar un SOS).
+              onNuevaRef.current?.(fila)
+              if (!pasaFiltro(fila)) return prev
               return [fila, ...prev]
             }
             // UPDATE

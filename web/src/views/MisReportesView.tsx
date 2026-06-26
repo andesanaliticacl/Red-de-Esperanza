@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { nombresPublicos } from '../lib/perfiles'
+import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
 import ChatNecesidad from '../components/ChatNecesidad'
 import {
   TIPO_META,
@@ -26,6 +27,12 @@ export default function MisReportesView() {
   const [cargando, setCargando] = useState(true)
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
+
+  // Aviso sonoro cuando quien me atiende escribe en alguno de mis reportes.
+  useAvisoMensajes(
+    lista.map((n) => n.id),
+    perfil?.id,
+  )
 
   useEffect(() => {
     if (!perfil?.id) return
