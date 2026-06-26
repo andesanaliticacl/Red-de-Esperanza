@@ -53,3 +53,17 @@ input::placeholder, textarea::placeholder {
   height: 100%;
   z-index: 0;
 }
+
+/* Halo que late en el marcador de "mi ubicación" */
+.pulso-ubicacion {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  background: rgba(0, 47, 167, 0.3);
+  animation: pulso-ubicacion-key 1.8s ease-out infinite;
+}
+@keyframes pulso-ubicacion-key {
+  0% { transform: scale(0.55); opacity: 0.7; }
+  100% { transform: scale(2.2); opacity: 0; }
+}

@@ -8,6 +8,7 @@ import { sonarSOS } from '../lib/sonidos'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import { enlaceComoLlegar } from '../lib/geo'
+import IconoRuta from '../components/IconoRuta'
 import {
   TIPO_META,
   URGENCIA_META,
@@ -180,7 +181,7 @@ export default function VoluntarioView() {
                     rel="noopener noreferrer"
                     className="btn-rojo py-2 px-3 text-sm whitespace-nowrap no-underline"
                   >
-                    🧭 Ir
+                    <IconoRuta className="mr-1" /> Ir
                   </a>
                 )}
                 <button
@@ -380,7 +381,7 @@ function Fila({
             rel="noopener noreferrer"
             className="btn-amber py-2.5 px-4 whitespace-nowrap text-center no-underline"
           >
-            🧭 Cómo llegar
+            <IconoRuta className="mr-1" /> Cómo llegar
           </a>
         )}
       </div>

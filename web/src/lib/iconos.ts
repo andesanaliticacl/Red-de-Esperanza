@@ -54,25 +54,39 @@ export function iconoNecesidad(
 export const iconoAcopio: L.DivIcon = iconoNecesidad('acopio', 'verificada')
 
 /**
- * Marcador de "mi ubicación": un círculo azul con la foto de perfil dentro
- * (o un emoji de persona si no hay foto). Distinto a los demás para reconocerse.
+ * Marcador de "mi ubicación".
+ *  · Con foto: círculo con la foto de perfil y anillo azul + halo que late.
+ *  · Sin foto: punto azul estilo "estás aquí" con halo que late.
  */
 export function iconoUsuario(fotoUrl?: string | null): L.DivIcon {
-  const contenido = fotoUrl
-    ? `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-    : `<span style="font-size:18px;">📍</span>`
+  if (fotoUrl) {
+    return L.divIcon({
+      className: 'marcador-usuario',
+      html: `
+        <div style="position:relative;width:44px;height:44px;">
+          <span class="pulso-ubicacion" style="width:44px;height:44px;"></span>
+          <div style="position:absolute;top:2px;left:2px;width:40px;height:40px;
+            border-radius:50%;border:3px solid #002FA7;background:#fff;overflow:hidden;
+            box-shadow:0 2px 6px rgba(0,0,0,.4);">
+            <img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;" />
+          </div>
+        </div>`,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
+      popupAnchor: [0, -22],
+    })
+  }
   return L.divIcon({
     className: 'marcador-usuario',
     html: `
-      <div style="
-        width:40px;height:40px;border-radius:50%;
-        border:3px solid #002FA7;background:#fff;
-        box-shadow:0 0 0 3px rgba(0,47,167,.25),0 2px 6px rgba(0,0,0,.4);
-        overflow:hidden;display:flex;align-items:center;justify-content:center;">
-        ${contenido}
+      <div style="position:relative;width:26px;height:26px;">
+        <span class="pulso-ubicacion" style="width:26px;height:26px;"></span>
+        <div style="position:absolute;top:4px;left:4px;width:18px;height:18px;
+          border-radius:50%;background:#002FA7;border:3px solid #fff;
+          box-shadow:0 1px 4px rgba(0,0,0,.45);"></div>
       </div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20],
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -13],
   })
 }

@@ -9,6 +9,7 @@ import {
 } from '../lib/geo'
 import { PAISES_MUNDO, isoDe } from '../lib/paises'
 import Bandera from '../components/Bandera'
+import IconoRuta from '../components/IconoRuta'
 import SelectorBandera, {
   type OpcionBandera,
 } from '../components/SelectorBandera'
@@ -279,7 +280,7 @@ export default function CentrosAcopioView() {
                     rel="noopener noreferrer"
                     className="btn-amber py-2 px-3 text-sm whitespace-nowrap no-underline text-center"
                   >
-                    🧭 Ir
+                    <IconoRuta className="mr-1" /> Ir
                   </a>
                   {(c.creado_por === perfil?.id || rol === 'admin') && (
                     <button

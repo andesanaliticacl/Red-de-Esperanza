@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { iconoNecesidad, iconoAcopio, iconoUsuario } from '../lib/iconos'
+import IconoRuta from './IconoRuta'
 import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
 import {
   TIPO_META,
@@ -18,11 +19,27 @@ function BotonCentrarme({
   return (
     <button
       onClick={() => map.setView([ubicacion.lat, ubicacion.lng], 16)}
-      className="absolute bottom-24 right-3 z-[1000] bg-white text-bandera-azul rounded-full h-11 w-11 shadow-lg border flex items-center justify-center text-xl"
+      className="absolute bottom-24 right-3 z-[1000] bg-white text-bandera-azul rounded-full h-11 w-11 shadow-lg border flex items-center justify-center hover:bg-gray-50"
       title="Centrar en mi ubicación"
       aria-label="Centrar en mi ubicación"
     >
-      🎯
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="7" />
+        <line x1="12" y1="1.5" x2="12" y2="4.5" />
+        <line x1="12" y1="19.5" x2="12" y2="22.5" />
+        <line x1="1.5" y1="12" x2="4.5" y2="12" />
+        <line x1="19.5" y1="12" x2="22.5" y2="12" />
+      </svg>
     </button>
   )
 }
@@ -80,7 +97,7 @@ export default function MapaNecesidades({
                   rel="noopener noreferrer"
                   className="inline-block mt-1 bg-bandera-azul text-white font-semibold px-3 py-1.5 rounded-lg no-underline"
                 >
-                  🧭 Cómo llegar
+                  <IconoRuta className="mr-1" /> Cómo llegar
                 </a>
               </div>
             </Popup>
