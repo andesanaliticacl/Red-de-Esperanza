@@ -69,10 +69,16 @@ export default function HistorialView() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-5">
-      <h1 className="text-2xl font-extrabold text-bandera-azul">Historial</h1>
+      <h1 className="text-2xl font-extrabold text-bandera-azul">
+        Mi historial de actividad
+      </h1>
+      <p className="text-gray-600 text-sm">
+        Aquí queda registrado todo lo que has hecho en la plataforma: las
+        necesidades y SOS que reportaste{esStaff ? ', y los casos que atendiste como parte del equipo' : ''}.
+      </p>
 
       <Seccion
-        titulo="Mis reportes"
+        titulo="Necesidades y SOS que reporté"
         emoji="📋"
         lista={mios}
         vacio="Aún no has enviado reportes con tu cuenta."
