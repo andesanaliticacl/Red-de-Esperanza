@@ -268,7 +268,11 @@ export default function VoluntarioView() {
 
       {/* Mapa de lo verificado */}
       <div className="h-56 rounded-2xl overflow-hidden shadow">
-        <MapaNecesidades necesidades={lista} onMensaje={(n) => setChat(n)} />
+        <MapaNecesidades
+          necesidades={lista}
+          onMensaje={(n) => setChat(n)}
+          ajustarVista
+        />
       </div>
 
       {/* En curso: lo que YO tomé */}

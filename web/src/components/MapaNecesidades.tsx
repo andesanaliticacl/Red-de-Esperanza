@@ -1,6 +1,24 @@
+import { useEffect } from 'react'
+import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { iconoNecesidad, iconoAcopio, iconoUsuario } from '../lib/iconos'
 import IconoRuta from './IconoRuta'
+
+/** Ajusta el zoom/centro para que se vean todos los puntos dados. */
+function AjustarVista({ puntos }: { puntos: [number, number][] }) {
+  const map = useMap()
+  const clave = puntos.map((p) => p.join(',')).join('|')
+  useEffect(() => {
+    if (puntos.length === 0) return
+    if (puntos.length === 1) {
+      map.setView(puntos[0], 14)
+      return
+    }
+    map.fitBounds(L.latLngBounds(puntos), { padding: [40, 40], maxZoom: 15 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+  return null
+}
 import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
 import {
   TIPO_META,
@@ -19,7 +37,7 @@ function BotonCentrarme({
   return (
     <button
       onClick={() => map.setView([ubicacion.lat, ubicacion.lng], 16)}
-      className="absolute bottom-24 right-3 z-[1000] bg-white text-bandera-azul rounded-full h-11 w-11 shadow-lg border flex items-center justify-center hover:bg-gray-50"
+      className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] bg-white text-bandera-azul rounded-full h-11 w-11 shadow-lg border flex items-center justify-center hover:bg-gray-50"
       title="Centrar en mi ubicación"
       aria-label="Centrar en mi ubicación"
     >
@@ -50,6 +68,7 @@ export default function MapaNecesidades({
   miUbicacion,
   miFoto,
   onMensaje,
+  ajustarVista = false,
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
@@ -57,7 +76,13 @@ export default function MapaNecesidades({
   miFoto?: string | null
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
   onMensaje?: (n: Necesidad) => void
+  /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
+  ajustarVista?: boolean
 }) {
+  const puntos: [number, number][] = necesidades
+    .filter((n) => n.lat != null && n.lng != null)
+    .map((n) => [n.lat as number, n.lng as number])
+
   return (
     <MapContainer
       center={CENTRO_VENEZUELA}
@@ -69,6 +94,8 @@ export default function MapaNecesidades({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+
+      {ajustarVista && <AjustarVista puntos={puntos} />}
 
       {/* Todos los marcadores se muestran siempre (sin agrupar). */}
       {necesidades
