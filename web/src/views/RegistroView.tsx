@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EntradaTelefono from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
+import SelectorBandera from '../components/SelectorBandera'
+import { PAISES_MUNDO } from '../lib/paises'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -10,12 +12,11 @@ import {
   type TipoDocumento,
 } from '../lib/types'
 
-const ROLES_REGISTRO: RolRegistro[] = [
-  'ciudadano',
-  'voluntario',
-  'rescatista',
-  'centro_acopio',
-]
+const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
+  value: p.nombre,
+  iso: p.iso,
+  etiqueta: p.nombre,
+}))
 
 const DESCRIPCION_ROL: Record<RolRegistro, string> = {
   ciudadano: 'Reporto necesidades y sigo el mapa.',
@@ -57,11 +58,18 @@ export default function RegistroView() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rol, setRol] = useState<RolRegistro>('ciudadano')
+  const [pais, setPais] = useState('Venezuela')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
   const [documento, setDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
   const [estado, setEstado] = useState('')
   const [ciudad, setCiudad] = useState('')
+
+  // Voluntario/rescatista solo para quienes están en Venezuela.
+  const enVenezuela = pais === 'Venezuela'
+  const rolesDisponibles: RolRegistro[] = enVenezuela
+    ? ['ciudadano', 'voluntario', 'rescatista', 'centro_acopio']
+    : ['ciudadano', 'centro_acopio']
 
   const [verPass, setVerPass] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -86,6 +94,7 @@ export default function RegistroView() {
           data: {
             nombre: nombre.trim(),
             rol,
+            pais,
             tipo_documento: tipoDoc,
             documento: documento.trim(),
             telefono: telefono.trim(),
@@ -144,6 +153,27 @@ export default function RegistroView() {
         </p>
 
         <form onSubmit={registrar} className="space-y-4">
+          {/* País donde estás (define qué roles puedes elegir) */}
+          <div>
+            <p className="font-bold text-sm mb-2">¿En qué país estás?</p>
+            <SelectorBandera
+              opciones={OPCIONES_PAIS}
+              valor={pais}
+              onChange={(v) => {
+                setPais(v)
+                // Voluntario/rescatista solo en Venezuela: si cambia, reseteamos.
+                if (v !== 'Venezuela' && (rol === 'voluntario' || rol === 'rescatista'))
+                  setRol('ciudadano')
+              }}
+            />
+            {!enVenezuela && (
+              <p className="text-xs text-gray-500 mt-1">
+                Fuera de Venezuela puedes participar como ciudadano o centro de
+                acopio.
+              </p>
+            )}
+          </div>
+
           {/* Rol */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -157,7 +187,7 @@ export default function RegistroView() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {ROLES_REGISTRO.map((r) => (
+              {rolesDisponibles.map((r) => (
                 <button
                   type="button"
                   key={r}

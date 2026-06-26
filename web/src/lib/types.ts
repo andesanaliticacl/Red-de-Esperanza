@@ -135,6 +135,7 @@ export interface Perfil {
   telefono: string | null
   ciudad: string | null
   estado: string | null
+  pais: string | null
   zona: string | null
   foto_url: string | null
   creado_en: string

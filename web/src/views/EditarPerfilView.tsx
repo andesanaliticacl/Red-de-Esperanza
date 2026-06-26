@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import EntradaTelefono from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
+import SelectorBandera from '../components/SelectorBandera'
+import { PAISES_MUNDO } from '../lib/paises'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -18,6 +20,11 @@ const ROLES_ELEGIBLES: RolRegistro[] = [
   'rescatista',
   'centro_acopio',
 ]
+const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
+  value: p.nombre,
+  iso: p.iso,
+  etiqueta: p.nombre,
+}))
 
 /** Editar mis datos de perfil y subir/cambiar mi foto. */
 export default function EditarPerfilView() {
@@ -33,6 +40,7 @@ export default function EditarPerfilView() {
   const [documento, setDocumento] = useState(perfil?.documento ?? '')
   const [ciudad, setCiudad] = useState(perfil?.ciudad ?? '')
   const [estado, setEstado] = useState(perfil?.estado ?? '')
+  const [pais, setPais] = useState(perfil?.pais ?? 'Venezuela')
   const [fotoUrl, setFotoUrl] = useState(perfil?.foto_url ?? '')
   const [nuevoRol, setNuevoRol] = useState<RolRegistro | null>(
     rol && (ROLES_ELEGIBLES as string[]).includes(rol)
@@ -47,6 +55,11 @@ export default function EditarPerfilView() {
   const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
+  // Voluntario/rescatista solo en Venezuela.
+  const enVenezuela = pais === 'Venezuela'
+  const rolesElegibles: RolRegistro[] = enVenezuela
+    ? ROLES_ELEGIBLES
+    : ['ciudadano', 'centro_acopio']
 
   async function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -92,6 +105,7 @@ export default function EditarPerfilView() {
         documento: documento.trim() || null,
         ciudad: ciudad.trim() || null,
         estado: estado || null,
+        pais: pais || null,
         foto_url: fotoUrl || null,
         // Solo cambia el rol si es un rol elegible (no admin/verificador).
         ...(puedeCambiarRol && nuevoRol ? { rol: nuevoRol } : {}),
@@ -141,6 +155,30 @@ export default function EditarPerfilView() {
           </button>
         </div>
 
+        {/* País (define qué roles puedes elegir) */}
+        {puedeCambiarRol && (
+          <div>
+            <p className="text-sm font-semibold mb-1">¿En qué país estás?</p>
+            <SelectorBandera
+              opciones={OPCIONES_PAIS}
+              valor={pais}
+              onChange={(v) => {
+                setPais(v)
+                if (
+                  v !== 'Venezuela' &&
+                  (nuevoRol === 'voluntario' || nuevoRol === 'rescatista')
+                )
+                  setNuevoRol('ciudadano')
+              }}
+            />
+            {!enVenezuela && (
+              <p className="text-xs text-gray-500 mt-1">
+                Fuera de Venezuela solo puedes ser ciudadano o centro de acopio.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Cambiar mi rol (solo entre roles elegibles) */}
         {puedeCambiarRol && (
           <div>
@@ -155,7 +193,7 @@ export default function EditarPerfilView() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {ROLES_ELEGIBLES.map((r) => (
+              {rolesElegibles.map((r) => (
                 <button
                   type="button"
                   key={r}
