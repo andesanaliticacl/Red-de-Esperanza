@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   TIPO_META,
   type NecesidadTipo,
@@ -22,41 +22,43 @@ const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
 ]
 
 /**
- * Formulario de 3 pasos: tipo → descripción + urgencia → ubicación.
- * `coordPreseleccionada` viene si el usuario tocó el mapa antes.
- * `tipoInicial` permite abrir el modal con un tipo ya elegido (p. ej. el botón
- * de "departamentos derrumbados"), saltando directo al paso 2.
+ * Formulario de 3 pasos: tipo → detalle → ubicación.
+ * La ubicación se detecta SIEMPRE por GPS/IP (ya no se toca el mapa).
+ * `coordInicial` viene de la ubicación automática de la página.
+ * El tipo "derrumbe" muestra un paso 2 distinto (pide la dirección del edificio).
  */
 export default function ReportarModal({
   onCerrar,
   onCreado,
-  coordPreseleccionada,
-  tipoInicial,
+  coordInicial,
+  fuenteInicial,
 }: {
   onCerrar: () => void
   onCreado: () => void
-  coordPreseleccionada?: { lat: number; lng: number } | null
-  tipoInicial?: NecesidadTipo
+  coordInicial?: { lat: number; lng: number } | null
+  fuenteInicial?: FuenteUbicacion | null
 }) {
-  const [paso, setPaso] = useState(tipoInicial ? 2 : 1)
-  const [tipo, setTipo] = useState<NecesidadTipo>(tipoInicial ?? 'otro')
+  const [paso, setPaso] = useState(1)
+  const [tipo, setTipo] = useState<NecesidadTipo>('otro')
   const [descripcion, setDescripcion] = useState('')
-  const [urgencia, setUrgencia] = useState<NecesidadUrgencia>(
-    tipoInicial === 'derrumbe' ? 'alta' : 'media',
-  )
+  const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
   const [zona, setZona] = useState('')
   const [contacto, setContacto] = useState('')
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
-    coordPreseleccionada ?? null,
+    coordInicial ?? null,
   )
-  const [fuente, setFuente] = useState<FuenteUbicacion | null>(null)
+  const [fuente, setFuente] = useState<FuenteUbicacion | null>(
+    fuenteInicial ?? null,
+  )
   const [gpsEstado, setGpsEstado] = useState<'idle' | 'buscando' | 'error'>(
-    'idle',
+    coordInicial ? 'idle' : 'buscando',
   )
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  async function usarGPS() {
+  const esDerrumbe = tipo === 'derrumbe'
+
+  async function actualizarUbicacion() {
     setGpsEstado('buscando')
     try {
       const u = await obtenerUbicacion()
@@ -66,6 +68,18 @@ export default function ReportarModal({
     } catch {
       setGpsEstado('error')
     }
+  }
+
+  // Si no llegó una ubicación inicial, la buscamos automáticamente al abrir.
+  useEffect(() => {
+    if (!coordInicial) actualizarUbicacion()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function elegirTipo(t: NecesidadTipo) {
+    setTipo(t)
+    if (t === 'derrumbe') setUrgencia('alta')
+    setPaso(2)
   }
 
   async function enviar() {
@@ -94,7 +108,7 @@ export default function ReportarModal({
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-extrabold text-bandera-azul">
-            Reportar necesidad
+            {esDerrumbe && paso > 1 ? 'Edificio derrumbado' : 'Reportar necesidad'}
           </h2>
           <button
             onClick={onCerrar}
@@ -120,117 +134,164 @@ export default function ReportarModal({
         {/* PASO 1: tipo */}
         {paso === 1 && (
           <div>
-            <p className="font-bold mb-3">¿Qué necesitas?</p>
+            <p className="font-bold mb-3">¿Qué quieres reportar?</p>
             <div className="grid grid-cols-2 gap-3">
               {TIPOS.map((t) => (
                 <button
                   key={t}
-                  onClick={() => {
-                    setTipo(t)
-                    setPaso(2)
-                  }}
+                  onClick={() => elegirTipo(t)}
                   className={`card flex flex-col items-center py-5 border-2 ${
                     tipo === t ? 'border-bandera-azul' : 'border-transparent'
                   }`}
                 >
                   <span className="text-3xl">{TIPO_META[t].emoji}</span>
-                  <span className="font-bold mt-1">{TIPO_META[t].etiqueta}</span>
+                  <span className="font-bold mt-1 text-center text-sm">
+                    {TIPO_META[t].etiqueta}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* PASO 2: descripción + urgencia */}
-        {paso === 2 && (
-          <div className="space-y-4">
-            <div>
-              <p className="font-bold mb-2">Describe brevemente</p>
-              <textarea
-                className="input min-h-[90px]"
-                placeholder="Ej: Familia con 2 niños sin agua desde ayer"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-              />
-            </div>
-            <div>
-              <p className="font-bold mb-2">Urgencia</p>
-              <div className="grid grid-cols-3 gap-2">
-                {URGENCIAS.map((u) => (
-                  <button
-                    key={u.v}
-                    onClick={() => setUrgencia(u.v)}
-                    className={`${u.clase} ${
-                      urgencia === u.v ? 'ring-4 ring-black/20' : 'opacity-80'
-                    }`}
-                  >
-                    {u.etiqueta}
-                  </button>
-                ))}
+        {/* PASO 2: detalle (distinto para derrumbe) */}
+        {paso === 2 &&
+          (esDerrumbe ? (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+                🏚️ Reporta un edificio o departamento colapsado. Indica la
+                dirección; si no la sabes, usaremos tu ubicación GPS como
+                referencia principal del edificio.
+              </div>
+              <div>
+                <p className="font-bold mb-2">Dirección del edificio</p>
+                <input
+                  className="input"
+                  placeholder="Calle, edificio, urbanización, referencia…"
+                  value={zona}
+                  onChange={(e) => setZona(e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="font-bold mb-2">Detalles (opcional)</p>
+                <textarea
+                  className="input min-h-[80px]"
+                  placeholder="Ej: 4 pisos, posible gente atrapada en el 2.º"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="font-bold mb-2">Urgencia</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {URGENCIAS.map((u) => (
+                    <button
+                      key={u.v}
+                      onClick={() => setUrgencia(u.v)}
+                      className={`${u.clase} ${
+                        urgencia === u.v ? 'ring-4 ring-black/20' : 'opacity-80'
+                      }`}
+                    >
+                      {u.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setPaso(1)} className="btn-gris flex-1">
+                  ← Atrás
+                </button>
+                <button onClick={() => setPaso(3)} className="btn-azul flex-1">
+                  Siguiente →
+                </button>
               </div>
             </div>
-            <div>
-              <p className="font-bold mb-2">Zona (opcional)</p>
-              <input
-                className="input"
-                placeholder="Ej: Petare, parte alta"
-                value={zona}
-                onChange={(e) => setZona(e.target.value)}
-              />
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="font-bold mb-2">Describe brevemente</p>
+                <textarea
+                  className="input min-h-[90px]"
+                  placeholder="Ej: Familia con 2 niños sin agua desde ayer"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="font-bold mb-2">Urgencia</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {URGENCIAS.map((u) => (
+                    <button
+                      key={u.v}
+                      onClick={() => setUrgencia(u.v)}
+                      className={`${u.clase} ${
+                        urgencia === u.v ? 'ring-4 ring-black/20' : 'opacity-80'
+                      }`}
+                    >
+                      {u.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="font-bold mb-2">Zona (opcional)</p>
+                <input
+                  className="input"
+                  placeholder="Ej: Petare, parte alta"
+                  value={zona}
+                  onChange={(e) => setZona(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setPaso(1)} className="btn-gris flex-1">
+                  ← Atrás
+                </button>
+                <button onClick={() => setPaso(3)} className="btn-azul flex-1">
+                  Siguiente →
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setPaso(1)} className="btn-gris flex-1">
-                ← Atrás
-              </button>
-              <button onClick={() => setPaso(3)} className="btn-azul flex-1">
-                Siguiente →
-              </button>
-            </div>
-          </div>
-        )}
+          ))}
 
-        {/* PASO 3: ubicación + contacto */}
+        {/* PASO 3: ubicación (automática) + contacto */}
         {paso === 3 && (
           <div className="space-y-4">
             <div>
               <p className="font-bold mb-2">Ubicación</p>
-              <button
-                onClick={usarGPS}
-                disabled={gpsEstado === 'buscando'}
-                className="btn-azul w-full disabled:opacity-70"
-              >
+              <div className="rounded-xl border bg-gray-50 p-3">
                 {gpsEstado === 'buscando' ? (
-                  <>
-                    <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                    Buscando tu ubicación…
-                  </>
+                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                    <span className="inline-block h-4 w-4 rounded-full border-2 border-gray-300 border-t-bandera-azul animate-spin" />
+                    Detectando tu ubicación…
+                  </p>
+                ) : coord ? (
+                  <p className="text-sm text-green-700">
+                    ✅ Ubicación detectada: {coord.lat.toFixed(4)},{' '}
+                    {coord.lng.toFixed(4)}
+                    {fuente === 'ip' && (
+                      <span className="block text-amber-600">
+                        Aproximada por red.
+                      </span>
+                    )}
+                  </p>
                 ) : (
-                  <>📍 {coord ? 'Actualizar mi ubicación' : 'Usar mi ubicación'}</>
+                  <p className="text-sm text-bandera-rojo">
+                    No pudimos detectar tu ubicación. Activa el GPS e inténtalo
+                    de nuevo.
+                  </p>
                 )}
-              </button>
-              {gpsEstado === 'buscando' && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Esto puede tardar unos segundos. Si el GPS no responde, usamos
-                  tu ubicación aproximada por red.
-                </p>
-              )}
-              {coord && gpsEstado !== 'buscando' && (
-                <p className="text-sm text-green-700 mt-2">
-                  ✅ Ubicación lista: {coord.lat.toFixed(4)},{' '}
-                  {coord.lng.toFixed(4)}
-                  {fuente === 'ip' && (
-                    <span className="block text-amber-600">
-                      Aproximada por red — puedes tocar el mapa para ajustarla.
-                    </span>
-                  )}
-                </p>
-              )}
-              {gpsEstado === 'error' && (
-                <p className="text-sm text-bandera-rojo mt-2">
-                  No pudimos obtener tu ubicación. Cierra y toca el mapa para
-                  marcar el punto, o intenta de nuevo.
-                </p>
-              )}
+                <button
+                  onClick={actualizarUbicacion}
+                  disabled={gpsEstado === 'buscando'}
+                  className="btn-gris mt-2 py-2 px-3 text-sm disabled:opacity-60"
+                >
+                  🔄 Actualizar ubicación
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Tu ubicación se toma automáticamente por GPS (o por red si el GPS
+                falla). No se rastrea en vivo.
+              </p>
             </div>
             <div>
               <p className="font-bold mb-2">Contacto (opcional, privado)</p>

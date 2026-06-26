@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { listarChat, enviarChat, suscribirChat } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
-import type { MensajeGlobal } from '../lib/types'
+import { ESTADOS_VENEZUELA, type MensajeGlobal } from '../lib/types'
 
 /**
- * Chat global comunitario, agrupado por ciudad. Rellena el alto de su
- * contenedor: se usa como barra lateral en escritorio y como modal en móvil.
- * Sin cuenta, pide un apodo y la ciudad (se recuerdan en el dispositivo).
+ * Chat global comunitario, agrupado por estado de Venezuela. Rellena el alto de
+ * su contenedor: se usa como barra lateral en escritorio y como modal en móvil.
+ * Sin cuenta, pide un apodo y el estado (se recuerdan en el dispositivo).
  */
 export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const { perfil } = useAuth()
@@ -15,7 +15,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [nombre, setNombre] = useState(
     guardada?.nombre ?? perfil?.nombre?.split(' ')[0] ?? '',
   )
-  const [ciudad, setCiudad] = useState(guardada?.ciudad ?? perfil?.ciudad ?? '')
+  const [estado, setEstado] = useState(guardada?.estado ?? perfil?.estado ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
@@ -25,15 +25,15 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const finRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!listo || !ciudad.trim()) return
+    if (!listo || !estado.trim()) return
     let activo = true
     setCargando(true)
-    listarChat(ciudad)
+    listarChat(estado)
       .then((m) => activo && setMensajes(m))
       .catch((e) => setErrorMsg((e as Error).message))
       .finally(() => activo && setCargando(false))
 
-    const cancelar = suscribirChat(ciudad, (m) => {
+    const cancelar = suscribirChat(estado, (m) => {
       setMensajes((prev) =>
         prev.some((x) => x.id === m.id) ? prev : [...prev, m],
       )
@@ -42,7 +42,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       activo = false
       cancelar()
     }
-  }, [listo, ciudad])
+  }, [listo, estado])
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -50,8 +50,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
 
   function entrar(e: React.FormEvent) {
     e.preventDefault()
-    if (!nombre.trim() || !ciudad.trim()) return
-    guardarIdentidad({ nombre: nombre.trim(), ciudad: ciudad.trim() })
+    if (!nombre.trim() || !estado.trim()) return
+    guardarIdentidad({ nombre: nombre.trim(), estado: estado.trim() })
+    setMensajes([])
     setListo(true)
   }
 
@@ -62,7 +63,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     setTexto('')
     setErrorMsg('')
     try {
-      await enviarChat({ ciudad, nombre, cuerpo })
+      await enviarChat({ ciudad: estado, nombre, cuerpo })
     } catch (err) {
       setErrorMsg((err as Error).message)
       setTexto(cuerpo)
@@ -78,14 +79,15 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         </span>
         {listo && (
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full truncate">
-            📍 {ciudad}
+            📍 {estado}
           </span>
         )}
         {listo && (
           <button
             onClick={() => setListo(false)}
-            className="ml-auto text-xs underline/0 hover:underline opacity-90"
-            title="Cambiar ciudad o apodo"
+            className="ml-auto text-base opacity-90 hover:opacity-100"
+            title="Cambiar estado o apodo"
+            aria-label="Ajustes del chat"
           >
             ⚙️
           </button>
@@ -102,29 +104,40 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       </div>
 
       {!listo ? (
-        // Paso de identidad (apodo + ciudad)
+        // Ajustes / identidad (apodo + estado)
         <form onSubmit={entrar} className="p-4 space-y-3 flex-1">
           <p className="text-sm text-gray-600">
-            Conversa con la gente de tu ciudad. Elige un apodo y tu ciudad para
+            Conversa con la gente de tu estado. Elige tu nombre y tu estado para
             entrar al chat comunitario.
           </p>
-          <input
-            className="input"
-            placeholder="Tu apodo o nombre"
-            maxLength={40}
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="Tu ciudad (ej: Caracas)"
-            maxLength={60}
-            value={ciudad}
-            onChange={(e) => setCiudad(e.target.value)}
-          />
+          <label className="block text-sm font-semibold">
+            Nombre de la persona
+            <input
+              className="input mt-1"
+              placeholder="Tu nombre o apodo"
+              maxLength={40}
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Estado
+            <select
+              className="input mt-1"
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+            >
+              <option value="">Elige tu estado…</option>
+              {ESTADOS_VENEZUELA.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="submit"
-            disabled={!nombre.trim() || !ciudad.trim()}
+            disabled={!nombre.trim() || !estado.trim()}
             className="btn-azul w-full disabled:opacity-50"
           >
             Entrar al chat

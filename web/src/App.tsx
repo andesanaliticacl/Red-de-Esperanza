@@ -9,6 +9,7 @@ import CentrosAcopioView from './views/CentrosAcopioView'
 import InicioRedirect from './views/InicioRedirect'
 import VoluntarioView from './views/VoluntarioView'
 import PerfilView from './views/PerfilView'
+import EditarPerfilView from './views/EditarPerfilView'
 import HistorialView from './views/HistorialView'
 // PAUSADO: la verificación se ocultó por ahora. El código se conserva para
 // restaurarla en el futuro. Ver VerificadorView.tsx.
@@ -42,6 +43,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PerfilView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/perfil/editar"
+            element={
+              <ProtectedRoute>
+                <EditarPerfilView />
               </ProtectedRoute>
             }
           />

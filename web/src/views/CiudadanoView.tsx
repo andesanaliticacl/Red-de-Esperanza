@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
@@ -6,6 +6,7 @@ import ChatGlobal from '../components/ChatGlobal'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
+import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import {
   TIPO_META,
   type NecesidadTipo,
@@ -21,24 +22,42 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
   'otro',
 ]
 
+const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
+
 export default function CiudadanoView() {
   const { necesidades, acopios } = useNecesidades([
     'sin_verificar',
     'verificada',
     'en_proceso',
   ])
+  // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
+  const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
+  // El tutorial se muestra automáticamente la primera vez que se abre la app.
   const [abrirTutorial, setAbrirTutorial] = useState(false)
-  const [coordTocada, setCoordTocada] = useState<{ lat: number; lng: number } | null>(
-    null,
-  )
 
-  // Ambos filtros se combinan (tipo Y urgencia). El mapa solo muestra lo que
-  // coincide con el filtro activo.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(CLAVE_TUTORIAL)) setAbrirTutorial(true)
+    } catch {
+      /* sin localStorage: no pasa nada */
+    }
+  }, [])
+
+  function cerrarTutorial() {
+    try {
+      localStorage.setItem(CLAVE_TUTORIAL, '1')
+    } catch {
+      /* ignorar */
+    }
+    setAbrirTutorial(false)
+  }
+
+  // Ambos filtros se combinan (tipo Y urgencia).
   const filtradas = useMemo(
     () =>
       necesidades.filter((n) => {
@@ -49,8 +68,7 @@ export default function CiudadanoView() {
     [necesidades, tipoFiltro, urgFiltro],
   )
 
-  // Los acopios solo se ven cuando no hay un filtro de tipo activo (o sea, al
-  // ver "todos"), para que el mapa muestre únicamente lo relacionado al filtro.
+  // Los acopios solo se ven sin filtro de tipo (para mostrar solo lo del filtro).
   const acopiosVisibles = tipoFiltro === 'todos' ? acopios : []
   const hayFiltro = tipoFiltro !== 'todos' || urgFiltro !== 'todas'
 
@@ -67,8 +85,7 @@ export default function CiudadanoView() {
           <MapaNecesidades
             necesidades={filtradas}
             acopios={acopiosVisibles}
-            marcadorTemporal={coordTocada}
-            onClicMapa={(lat, lng) => setCoordTocada({ lat, lng })}
+            marcadorTemporal={coordAuto}
           />
         </div>
 
@@ -128,18 +145,6 @@ export default function CiudadanoView() {
               </button>
             )}
           </div>
-
-          {coordTocada && (
-            <div className="pointer-events-auto mt-2 bg-white/95 rounded-xl shadow p-2 text-sm flex items-center gap-2">
-              📍 Punto marcado en el mapa
-              <button
-                className="ml-auto text-bandera-rojo font-semibold"
-                onClick={() => setCoordTocada(null)}
-              >
-                Quitar
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Botones flotantes: SOS + Reportar */}
@@ -163,16 +168,14 @@ export default function CiudadanoView() {
 
       {abrirReporte && (
         <ReportarModal
-          coordPreseleccionada={coordTocada}
+          coordInicial={coordAuto}
+          fuenteInicial={fuenteAuto}
           onCerrar={() => setAbrirReporte(false)}
-          onCreado={() => {
-            setAbrirReporte(false)
-            setCoordTocada(null)
-          }}
+          onCreado={() => setAbrirReporte(false)}
         />
       )}
       {abrirSos && <SosModal onCerrar={() => setAbrirSos(false)} />}
-      {abrirTutorial && <TutorialModal onCerrar={() => setAbrirTutorial(false)} />}
+      {abrirTutorial && <TutorialModal onCerrar={cerrarTutorial} />}
     </div>
   )
 }

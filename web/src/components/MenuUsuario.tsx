@@ -46,7 +46,15 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
         className={`flex items-center gap-2 font-semibold px-3 py-2 rounded-xl ${disparador}`}
         aria-label="Menú"
       >
-        <span className="text-lg leading-none">{meta?.emoji ?? '👤'}</span>
+        {perfil?.foto_url ? (
+          <img
+            src={perfil.foto_url}
+            alt=""
+            className="h-6 w-6 rounded-full object-cover"
+          />
+        ) : (
+          <span className="text-lg leading-none">{meta?.emoji ?? '👤'}</span>
+        )}
         {nombreCorto && (
           <span className="hidden sm:inline max-w-[8rem] truncate">
             {nombreCorto}

@@ -72,6 +72,7 @@ export interface PerfilPublico {
   id: string
   nombre: string | null
   rol: RolUsuario
+  foto_url?: string | null
 }
 
 export type EventoTipo =
@@ -131,6 +132,7 @@ export interface Perfil {
   ciudad: string | null
   estado: string | null
   zona: string | null
+  foto_url: string | null
   creado_en: string
 }
 

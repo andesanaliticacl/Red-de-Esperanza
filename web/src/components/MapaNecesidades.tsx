@@ -107,7 +107,7 @@ export default function MapaNecesidades({
           position={[marcadorTemporal.lat, marcadorTemporal.lng]}
           icon={iconoNecesidad('otro', 'sin_verificar')}
         >
-          <Popup>Ubicación elegida</Popup>
+          <Popup>📍 Tu ubicación</Popup>
         </Marker>
       )}
     </MapContainer>

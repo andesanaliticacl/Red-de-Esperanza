@@ -44,7 +44,8 @@ auto-asignarse verificador ni admin: eso solo lo otorga un admin.
    - [`supabase/02_analitica_y_emergencias.sql`](supabase/02_analitica_y_emergencias.sql) — registro de acciones para análisis.
    - [`supabase/03_centros_internacionales.sql`](supabase/03_centros_internacionales.sql) — centros de acopio internacionales.
    - [`supabase/04_derrumbes.sql`](supabase/04_derrumbes.sql) — tipo de necesidad "derrumbe" (edificios colapsados).
-   - [`supabase/05_chat_y_perfiles_publicos.sql`](supabase/05_chat_y_perfiles_publicos.sql) — chat global por ciudad y vista pública de perfiles.
+   - [`supabase/05_chat_y_perfiles_publicos.sql`](supabase/05_chat_y_perfiles_publicos.sql) — chat global por estado y vista pública de perfiles.
+   - [`supabase/06_foto_perfil.sql`](supabase/06_foto_perfil.sql) — foto de perfil (avatar) + bucket de Storage.
 4. **Authentication → Sign In / Providers → Email**: deja **Email** activado.
    Recomendado: activa **Confirm email** para que cada cuenta se verifique por
    correo y no se creen cuentas falsas masivas.

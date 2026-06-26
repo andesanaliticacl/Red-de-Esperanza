@@ -1,11 +1,11 @@
 // Identidad ligera para participar en el chat global sin necesidad de cuenta.
-// Se guarda en localStorage: un apodo y la ciudad/sala elegida.
+// Se guarda en localStorage: un apodo y el estado (de Venezuela) elegido.
 
 const CLAVE = 'esperanza.identidad'
 
 export interface Identidad {
   nombre: string
-  ciudad: string
+  estado: string
 }
 
 export function leerIdentidad(): Identidad | null {
@@ -13,7 +13,7 @@ export function leerIdentidad(): Identidad | null {
     const crudo = localStorage.getItem(CLAVE)
     if (!crudo) return null
     const v = JSON.parse(crudo)
-    if (v && typeof v.nombre === 'string' && typeof v.ciudad === 'string')
+    if (v && typeof v.nombre === 'string' && typeof v.estado === 'string')
       return v as Identidad
   } catch {
     /* localStorage no disponible */
