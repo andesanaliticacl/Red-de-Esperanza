@@ -57,6 +57,23 @@ export interface Mensaje {
   creado_en: string
 }
 
+/** Mensaje del chat global comunitario (agrupado por ciudad). */
+export interface MensajeGlobal {
+  id: string
+  ciudad: string
+  nombre: string
+  cuerpo: string
+  autor: string | null
+  creado_en: string
+}
+
+/** Perfil mínimo público (para mostrar "atendido por …"). */
+export interface PerfilPublico {
+  id: string
+  nombre: string | null
+  rol: RolUsuario
+}
+
 export type EventoTipo =
   | 'cuenta_creada'
   | 'reporte_creado'

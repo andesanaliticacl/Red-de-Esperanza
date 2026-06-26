@@ -39,9 +39,12 @@ auto-asignarse verificador ni admin: eso solo lo otorga un admin.
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
 2. **SQL Editor → New query** → pega TODO el contenido de
    [`supabase/schema.sql`](supabase/schema.sql) → **Run**.
-3. **SQL Editor → New query** → pega TODO el contenido de
-   [`supabase/02_analitica_y_emergencias.sql`](supabase/02_analitica_y_emergencias.sql)
-   → **Run** (registro de acciones para análisis).
+3. **SQL Editor → New query** → ejecuta, en orden, cada una de estas migraciones
+   (una por una, **Run** entre cada una):
+   - [`supabase/02_analitica_y_emergencias.sql`](supabase/02_analitica_y_emergencias.sql) — registro de acciones para análisis.
+   - [`supabase/03_centros_internacionales.sql`](supabase/03_centros_internacionales.sql) — centros de acopio internacionales.
+   - [`supabase/04_derrumbes.sql`](supabase/04_derrumbes.sql) — tipo de necesidad "derrumbe" (edificios colapsados).
+   - [`supabase/05_chat_y_perfiles_publicos.sql`](supabase/05_chat_y_perfiles_publicos.sql) — chat global por ciudad y vista pública de perfiles.
 4. **Authentication → Sign In / Providers → Email**: deja **Email** activado.
    Recomendado: activa **Confirm email** para que cada cuenta se verifique por
    correo y no se creen cuentas falsas masivas.

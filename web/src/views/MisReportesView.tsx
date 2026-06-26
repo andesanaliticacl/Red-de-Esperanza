@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { nombresPublicos } from '../lib/perfiles'
 import ChatNecesidad from '../components/ChatNecesidad'
 import {
   TIPO_META,
   type Necesidad,
   type NecesidadEstado,
+  type PerfilPublico,
 } from '../lib/types'
 
 const ESTADO_META: Record<NecesidadEstado, { etiqueta: string; clase: string }> = {
@@ -23,6 +25,7 @@ export default function MisReportesView() {
   const [lista, setLista] = useState<Necesidad[]>([])
   const [cargando, setCargando] = useState(true)
   const [chat, setChat] = useState<Necesidad | null>(null)
+  const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
 
   useEffect(() => {
     if (!perfil?.id) return
@@ -32,8 +35,10 @@ export default function MisReportesView() {
       .eq('reportado_por', perfil.id)
       .order('creado_en', { ascending: false })
       .then(({ data }) => {
-        setLista((data ?? []) as Necesidad[])
+        const filas = (data ?? []) as Necesidad[]
+        setLista(filas)
         setCargando(false)
+        nombresPublicos(filas.map((n) => n.asignado_a)).then(setNombres)
       })
   }, [perfil?.id])
 
@@ -71,6 +76,12 @@ export default function MisReportesView() {
                 >
                   {ESTADO_META[n.estado].etiqueta}
                 </span>
+                {n.asignado_a &&
+                  (n.estado === 'en_proceso' || n.estado === 'resuelta') && (
+                    <div className="text-xs font-semibold text-bandera-azul mt-1">
+                      🤝 Atiende: {nombres.get(n.asignado_a)?.nombre ?? 'Voluntario'}
+                    </div>
+                  )}
               </div>
               <button
                 onClick={() => setChat(n)}

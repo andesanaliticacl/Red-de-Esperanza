@@ -11,21 +11,39 @@ export function iconoNecesidad(
   estado: NecesidadEstado,
 ): L.DivIcon {
   const { color, emoji } = TIPO_META[tipo]
-  const borde = '3px solid #ffffff'
-  const opacidad = estado === 'resuelta' ? 0.45 : 1
+  // El marcador NO desaparece al ser atendido: cambia de aspecto.
+  //  · en proceso → borde azul (alguien ya lo tomó), sigue bien visible.
+  //  · resuelta    → atenuado + check verde.
+  const borde =
+    estado === 'en_proceso'
+      ? '3px solid #002FA7'
+      : estado === 'resuelta'
+        ? '3px solid #16A34A'
+        : '3px solid #ffffff'
+  const opacidad = estado === 'resuelta' ? 0.5 : 1
+  // Pequeña insignia de estado encima del pin.
+  const insignia =
+    estado === 'en_proceso'
+      ? '<span style="position:absolute;top:-6px;right:-6px;background:#002FA7;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">⏳</span>'
+      : estado === 'resuelta'
+        ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
+        : ''
 
   return L.divIcon({
     className: 'marcador-necesidad',
     html: `
-      <div style="
-        background:${color};
-        width:34px;height:34px;border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        border:${borde};
-        box-shadow:0 2px 6px rgba(0,0,0,.4);
-        opacity:${opacidad};
-        display:flex;align-items:center;justify-content:center;">
-        <span style="transform:rotate(45deg);font-size:16px;line-height:1;">${emoji}</span>
+      <div style="position:relative;">
+        <div style="
+          background:${color};
+          width:34px;height:34px;border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);
+          border:${borde};
+          box-shadow:0 2px 6px rgba(0,0,0,.4);
+          opacity:${opacidad};
+          display:flex;align-items:center;justify-content:center;">
+          <span style="transform:rotate(45deg);font-size:16px;line-height:1;">${emoji}</span>
+        </div>
+        ${insignia}
       </div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 34],

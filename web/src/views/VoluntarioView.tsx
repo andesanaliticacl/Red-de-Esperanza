@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useNecesidades } from '../hooks/useNecesidades'
+import { nombresPublicos } from '../lib/perfiles'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import { enlaceComoLlegar } from '../lib/geo'
@@ -10,6 +11,7 @@ import {
   URGENCIA_META,
   type Necesidad,
   type NecesidadTipo,
+  type PerfilPublico,
 } from '../lib/types'
 
 const TIPOS: NecesidadTipo[] = [
@@ -45,6 +47,16 @@ export default function VoluntarioView() {
   const [zonaFiltro, setZonaFiltro] = useState('')
   const [trabajando, setTrabajando] = useState<string | null>(null)
   const [chat, setChat] = useState<Necesidad | null>(null)
+  const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
+
+  // Resuelve los nombres de quienes ya tomaron una necesidad (asignado_a).
+  useEffect(() => {
+    const ids = necesidades.map((n) => n.asignado_a)
+    nombresPublicos(ids).then(setNombres)
+  }, [necesidades])
+
+  const quienAtiende = (n: Necesidad): string | null =>
+    n.asignado_a ? nombres.get(n.asignado_a)?.nombre ?? 'Voluntario' : null
 
   const lista = useMemo(
     () =>
@@ -88,7 +100,9 @@ export default function VoluntarioView() {
     setTrabajando(null)
   }
 
-  const mias = lista.filter((n) => n.estado === 'en_proceso')
+  const enCurso = lista.filter((n) => n.estado === 'en_proceso')
+  const mias = enCurso.filter((n) => n.asignado_a === perfil?.id)
+  const deOtros = enCurso.filter((n) => n.asignado_a !== perfil?.id)
   // Abiertas = reportes por atender que NO son SOS (esos van en su sección).
   const abiertas = lista.filter(
     (n) =>
@@ -179,10 +193,12 @@ export default function VoluntarioView() {
         <MapaNecesidades necesidades={lista} />
       </div>
 
-      {/* Mis tareas en proceso */}
+      {/* En curso: lo que YO tomé */}
       {mias.length > 0 && (
         <section>
-          <h2 className="font-bold text-lg mb-2">En proceso ({mias.length})</h2>
+          <h2 className="font-bold text-lg mb-2">
+            🙋 Me asigné ({mias.length})
+          </h2>
           <div className="space-y-3">
             {mias.map((n) => (
               <Fila
@@ -191,6 +207,27 @@ export default function VoluntarioView() {
                 trabajando={trabajando === n.id}
                 accion="atender"
                 onAccion={() => atender(n)}
+                onChat={() => setChat(n)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* En curso: tomadas por OTROS (solo lectura, para no chocar) */}
+      {deOtros.length > 0 && (
+        <section>
+          <h2 className="font-bold text-lg mb-2">
+            👥 En curso por otros ({deOtros.length})
+          </h2>
+          <div className="space-y-3">
+            {deOtros.map((n) => (
+              <Fila
+                key={n.id}
+                n={n}
+                trabajando={trabajando === n.id}
+                accion={null}
+                atendidaPor={quienAtiende(n)}
                 onChat={() => setChat(n)}
               />
             ))}
@@ -242,12 +279,14 @@ function Fila({
   accion,
   onAccion,
   onChat,
+  atendidaPor,
 }: {
   n: Necesidad
   trabajando: boolean
-  accion: 'asignar' | 'atender'
-  onAccion: () => void
+  accion: 'asignar' | 'atender' | null
+  onAccion?: () => void
   onChat: () => void
+  atendidaPor?: string | null
 }) {
   return (
     <div className="card flex items-center gap-3">
@@ -269,17 +308,24 @@ function Fila({
         </div>
         <div className="text-sm text-gray-700 truncate">{n.descripcion}</div>
         {n.zona && <div className="text-xs text-gray-500">📍 {n.zona}</div>}
+        {atendidaPor && (
+          <div className="text-xs font-semibold text-bandera-azul mt-0.5">
+            🤝 Atiende: {atendidaPor}
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-2">
-        <button
-          onClick={onAccion}
-          disabled={trabajando}
-          className={`${
-            accion === 'asignar' ? 'btn-azul' : 'btn-verde'
-          } py-2.5 px-4 disabled:opacity-60 whitespace-nowrap`}
-        >
-          {accion === 'asignar' ? 'Me asigno' : 'Atendida'}
-        </button>
+        {accion && onAccion && (
+          <button
+            onClick={onAccion}
+            disabled={trabajando}
+            className={`${
+              accion === 'asignar' ? 'btn-azul' : 'btn-verde'
+            } py-2.5 px-4 disabled:opacity-60 whitespace-nowrap`}
+          >
+            {accion === 'asignar' ? 'Me asigno' : 'Atendida'}
+          </button>
+        )}
         <button
           onClick={onChat}
           className="btn-gris py-2.5 px-4 whitespace-nowrap"
