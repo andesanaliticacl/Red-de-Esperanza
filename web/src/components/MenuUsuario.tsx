@@ -122,7 +122,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                 <ItemLink
                   to="/voluntario"
                   emoji="🤝"
-                  texto="Atender necesidades"
+                  texto="Atender solicitudes"
                   onClick={cerrar}
                 />
               )}
