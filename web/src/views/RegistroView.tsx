@@ -82,7 +82,7 @@ export default function RegistroView() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/inicio`,
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             nombre: nombre.trim(),
             rol,
@@ -101,7 +101,7 @@ export default function RegistroView() {
       }
       // Si el proyecto exige confirmación por correo no habrá sesión todavía.
       if (data.session) {
-        navigate('/inicio', { replace: true })
+        navigate('/', { replace: true })
       } else {
         setListo('confirmar')
       }

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import BarraSuperior from './components/BarraSuperior'
 import ProtectedRoute from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 // CiudadanoView es la pantalla principal (y el comodín *): se carga de una vez.
 import CiudadanoView from './views/CiudadanoView'
 
@@ -31,8 +32,9 @@ export default function App() {
     <div className="h-full flex flex-col">
       <BarraSuperior />
       <main className="flex-1 min-h-0">
-        <Suspense fallback={<Cargando />}>
-          <Routes>
+        <ErrorBoundary>
+          <Suspense fallback={<Cargando />}>
+            <Routes>
             {/* Público (sin login): mapa, reportar y SOS */}
             <Route path="/" element={<CiudadanoView />} />
             <Route path="/login" element={<LoginView />} />
@@ -97,8 +99,9 @@ export default function App() {
             />
 
             <Route path="*" element={<CiudadanoView />} />
-          </Routes>
-        </Suspense>
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   )

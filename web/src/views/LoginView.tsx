@@ -26,7 +26,7 @@ export default function LoginView() {
           : error.message,
       )
     } else {
-      navigate('/inicio', { replace: true })
+      navigate('/', { replace: true })
     }
   }
 
