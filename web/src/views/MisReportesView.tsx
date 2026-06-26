@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { nombresPublicos } from '../lib/perfiles'
 import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
+import { sonarMensaje } from '../lib/sonidos'
 import ChatNecesidad from '../components/ChatNecesidad'
 import {
   TIPO_META,
@@ -66,6 +67,42 @@ export default function MisReportesView() {
       })
   }, [perfil?.id])
 
+  // Notificación en vivo: cuando alguien se asigna a uno de mis reportes,
+  // suena un aviso y se actualiza quién lo atiende.
+  useEffect(() => {
+    if (!perfil?.id) return
+    const miId = perfil.id
+    const canal = supabase
+      .channel(`mis-reportes:${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'necesidades',
+          filter: `reportado_por=eq.${miId}`,
+        },
+        (payload) => {
+          const fila = payload.new as Necesidad
+          setLista((prev) => {
+            const anterior = prev.find((n) => n.id === fila.id)
+            // Alguien acaba de asignarse → avisamos.
+            if (fila.asignado_a && anterior && !anterior.asignado_a) {
+              sonarMensaje()
+              nombresPublicos([fila.asignado_a]).then((m) =>
+                setNombres((prevN) => new Map([...prevN, ...m])),
+              )
+            }
+            return prev.map((n) => (n.id === fila.id ? { ...n, ...fila } : n))
+          })
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(canal)
+    }
+  }, [perfil?.id])
+
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-extrabold text-bandera-azul">Mis reportes</h1>
@@ -102,7 +139,7 @@ export default function MisReportesView() {
                 </span>
                 {n.asignado_a &&
                   (n.estado === 'en_proceso' || n.estado === 'resuelta') && (
-                    <div className="text-xs font-semibold text-bandera-azul mt-1">
+                    <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-lg">
                       🤝 Atiende: {nombres.get(n.asignado_a)?.nombre ?? 'Voluntario'}
                     </div>
                   )}
@@ -112,7 +149,7 @@ export default function MisReportesView() {
                   onClick={() => setChat(n)}
                   className="btn-azul py-2.5 px-4 whitespace-nowrap"
                 >
-                  💬 Mensajes
+                  💬 Contactar
                 </button>
                 <button
                   onClick={() => borrar(n)}
