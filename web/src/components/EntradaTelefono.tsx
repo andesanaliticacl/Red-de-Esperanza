@@ -56,7 +56,7 @@ export default function EntradaTelefono({
   return (
     <div className="flex gap-2">
       <SelectorBandera
-        className="w-28 shrink-0"
+        className="w-32 shrink-0"
         opciones={OPCIONES}
         valor={iso}
         onChange={(v) => {

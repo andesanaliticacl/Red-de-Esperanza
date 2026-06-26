@@ -9,12 +9,10 @@ export default function LoginView() {
   const [verPass, setVerPass] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [aviso, setAviso] = useState('')
 
   async function ingresar(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg('')
-    setAviso('')
     setCargando(true)
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -32,23 +30,6 @@ export default function LoginView() {
     }
   }
 
-  // Alternativa sin contraseña (enlace mágico al correo).
-  async function enlaceMagico() {
-    if (!email.trim()) {
-      setErrorMsg('Escribe tu correo para enviarte el enlace.')
-      return
-    }
-    setErrorMsg('')
-    setCargando(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/inicio` },
-    })
-    setCargando(false)
-    if (error) setErrorMsg(error.message)
-    else setAviso('Te enviamos un enlace de acceso. Revisa tu correo.')
-  }
-
   return (
     <div className="min-h-full flex flex-col items-center justify-center p-6 bg-gray-50">
       <div className="card w-full max-w-md">
@@ -59,12 +40,7 @@ export default function LoginView() {
           Para ciudadanos registrados, voluntarios, rescatistas y equipo.
         </p>
 
-        {aviso ? (
-          <div className="rounded-xl bg-green-50 text-green-800 p-4">
-            ✅ {aviso}
-          </div>
-        ) : (
-          <form onSubmit={ingresar} className="space-y-4">
+        <form onSubmit={ingresar} className="space-y-4">
             <input
               type="email"
               required
@@ -100,15 +76,7 @@ export default function LoginView() {
             >
               {cargando ? 'Entrando…' : '➡️ Entrar'}
             </button>
-            <button
-              type="button"
-              onClick={enlaceMagico}
-              className="w-full text-sm text-bandera-azul font-semibold"
-            >
-              Entrar con enlace mágico (sin contraseña)
-            </button>
           </form>
-        )}
 
         <div className="mt-6 pt-5 border-t text-center">
           <p className="text-gray-600 mb-3">¿No tienes cuenta todavía?</p>

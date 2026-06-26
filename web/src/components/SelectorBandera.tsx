@@ -53,7 +53,7 @@ export default function SelectorBandera({
             className="fixed inset-0 z-[2400]"
             onClick={() => setAbierto(false)}
           />
-          <ul className="absolute z-[2500] mt-1 w-full max-h-64 overflow-y-auto bg-white border rounded-xl shadow-xl py-1">
+          <ul className="absolute z-[2500] mt-1 w-max min-w-full max-w-[85vw] max-h-64 overflow-y-auto bg-white border rounded-xl shadow-xl py-1">
             {opciones.map((o) => (
               <li key={o.value + o.iso}>
                 <button
