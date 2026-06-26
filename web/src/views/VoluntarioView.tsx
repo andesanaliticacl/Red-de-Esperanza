@@ -7,6 +7,7 @@ import { nombresPublicos } from '../lib/perfiles'
 import { sonarSOS, sonarMensaje } from '../lib/sonidos'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -67,6 +68,7 @@ export default function VoluntarioView() {
   const [zonaFiltro, setZonaFiltro] = useState('')
   const [trabajando, setTrabajando] = useState<string | null>(null)
   const [chat, setChat] = useState<Necesidad | null>(null)
+  const [aRetirar, setARetirar] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   const [verAviso, setVerAviso] = useState(() => {
     try {
@@ -138,9 +140,10 @@ export default function VoluntarioView() {
 
   // El voluntario que se asignó pero ya no puede continuar se retira: la
   // necesidad vuelve al pool abierto para que otra persona la tome.
-  async function retirarme(n: Necesidad) {
-    if (!confirm('¿Retirarte de esta necesidad? Volverá a quedar disponible para otros.'))
-      return
+  async function confirmarRetiro() {
+    const n = aRetirar
+    setARetirar(null)
+    if (!n) return
     setTrabajando(n.id)
     const { error } = await supabase
       .from('necesidades')
@@ -283,7 +286,7 @@ export default function VoluntarioView() {
                 accion="atender"
                 onAccion={() => atender(n)}
                 onChat={() => setChat(n)}
-                onRetirar={() => retirarme(n)}
+                onRetirar={() => setARetirar(n)}
               />
             ))}
           </div>
@@ -345,6 +348,17 @@ export default function VoluntarioView() {
           onCerrar={() => setChat(null)}
         />
       )}
+
+      <ConfirmDialog
+        abierto={!!aRetirar}
+        emoji="✋"
+        titulo="¿Retirarte de esta necesidad?"
+        mensaje="Volverá a quedar disponible para que otra persona la tome."
+        textoConfirmar="Sí, retirarme"
+        peligro
+        onConfirmar={confirmarRetiro}
+        onCancelar={() => setARetirar(null)}
+      />
     </div>
   )
 }
