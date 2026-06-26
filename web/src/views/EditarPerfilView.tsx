@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { ESTADOS_VENEZUELA, ROL_META } from '../lib/types'
@@ -24,18 +25,21 @@ export default function EditarPerfilView() {
   async function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !perfil?.id) return
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg('La imagen es muy pesada (máximo 5 MB).')
-      return
-    }
     setErrorMsg('')
     setSubiendo(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const ruta = `${perfil.id}/${Date.now()}.${ext}`
+      // Fase 8: comprimimos a WebP ~1200px/80% antes de subir (reduce ~90%).
+      const comprimida = await imageCompression(file, {
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        fileType: 'image/webp',
+        initialQuality: 0.8,
+      })
+      const ruta = `${perfil.id}/${Date.now()}.webp`
       const { error: upErr } = await supabase.storage
         .from('avatares')
-        .upload(ruta, file, { upsert: true })
+        .upload(ruta, comprimida, { upsert: true, contentType: 'image/webp' })
       if (upErr) throw upErr
       const { data } = supabase.storage.from('avatares').getPublicUrl(ruta)
       setFotoUrl(data.publicUrl)
