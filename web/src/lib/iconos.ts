@@ -9,6 +9,7 @@ import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
 export function iconoNecesidad(
   tipo: NecesidadTipo,
   estado: NecesidadEstado,
+  resaltada = false,
 ): L.DivIcon {
   const { color, emoji } = TIPO_META[tipo]
   // El marcador NO desaparece al ser atendido: cambia de aspecto.
@@ -31,9 +32,14 @@ export function iconoNecesidad(
   // El derrumbe se ve más explícito: pin más grande, halo que late y una
   // insignia ⚠️ para que se entienda al instante que es un edificio colapsado.
   const esDerrumbe = tipo === 'derrumbe'
-  const tam = esDerrumbe ? 42 : 34
-  const fuente = esDerrumbe ? 20 : 16
-  const halo = esDerrumbe ? '<span class="pulso-derrumbe"></span>' : ''
+  // Resaltada: más grande y con halo rojo que late, para ubicarla al instante.
+  const tam = resaltada ? 48 : esDerrumbe ? 42 : 34
+  const fuente = resaltada ? 22 : esDerrumbe ? 20 : 16
+  const halo = resaltada
+    ? '<span class="pulso-resaltado"></span>'
+    : esDerrumbe
+      ? '<span class="pulso-derrumbe"></span>'
+      : ''
   const insigniaPeligro =
     esDerrumbe && estado !== 'en_proceso' && estado !== 'resuelta'
       ? '<span style="position:absolute;top:-7px;right:-7px;font-size:14px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">⚠️</span>'

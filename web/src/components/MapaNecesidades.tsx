@@ -25,6 +25,17 @@ function AjustarVista({ puntos }: { puntos: [number, number][] }) {
   }, [clave])
   return null
 }
+
+/** Centra (con animación) el mapa en una posición cuando esta cambia. */
+function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
+  const map = useMap()
+  const clave = posicion ? posicion.join(',') : ''
+  useEffect(() => {
+    if (posicion) map.flyTo(posicion, 17, { duration: 0.8 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+  return null
+}
 import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
 import {
   TIPO_META,
@@ -141,6 +152,7 @@ export default function MapaNecesidades({
   miFoto,
   onMensaje,
   onAsignarme,
+  resaltadaId,
   ajustarVista = false,
 }: {
   necesidades: Necesidad[]
@@ -156,6 +168,8 @@ export default function MapaNecesidades({
    * (esto avisa a quien la creó que alguien ya va en camino).
    */
   onAsignarme?: (n: Necesidad) => void
+  /** Id de una necesidad a resaltar (icono grande con halo) y centrar. */
+  resaltadaId?: string
   /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
   ajustarVista?: boolean
 }) {
@@ -187,6 +201,21 @@ export default function MapaNecesidades({
 
       {ajustarVista && <AjustarVista puntos={puntos} />}
 
+      {/* Si llegamos desde un aviso, centramos en esa necesidad. */}
+      {resaltadaId && (
+        <CentrarEn
+          posicion={
+            posiciones.get(resaltadaId) ??
+            (() => {
+              const n = necesidades.find((x) => x.id === resaltadaId)
+              return n && n.lat != null && n.lng != null
+                ? ([n.lat, n.lng] as [number, number])
+                : null
+            })()
+          }
+        />
+      )}
+
       {/* Todos los marcadores se muestran siempre (sin agrupar). */}
       {necesidades
         .filter((n) => n.lat != null && n.lng != null)
@@ -194,7 +223,8 @@ export default function MapaNecesidades({
           <Marker
             key={n.id}
             position={posiciones.get(n.id) ?? [n.lat as number, n.lng as number]}
-            icon={iconoNecesidad(n.tipo, n.estado)}
+            icon={iconoNecesidad(n.tipo, n.estado, n.id === resaltadaId)}
+            zIndexOffset={n.id === resaltadaId ? 2000 : 0}
           >
             <Popup>
               <div className="space-y-1">

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import MapaNecesidades from '../components/MapaNecesidades'
+import CampanaNotificaciones from '../components/CampanaNotificaciones'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
 import ChatGlobal from '../components/ChatGlobal'
@@ -43,6 +44,23 @@ export default function CiudadanoView() {
   const { perfil, session, rol } = useAuth()
   const { notificar } = useNotificaciones()
   const navigate = useNavigate()
+  // Necesidad a resaltar en el mapa (al venir de un aviso: /?necesidad=ID).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const resaltadaId = searchParams.get('necesidad') ?? undefined
+  // El resaltado se quita solo a los 15 s para no quedar fijo.
+  useEffect(() => {
+    if (!resaltadaId) return
+    const t = window.setTimeout(() => {
+      setSearchParams(
+        (prev) => {
+          prev.delete('necesidad')
+          return prev
+        },
+        { replace: true },
+      )
+    }, 15000)
+    return () => window.clearTimeout(t)
+  }, [resaltadaId, setSearchParams])
   // Voluntario/rescatista/admin pueden tomar una necesidad desde el mapa.
   const puedeAtender =
     rol === 'voluntario' || rol === 'rescatista' || rol === 'admin'
@@ -162,6 +180,7 @@ export default function CiudadanoView() {
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
             onAsignarme={puedeAtender ? asignarme : undefined}
+            resaltadaId={resaltadaId}
           />
         </div>
 
@@ -177,7 +196,8 @@ export default function CiudadanoView() {
             >
               ¿Cómo funciona?
             </button>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {session && <CampanaNotificaciones claro />}
               <MenuUsuario claro />
             </div>
           </div>

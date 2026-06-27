@@ -68,6 +68,25 @@ input::placeholder, textarea::placeholder {
   100% { transform: scale(2.2); opacity: 0; }
 }
 
+/* Halo intenso para resaltar una necesidad concreta (al venir de un aviso).
+   Hace que el icono "salte a la vista" para identificarlo de inmediato. */
+.pulso-resaltado {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(204, 0, 1, 0.45);
+  animation: pulso-resaltado-key 1.1s ease-out infinite;
+  z-index: -1;
+}
+@keyframes pulso-resaltado-key {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+}
+
 /* Halo que late en el marcador de derrumbe (lo hace más visible) */
 .pulso-derrumbe {
   position: absolute;

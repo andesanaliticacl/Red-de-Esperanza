@@ -1,9 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import MenuUsuario from './MenuUsuario'
+import CampanaNotificaciones from './CampanaNotificaciones'
 
 /** Barra superior: marca a la izquierda y menú de usuario a la derecha. */
 export default function BarraSuperior() {
   const loc = useLocation()
+  const { session } = useAuth()
 
   // En el mapa a pantalla completa la vista trae su propia cabecera.
   if (loc.pathname === '/') return null
@@ -16,6 +19,7 @@ export default function BarraSuperior() {
       {/* Toda la navegación (incluido "Atender solicitudes") vive en el menú de
           usuario, para que se vea ordenado en todos los dispositivos. */}
       <div className="flex-1" />
+      {session && <CampanaNotificaciones />}
       <MenuUsuario />
     </header>
   )
