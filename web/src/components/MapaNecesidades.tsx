@@ -7,6 +7,7 @@ import {
   iconoDesaparecido,
   iconoNecesidad,
   iconoAcopio,
+  iconoHospital,
   iconoUsuario,
 } from '../lib/iconos'
 import IconoRuta from './IconoRuta'
@@ -318,14 +319,21 @@ export default function MapaNecesidades({
           </Marker>
         ))}
 
-      {acopios.map((a) => (
+      {acopios.map((a) => {
+        const esHospital = (a.descripcion ?? '').toLowerCase().includes('hospital')
+        return (
         <Marker
           key={a.id}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
-          icon={iconoAcopio}
+          icon={esHospital ? iconoHospital : iconoAcopio}
         >
           <Popup>
-            <div className="font-bold">📦 {a.nombre}</div>
+            <div className="font-bold">
+              {esHospital ? '🏥' : '📦'} {a.nombre}
+            </div>
+            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : '#16a34a' }}>
+              {esHospital ? 'Hospital' : 'Centro de acopio'}
+            </div>
             <div className="text-xs text-gray-600">
               {[a.ciudad, a.pais].filter(Boolean).join(', ')}
             </div>
@@ -340,7 +348,8 @@ export default function MapaNecesidades({
             </a>
           </Popup>
         </Marker>
-      ))}
+        )
+      })}
 
       {/* Desaparecidos: solo si la capa está activada. Agrupados en clusters
           (burbujas con número) para no saturar el mapa con miles de puntos. */}

@@ -52,14 +52,16 @@ class Geocoder:
             return (v[0], v[1]) if v else (None, None)
 
         cc = self._CC.get((pais or "").strip().lower())
-        # Varios intentos, de más específico a más amplio, para subir la tasa
-        # de aciertos: (1) con país y código de país, (2) con país sin código,
-        # (3) solo el texto sin país.
+        # Varios intentos para subir la tasa de aciertos, pero SIEMPRE acotados
+        # al país (countrycodes). Así "La Guaira" nunca cae en Costa Rica: los
+        # desaparecidos son de Venezuela y deben quedar en Venezuela aunque la
+        # ubicación sea genérica.
         intentos: list[tuple[str, Optional[str]]] = []
         if pais:
             intentos.append((f"{texto}, {pais}", cc))
-            intentos.append((f"{texto}, {pais}", None))
-        intentos.append((texto, None))
+            intentos.append((texto, cc))
+        else:
+            intentos.append((texto, None))
 
         try:
             for q, codigo in intentos:

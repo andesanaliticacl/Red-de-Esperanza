@@ -80,6 +80,26 @@ export function iconoNecesidad(
 
 export const iconoAcopio: L.DivIcon = iconoNecesidad('acopio', 'verificada')
 
+// Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
+// del centro de acopio (caja verde).
+export const iconoHospital: L.DivIcon = L.divIcon({
+  className: '',
+  html: `
+    <div style="
+      width:34px; height:34px; border-radius:50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background:#CC0001; border:2px solid white;
+      box-shadow:0 2px 5px rgba(0,0,0,0.4);
+      display:flex; align-items:center; justify-content:center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" style="transform: rotate(45deg);">
+        <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" fill="white"/>
+      </svg>
+    </div>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+  popupAnchor: [0, -30],
+})
+
 /**
  * Marcador de "mi ubicación".
  *  · Con foto: círculo con la foto de perfil y anillo azul + halo que late.
