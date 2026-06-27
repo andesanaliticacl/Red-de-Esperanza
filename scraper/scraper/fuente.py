@@ -175,16 +175,40 @@ class Fuente:
         page = self._page
 
         # Abrir la pestaña de centros/hospitales.
+        clic = False
         try:
             page.get_by_role(
                 "button", name="Hospitales, Centros y Listas"
             ).click(timeout=10_000)
+            clic = True
         except Exception:
             try:
                 page.click("text=Centros", timeout=5000)
+                clic = True
             except Exception:
                 pass
-        page.wait_for_timeout(2500)
+        page.wait_for_timeout(3000)
+        print(f"  clic en pestaña centros: {clic}")
+
+        # DEBUG: ver qué botones y clases existen realmente en el DOM.
+        try:
+            botones = page.eval_on_selector_all(
+                "button", "els => els.map(e => e.textContent.trim()).filter(Boolean).slice(0,15)"
+            )
+            print(f"  botones visibles: {botones}")
+            clases = page.evaluate(
+                """() => {
+                  const s = new Set();
+                  document.querySelectorAll('[class]').forEach(e =>
+                    String(e.className).split(/\\s+/).forEach(c => {
+                      if (/centro|tipo|card|hospital|acopio/i.test(c)) s.add(c);
+                    }));
+                  return Array.from(s).slice(0, 30);
+                }"""
+            )
+            print(f"  clases relevantes en DOM: {clases}")
+        except Exception as exc:
+            print(f"  (debug DOM falló: {exc})")
 
         # Scroll hasta que el número de tarjetas deje de crecer (scroll infinito).
         sel = '[class*="styles_centro__"]'
