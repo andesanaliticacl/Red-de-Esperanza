@@ -188,27 +188,21 @@ class Fuente:
                 except Exception:
                     return False
 
-        # 1) Intentar la API directo (como personas, que es fiable). Imprime la
-        # respuesta cruda para diagnóstico y prueba varias acciones de reCAPTCHA.
-        import json as _json
-        for accion in (ACCION_PERSONAS, "list_centers", "list_centros", "list_acopio"):
+        # La lista de centros la pinta la propia página al abrir la pestaña
+        # (vía /api/centros, protegida por reCAPTCHA). Reintentamos EN LA MISMA
+        # sesión alternando de pestaña (sin recargar, que baja el puntaje) hasta
+        # que aparezcan tarjetas.
+        for intento in range(1, 6):
+            abrir_pestana()
+            page.wait_for_timeout(4000)
+            if page.eval_on_selector_all(sel, "els => els.length") > 0:
+                break
+            print(f"  intento {intento}: 0 tarjetas, alternando pestaña…")
             try:
-                raw = page.evaluate(
-                    _JS_FETCH, [f"{API_BASE}/api/centros", SITE_KEY, accion]
-                )
-            except Exception as exc:
-                print(f"  diag API centros accion={accion}: err {exc}")
-                continue
-            print(f"  diag API centros accion={accion}: {_json.dumps(raw)[:400]}")
-            lst = self._lista(raw)
-            if lst:
-                print(f"  ✓ API /api/centros OK (accion={accion}): {len(lst)}")
-                return lst
-
-        # 2) Fallback al DOM (en la MISMA sesión, sin recargar: la sesión actual
-        # ya tiene 'humanidad' acumulada y es la que mejor puntúa).
-        abrir_pestana()
-        page.wait_for_timeout(3500)
+                page.get_by_role("button", name="Personas").click(timeout=5000)
+                page.wait_for_timeout(1500)
+            except Exception:
+                pass
 
         # Scroll hasta que el número de tarjetas deje de crecer (scroll infinito).
         prev = -1
