@@ -219,12 +219,12 @@ export default function CiudadanoView() {
               <p className="text-[11px] font-bold text-gray-500 px-1 pb-1.5">
                 Entra o crea tu cuenta según tu rol:
               </p>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {ROLES_ACCESO.map((r) => (
                   <button
                     key={r}
                     onClick={() => navigate(`/login?rol=${r}`)}
-                    className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold rounded-full px-3 py-2 bg-bandera-azul/10 text-bandera-azul hover:bg-bandera-azul/20 active:scale-95 transition"
+                    className="flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-2 py-2 bg-bandera-azul/10 text-bandera-azul hover:bg-bandera-azul/20 active:scale-95 transition"
                   >
                     <span className="text-base leading-none">
                       {ROL_META[r].emoji}
@@ -236,47 +236,51 @@ export default function CiudadanoView() {
             </div>
           )}
 
-          <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 flex gap-2 overflow-x-auto items-center">
-            <span className="text-sm font-bold text-gray-500 whitespace-nowrap pl-1">
-              🔎 Filtrar:
-            </span>
-            <select
-              className="rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
-              value={tipoFiltro}
-              onChange={(e) =>
-                setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
-              }
-            >
-              <option value="todos">🗂️ Todo tipo de ayuda</option>
-              {TIPOS_FILTRO.map((t) => (
-                <option key={t} value={t}>
-                  {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
-              value={urgFiltro}
-              onChange={(e) =>
-                setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
-              }
-            >
-              <option value="todas">⏱️ Cualquier urgencia</option>
-              <option value="alta">🔴 Urgencia alta</option>
-              <option value="media">🟠 Urgencia media</option>
-              <option value="baja">🟢 Urgencia baja</option>
-            </select>
-            {hayFiltro && (
-              <button
-                onClick={() => {
-                  setTipoFiltro('todos')
-                  setUrgFiltro('todas')
-                }}
-                className="text-xs text-bandera-rojo font-semibold whitespace-nowrap px-2"
+          <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2">
+            <div className="flex items-center justify-between px-1 pb-1.5">
+              <span className="text-[11px] font-bold text-gray-500">
+                🔎 Filtrar el mapa
+              </span>
+              {hayFiltro && (
+                <button
+                  onClick={() => {
+                    setTipoFiltro('todos')
+                    setUrgFiltro('todas')
+                  }}
+                  className="text-[11px] text-bandera-rojo font-semibold"
+                >
+                  ✕ Quitar filtros
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
+                value={tipoFiltro}
+                onChange={(e) =>
+                  setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
+                }
               >
-                ✕ Limpiar
-              </button>
-            )}
+                <option value="todos">🗂️ Todo tipo de ayuda</option>
+                {TIPOS_FILTRO.map((t) => (
+                  <option key={t} value={t}>
+                    {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
+                value={urgFiltro}
+                onChange={(e) =>
+                  setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
+                }
+              >
+                <option value="todas">⏱️ Cualquier urgencia</option>
+                <option value="alta">🔴 Urgencia alta</option>
+                <option value="media">🟠 Urgencia media</option>
+                <option value="baja">🟢 Urgencia baja</option>
+              </select>
+            </div>
           </div>
         </div>
 
