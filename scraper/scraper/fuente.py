@@ -63,6 +63,7 @@ class Fuente:
         self._pw = None
         self._browser = None
         self._page = None
+        self._api_paths: set[str] = set()  # rutas de la API vistas en la sesión
 
     # -- ciclo de vida ------------------------------------------------------
     def __enter__(self) -> "Fuente":
@@ -104,6 +105,13 @@ class Fuente:
             """
         )
         self._page = ctx.new_page()
+
+        # Registrar TODAS las peticiones a la API (para descubrir endpoints).
+        def _rec(req) -> None:
+            if API_BASE in req.url:
+                self._api_paths.add(req.url.replace(API_BASE, "").split("?")[0])
+        self._page.on("request", _rec)
+
         # Cargar la página real establece el contexto de reCAPTCHA (grecaptcha).
         self._page.goto(SITE_URL, wait_until="domcontentloaded", timeout=60_000)
         self._page.wait_for_function("() => !!window.grecaptcha", timeout=30_000)
@@ -163,9 +171,12 @@ class Fuente:
         observando la red al abrir la pestaña 'Hospitales, Centros y Listas',
         y luego pagina sobre ese endpoint con el token de reCAPTCHA."""
         endpoint = self._descubrir_endpoint_centros()
+        # Mostrar TODO lo que la API recibió (para depurar el endpoint real).
+        print(f"  endpoints de API vistos: {sorted(self._api_paths)}")
         if not endpoint:
             # Plan B: rutas probables si la intercepción no lo pilló.
-            for cand in ("/api/centros", "/api/hospitales", "/api/lugares", "/api/centros-acopio"):
+            for cand in ("/api/centros", "/api/hospitales", "/api/lugares",
+                         "/api/centros-acopio", "/api/places", "/api/listas"):
                 try:
                     data = self._get_json(f"{cand}?page=1&pageSize={tam}", ACCION_PERSONAS)
                     if self._lista(data):
