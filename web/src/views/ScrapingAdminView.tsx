@@ -1,26 +1,57 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useDesaparecidos } from '../hooks/useDesaparecidos'
 import { useNotificaciones } from '../context/NotificacionesContext'
 
 /**
- * Panel de administración del scraping de personas desaparecidas
- * (fuente: venezuela-te-busca.com).
+ * Panel de administración del scraping.
+ * Fuente: desaparecidosterremotovenezuela.com (personas + centros de acopio).
  *
- * Por ahora permite VER y ADMINISTRAR lo ya scrapeado (marcar encontrado/por
- * localizar, eliminar). La EJECUCIÓN del scraping todavía no está conectada:
- * el scraper es un proceso Python/Playwright que necesita un backend que lo
- * dispare y suba los resultados a Supabase. Eso se construye en el próximo paso.
+ * El scraping pesado lo hace un proceso Python/Playwright que corre en GitHub
+ * Actions (no en el navegador, porque necesita la service_role key y puede
+ * tardar). Este panel: (1) muestra el estado de la última corrida leyendo la
+ * tabla `scraper_runs`, (2) administra lo ya cargado, (3) abre GitHub Actions
+ * para lanzar una actualización manual.
  */
+
+const ACTIONS_URL =
+  'https://github.com/andesanaliticacl/Red-de-Esperanza/actions/workflows/scraper.yml'
+
+interface Corrida {
+  tipo: string
+  estado: string
+  total: number | null
+  detalle: string | null
+  iniciado_en: string
+  finalizado_en: string | null
+}
+
 export default function ScrapingAdminView() {
   const { desaparecidos, cargando, recargar } = useDesaparecidos()
   const { notificar } = useNotificaciones()
   const [trabajando, setTrabajando] = useState<string | null>(null)
+  const [corridas, setCorridas] = useState<Corrida[]>([])
 
   const total = desaparecidos.length
   const encontrados = desaparecidos.filter((d) => d.estado === 'encontrado').length
   const porLocalizar = total - encontrados
+
+  async function cargarCorridas() {
+    const { data } = await supabase
+      .from('scraper_runs')
+      .select('tipo, estado, total, detalle, iniciado_en, finalizado_en')
+      .order('iniciado_en', { ascending: false })
+      .limit(10)
+    setCorridas((data ?? []) as Corrida[])
+  }
+
+  useEffect(() => {
+    cargarCorridas()
+  }, [])
+
+  const ultimaPersonas = corridas.find((c) => c.tipo === 'personas')
+  const ultimaCentros = corridas.find((c) => c.tipo === 'centros')
 
   async function alternarEstado(id: string, actual: string) {
     const nuevo = actual === 'encontrado' ? 'no_encontrado' : 'encontrado'
@@ -43,16 +74,6 @@ export default function ScrapingAdminView() {
     setTrabajando(null)
   }
 
-  function ejecutarScraping() {
-    // Aún no hay backend que dispare el proceso Python. Lo dejamos visible para
-    // conectarlo en el siguiente paso (endpoint/edge function que corra el
-    // scraper y haga upsert en la tabla `desaparecidos`).
-    notificar(
-      'La ejecución automática del scraping aún no está conectada. Se habilitará en el próximo paso.',
-      'info',
-    )
-  }
-
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-5">
       <div className="flex items-center gap-2">
@@ -67,11 +88,17 @@ export default function ScrapingAdminView() {
         </h1>
         <p className="text-sm text-gray-600">
           Datos extraídos de{' '}
-          <span className="font-semibold">venezuela-te-busca.com</span>. Aquí
-          puedes ejecutar la actualización y administrar lo que se muestra en el
-          mapa.
+          <span className="font-semibold">desaparecidosterremotovenezuela.com</span>.
+          La actualización corre en GitHub Actions; aquí ves el estado y
+          administras lo que se muestra en el mapa.
         </p>
       </header>
+
+      {/* Estado de las corridas */}
+      <section className="grid sm:grid-cols-2 gap-3">
+        <EstadoCorrida titulo="👤 Personas" c={ultimaPersonas} />
+        <EstadoCorrida titulo="📦 Centros de acopio" c={ultimaCentros} />
+      </section>
 
       {/* Resumen + ejecutar */}
       <section className="card flex flex-wrap items-center gap-4">
@@ -81,14 +108,28 @@ export default function ScrapingAdminView() {
           <Dato n={encontrados} etiqueta="Encontrados" color="#16a34a" />
         </div>
         <div className="ml-auto flex flex-col items-end gap-1">
-          <button onClick={ejecutarScraping} className="btn-azul py-2.5 px-4">
-            ▶️ Ejecutar scraping
+          <a
+            href={ACTIONS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-azul py-2.5 px-4 no-underline"
+          >
+            ▶️ Actualizar datos
+          </a>
+          <button
+            onClick={cargarCorridas}
+            className="text-xs text-bandera-azul underline"
+          >
+            ↻ Refrescar estado
           </button>
-          <span className="text-xs text-gray-400">
-            (pendiente de conectar al backend)
-          </span>
         </div>
       </section>
+
+      <p className="text-xs text-gray-500 -mt-2">
+        “Actualizar datos” abre GitHub Actions → pulsa <b>Run workflow</b>, elige{' '}
+        <b>personas</b> o <b>centros</b> y confirma. El progreso aparece aquí
+        arriba en unos minutos.
+      </p>
 
       {/* Listado */}
       <section>
@@ -97,8 +138,8 @@ export default function ScrapingAdminView() {
           <div className="card text-center text-gray-500 py-8">Cargando…</div>
         ) : total === 0 ? (
           <div className="card text-center text-gray-500 py-8">
-            Todavía no hay personas desaparecidas cargadas. Ejecuta el scraping
-            cuando esté conectado para traerlas.
+            Todavía no hay personas cargadas. Lanza una actualización para
+            traerlas.
           </div>
         ) : (
           <div className="space-y-2">
@@ -142,6 +183,33 @@ export default function ScrapingAdminView() {
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+function EstadoCorrida({ titulo, c }: { titulo: string; c?: Corrida }) {
+  const color =
+    c?.estado === 'ok' ? '#16a34a' : c?.estado === 'error' ? '#CC0001' : '#CF9B00'
+  const texto =
+    !c
+      ? 'Nunca se ha ejecutado'
+      : c.estado === 'corriendo'
+      ? 'Ejecutándose ahora…'
+      : c.estado === 'ok'
+      ? `OK · ${c.total ?? 0} registros`
+      : `Error: ${c.detalle ?? 'desconocido'}`
+  const cuando = c?.finalizado_en ?? c?.iniciado_en
+  return (
+    <div className="card py-3">
+      <div className="font-bold">{titulo}</div>
+      <div className="text-sm font-semibold" style={{ color }}>
+        {texto}
+      </div>
+      {cuando && (
+        <div className="text-xs text-gray-400">
+          {new Date(cuando).toLocaleString('es-VE')}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# Caché de geocodificación (se regenera; en CI la guarda actions/cache).
+cache_geocode.json

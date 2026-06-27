@@ -1,0 +1,64 @@
+name: Scraper desaparecidos
+
+# Cuándo corre:
+#   - Manualmente desde la pestaña "Actions" (o disparado por el panel admin).
+#   - Automático: todos los días a las 09:00 UTC (~05:00 Venezuela).
+on:
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "Qué scrapear"
+        type: choice
+        options: [personas, centros]
+        default: personas
+      hasta:
+        description: "Página final (0 = todas). Útil para probar con pocas."
+        default: "0"
+  schedule:
+    - cron: "0 9 * * *"
+
+# IMPORTANTE sobre las horas:
+#   GitHub Actions permite hasta 6 HORAS por job en runners gratuitos. El scrape
+#   de la API es rápido (cientos de páginas, minutos). Lo lento es geocodificar
+#   (1 req/seg a OpenStreetMap). Por eso el geocodificador DEDUPLICA y CACHEA en
+#   disco: solo consulta ubicaciones nuevas. Para que la caché sobreviva entre
+#   corridas, la guardamos con actions/cache (clave abajo).
+concurrency:
+  group: scraper-${{ github.event.inputs.modo || 'personas' }}
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350      # ~5.8 h, por debajo del límite de 6 h
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        working-directory: scraper/scraper
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      # Recuperar/guardar la caché de geocodificación entre corridas.
+      - name: Restaurar caché de geocodificación
+        uses: actions/cache@v4
+        with:
+          path: scraper/cache_geocode.json
+          key: geocache-${{ github.run_id }}
+          restore-keys: |
+            geocache-
+
+      - name: Ejecutar scraper
+        working-directory: scraper/scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          python main.py "${{ github.event.inputs.modo || 'personas' }}" \
+            --hasta "${{ github.event.inputs.hasta || '0' }}" \
+            --cortesia 0.2
