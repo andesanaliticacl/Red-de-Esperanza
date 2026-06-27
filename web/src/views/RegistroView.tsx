@@ -126,31 +126,24 @@ export default function RegistroView() {
         },
       })
       if (error) {
-        // A veces el usuario SÍ se crea pero el signup devuelve error (p. ej. el
-        // correo de confirmación falló). Intentamos entrar directo con lo mismo.
-        const { data: ses } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        })
-        if (ses?.session) {
-          navigate('/', { replace: true })
-          return
-        }
         setErrorMsg(mensajeDeError(error))
         setEnviando(false)
         return
       }
-      // Si hay sesión, entramos. Si no (confirmación de correo activada),
-      // intentamos entrar igual; si no se puede, mostramos la pantalla de aviso.
+      // Supabase a veces no da error pero indica que el correo YA existe
+      // devolviendo un usuario sin identidades. En ese caso avisamos.
+      if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        setErrorMsg(
+          'Ya existe una cuenta con este correo. Inicia sesión con tu contraseña.',
+        )
+        setEnviando(false)
+        return
+      }
+      // Con sesión entramos; si no (confirmación de correo activada), avisamos.
       if (data.session) {
         navigate('/', { replace: true })
       } else {
-        const { data: ses } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        })
-        if (ses?.session) navigate('/', { replace: true })
-        else setListo('confirmar')
+        setListo('confirmar')
       }
     } catch (err) {
       setErrorMsg(mensajeDeError(err))
