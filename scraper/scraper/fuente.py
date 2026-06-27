@@ -166,78 +166,60 @@ class Fuente:
         return self._lista(data)
 
     # -- centros / hospitales ----------------------------------------------
-    def fetch_centros(self, tam: int = 200) -> list[dict[str, Any]]:
-        """Trae centros de acopio / hospitales. Descubre el endpoint real
-        observando la red al abrir la pestaña 'Hospitales, Centros y Listas',
-        y luego pagina sobre ese endpoint con el token de reCAPTCHA."""
-        endpoint = self._descubrir_endpoint_centros()
-        # Mostrar TODO lo que la API recibió (para depurar el endpoint real).
-        print(f"  endpoints de API vistos: {sorted(self._api_paths)}")
-        if not endpoint:
-            # Plan B: rutas probables si la intercepción no lo pilló.
-            for cand in ("/api/centros", "/api/hospitales", "/api/lugares",
-                         "/api/centros-acopio", "/api/places", "/api/listas"):
-                try:
-                    data = self._get_json(f"{cand}?page=1&pageSize={tam}", ACCION_PERSONAS)
-                    if self._lista(data):
-                        endpoint = cand
-                        break
-                except Exception:
-                    continue
-        if not endpoint:
-            return []
-
-        # Paginar el endpoint descubierto.
-        todos: list[dict[str, Any]] = []
-        page = 1
-        sep = "&" if "?" in endpoint else "?"
-        while True:
-            try:
-                data = self._get_json(
-                    f"{endpoint}{sep}page={page}&pageSize={tam}", ACCION_PERSONAS
-                )
-            except Exception as exc:
-                print(f"  ✗ centros página {page}: {exc}")
-                break
-            lote = self._lista(data)
-            if not lote:
-                break
-            todos.extend(lote)
-            if len(lote) < tam:
-                break
-            page += 1
-        return todos
-
-    def _descubrir_endpoint_centros(self) -> Optional[str]:
-        """Hace clic en la pestaña de centros y captura la URL de la API que
-        carga. Devuelve el path (ej. '/api/centros') o None."""
+    def fetch_centros(self) -> list[dict[str, Any]]:
+        """Trae centros de acopio / hospitales capturando la respuesta que la
+        propia página obtiene al abrir la pestaña 'Hospitales, Centros y Listas'
+        (así el token de reCAPTCHA y los parámetros son los correctos). Hace
+        scroll para forzar la paginación interna y capturar todas las páginas."""
         assert self._page is not None
-        capturado: dict[str, str] = {}
+        capturado: list[Any] = []
 
         def on_response(resp) -> None:
-            u = resp.url
-            if API_BASE in u and "/personas" not in u and "/api/" in u:
+            if "/api/centros" in resp.url:
                 try:
                     if "application/json" in (resp.headers.get("content-type") or ""):
-                        capturado.setdefault("path", u.replace(API_BASE, "").split("?")[0])
+                        capturado.append(resp.json())
                 except Exception:
                     pass
 
         self._page.on("response", on_response)
+        # Abrir la pestaña de centros/hospitales.
         try:
             self._page.get_by_role(
                 "button", name="Hospitales, Centros y Listas"
             ).click(timeout=10_000)
-            self._page.wait_for_timeout(3000)
         except Exception:
-            # quizá el nombre cambió; intentar por texto parcial
             try:
                 self._page.click("text=Centros", timeout=5000)
-                self._page.wait_for_timeout(3000)
             except Exception:
                 pass
+        self._page.wait_for_timeout(2500)
+        # Scroll para disparar la carga de más páginas (scroll infinito).
+        for _ in range(60):
+            antes = len(capturado)
+            self._page.mouse.wheel(0, 4000)
+            self._page.wait_for_timeout(1200)
+            # si en varias vueltas no llega nada nuevo, paramos
+            if len(capturado) == antes:
+                # un par de intentos más por si tarda
+                self._page.wait_for_timeout(1500)
+                if len(capturado) == antes:
+                    break
         self._page.remove_listener("response", on_response)
-        return capturado.get("path")
+        print(f"  endpoints de API vistos: {sorted(self._api_paths)}")
+        print(f"  respuestas /api/centros capturadas: {len(capturado)}")
+
+        # Aplanar: cada respuesta puede ser una lista o {data:[...]}.
+        todos: list[dict[str, Any]] = []
+        vistos: set[str] = set()
+        for data in capturado:
+            for item in self._lista(data):
+                ident = str(item.get("id") or item.get("_id") or item.get("nombre"))
+                if ident in vistos:
+                    continue
+                vistos.add(ident)
+                todos.append(item)
+        return todos
 
 
 # ============================================================
