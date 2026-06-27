@@ -213,33 +213,41 @@ export default function CiudadanoView() {
           </div>
 
           {/* Accesos directos por rol (solo si no hay sesión): entra o crea
-              cuenta ya con el rol elegido, para que sea más fácil e intuitivo. */}
+              cuenta ya con el rol elegido. Compacto y deslizable en móvil. */}
           {!session && (
-            <div className="pointer-events-auto bg-white/95 rounded-2xl shadow p-2 mb-2 flex items-center gap-2 overflow-x-auto">
-              <span className="text-sm font-bold text-bandera-azul whitespace-nowrap pl-1">
-                Iniciar sesión como:
-              </span>
-              {ROLES_ACCESO.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => navigate(`/login?rol=${r}`)}
-                  className="whitespace-nowrap text-sm font-semibold border-2 border-bandera-azul/30 text-bandera-azul rounded-xl px-3 py-1.5 hover:bg-bandera-azul/5"
-                >
-                  {ROL_META[r].emoji} {ROL_META[r].etiqueta}
-                </button>
-              ))}
+            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mb-2">
+              <p className="text-[11px] font-bold text-gray-500 px-1 pb-1.5">
+                Entra o crea tu cuenta según tu rol:
+              </p>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                {ROLES_ACCESO.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => navigate(`/login?rol=${r}`)}
+                    className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold rounded-full px-3 py-2 bg-bandera-azul/10 text-bandera-azul hover:bg-bandera-azul/20 active:scale-95 transition"
+                  >
+                    <span className="text-base leading-none">
+                      {ROL_META[r].emoji}
+                    </span>
+                    {ROL_META[r].etiqueta}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="pointer-events-auto bg-white/95 rounded-2xl shadow p-2 flex gap-2 overflow-x-auto items-center">
+          <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 flex gap-2 overflow-x-auto items-center">
+            <span className="text-sm font-bold text-gray-500 whitespace-nowrap pl-1">
+              🔎 Filtrar:
+            </span>
             <select
-              className="rounded-lg border px-2 py-1 text-sm"
+              className="rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
               value={tipoFiltro}
               onChange={(e) =>
                 setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
               }
             >
-              <option value="todos">Todos los tipos</option>
+              <option value="todos">🗂️ Todo tipo de ayuda</option>
               {TIPOS_FILTRO.map((t) => (
                 <option key={t} value={t}>
                   {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
@@ -247,16 +255,16 @@ export default function CiudadanoView() {
               ))}
             </select>
             <select
-              className="rounded-lg border px-2 py-1 text-sm"
+              className="rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
               value={urgFiltro}
               onChange={(e) =>
                 setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
               }
             >
-              <option value="todas">Toda urgencia</option>
-              <option value="alta">Alta</option>
-              <option value="media">Media</option>
-              <option value="baja">Baja</option>
+              <option value="todas">⏱️ Cualquier urgencia</option>
+              <option value="alta">🔴 Urgencia alta</option>
+              <option value="media">🟠 Urgencia media</option>
+              <option value="baja">🟢 Urgencia baja</option>
             </select>
             {hayFiltro && (
               <button
@@ -266,7 +274,7 @@ export default function CiudadanoView() {
                 }}
                 className="text-xs text-bandera-rojo font-semibold whitespace-nowrap px-2"
               >
-                Limpiar
+                ✕ Limpiar
               </button>
             )}
           </div>

@@ -106,7 +106,7 @@ export default function LoginView() {
             to={rol ? `/registro?rol=${rol}` : '/registro'}
             className="btn-verde w-full text-xl py-4 no-underline"
           >
-            ✨ Crear una cuenta
+            ✨ Crear cuenta{rol ? ` como ${ROL_META[rol].etiqueta}` : ''}
           </Link>
         </div>
         <Link
