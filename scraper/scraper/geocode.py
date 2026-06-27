@@ -40,14 +40,19 @@ class Geocoder:
     }
 
     def geocodificar(
-        self, texto: Optional[str], pais: Optional[str] = "Venezuela"
+        self,
+        texto: Optional[str],
+        pais: Optional[str] = "Venezuela",
+        forzar: bool = False,
     ) -> tuple[Optional[float], Optional[float]]:
         """Devuelve (lat, lng) aproximados de un texto de ubicación.
-        `pais` acota la búsqueda (por defecto Venezuela). Usa caché en disco."""
+        `pais` acota la búsqueda (por defecto Venezuela). Usa caché en disco.
+        `forzar=True` ignora la caché y consulta de nuevo (útil para los pocos
+        centros, sin tener que borrar la caché de las personas)."""
         if not texto:
             return None, None
         clave = f"{texto.strip()}|{(pais or '').strip()}".lower()
-        if clave in self._cache:
+        if not forzar and clave in self._cache:
             v = self._cache[clave]
             return (v[0], v[1]) if v else (None, None)
 

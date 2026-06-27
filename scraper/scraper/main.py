@@ -86,7 +86,9 @@ def _geocode_centro(geo, c):
             if cola and cola not in intentos:
                 intentos.append(cola)
     for t in intentos:
-        lat, lng = geo.geocodificar(t, pais=c.pais)
+        # forzar=True: los centros son pocos; siempre se geocodifican frescos
+        # para corregir ubicaciones malas sin borrar la caché de personas.
+        lat, lng = geo.geocodificar(t, pais=c.pais, forzar=True)
         if lat is not None:
             return lat, lng
     return None, None
