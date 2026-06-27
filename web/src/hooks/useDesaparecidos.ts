@@ -105,6 +105,7 @@ export function useDesaparecidos() {
       .from('desaparecidos')
       .select('id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en')
       .order('creado_en', { ascending: false })
+      .limit(1000) // panel admin: no descargar las 66k de golpe
     if (!error) setDesaparecidos((data ?? []) as Desaparecido[])
     setCargando(false)
   }
