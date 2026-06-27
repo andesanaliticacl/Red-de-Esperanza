@@ -1,0 +1,3 @@
+requests>=2.32.0
+# Playwright solo si hay que renderizar (plan B, si no encontramos la API):
+playwright>=1.40.0
