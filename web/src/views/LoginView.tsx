@@ -1,9 +1,23 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { ROL_META, type RolRegistro } from '../lib/types'
+
+const ROLES_VALIDOS: RolRegistro[] = [
+  'ciudadano',
+  'voluntario',
+  'rescatista',
+  'centro_acopio',
+]
 
 export default function LoginView() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const rolParam = searchParams.get('rol')
+  // Rol elegido en el acceso directo del inicio (si vino uno válido).
+  const rol = ROLES_VALIDOS.includes(rolParam as RolRegistro)
+    ? (rolParam as RolRegistro)
+    : null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verPass, setVerPass] = useState(false)
@@ -34,11 +48,19 @@ export default function LoginView() {
     <div className="min-h-full flex flex-col items-center justify-center p-6 bg-gray-50">
       <div className="card w-full max-w-md">
         <h1 className="text-2xl font-extrabold text-bandera-azul mb-1">
-          Iniciar sesión
+          {rol ? `Iniciar sesión como ${ROL_META[rol].etiqueta}` : 'Iniciar sesión'}
         </h1>
-        <p className="text-gray-600 mb-5 text-sm">
-          Para ciudadanos registrados, voluntarios, rescatistas y equipo.
-        </p>
+        {rol ? (
+          <p className="text-gray-600 mb-5 text-sm">
+            {ROL_META[rol].emoji} Entra con tu correo y contraseña. ¿Aún no tienes
+            cuenta? Créala abajo y quedará lista como{' '}
+            <b>{ROL_META[rol].etiqueta}</b>.
+          </p>
+        ) : (
+          <p className="text-gray-600 mb-5 text-sm">
+            Para ciudadanos registrados, voluntarios, rescatistas y equipo.
+          </p>
+        )}
 
         <form onSubmit={ingresar} className="space-y-4">
             <input
@@ -81,7 +103,7 @@ export default function LoginView() {
         <div className="mt-6 pt-5 border-t text-center">
           <p className="text-gray-600 mb-3">¿No tienes cuenta todavía?</p>
           <Link
-            to="/registro"
+            to={rol ? `/registro?rol=${rol}` : '/registro'}
             className="btn-verde w-full text-xl py-4 no-underline"
           >
             ✨ Crear una cuenta

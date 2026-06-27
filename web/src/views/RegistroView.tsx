@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EntradaTelefono from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
@@ -52,12 +52,26 @@ function mensajeDeError(error: unknown): string {
   return crudo || 'Ocurrió un error inesperado al crear la cuenta. Revisa la consola (F12) para más detalle.'
 }
 
+const ROLES_VALIDOS: RolRegistro[] = [
+  'ciudadano',
+  'voluntario',
+  'rescatista',
+  'centro_acopio',
+]
+
 export default function RegistroView() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Rol preseleccionado si vino desde un acceso directo del inicio.
+  const rolInicial = searchParams.get('rol')
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rol, setRol] = useState<RolRegistro>('ciudadano')
+  const [rol, setRol] = useState<RolRegistro>(
+    ROLES_VALIDOS.includes(rolInicial as RolRegistro)
+      ? (rolInicial as RolRegistro)
+      : 'ciudadano',
+  )
   const [pais, setPais] = useState('Venezuela')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
   const [documento, setDocumento] = useState('')

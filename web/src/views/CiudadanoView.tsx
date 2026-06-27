@@ -16,10 +16,20 @@ import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   TIPO_META,
+  ROL_META,
   type Necesidad,
   type NecesidadTipo,
   type NecesidadUrgencia,
+  type RolRegistro,
 } from '../lib/types'
+
+// Accesos directos de inicio de sesión por rol (en el orden pedido).
+const ROLES_ACCESO: RolRegistro[] = [
+  'rescatista',
+  'voluntario',
+  'ciudadano',
+  'centro_acopio',
+]
 
 const TIPOS_FILTRO: NecesidadTipo[] = [
   'rescate',
@@ -201,6 +211,25 @@ export default function CiudadanoView() {
               <MenuUsuario claro />
             </div>
           </div>
+
+          {/* Accesos directos por rol (solo si no hay sesión): entra o crea
+              cuenta ya con el rol elegido, para que sea más fácil e intuitivo. */}
+          {!session && (
+            <div className="pointer-events-auto bg-white/95 rounded-2xl shadow p-2 mb-2 flex items-center gap-2 overflow-x-auto">
+              <span className="text-sm font-bold text-bandera-azul whitespace-nowrap pl-1">
+                Iniciar sesión como:
+              </span>
+              {ROLES_ACCESO.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => navigate(`/login?rol=${r}`)}
+                  className="whitespace-nowrap text-sm font-semibold border-2 border-bandera-azul/30 text-bandera-azul rounded-xl px-3 py-1.5 hover:bg-bandera-azul/5"
+                >
+                  {ROL_META[r].emoji} {ROL_META[r].etiqueta}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="pointer-events-auto bg-white/95 rounded-2xl shadow p-2 flex gap-2 overflow-x-auto items-center">
             <select
