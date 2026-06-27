@@ -114,6 +114,27 @@ export default function AdminView() {
         </div>
       </section>
 
+      {/* Scraping de personas desaparecidas */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">Personas desaparecidas</h2>
+        <Link
+          to="/admin/scraping"
+          className="card flex items-center gap-3 no-underline"
+        >
+          <span className="text-2xl">🔍</span>
+          <div className="flex-1">
+            <div className="font-semibold text-bandera-azul">
+              Ejecutar y administrar el scraping
+            </div>
+            <div className="text-sm text-gray-600">
+              Actualiza el registro de desaparecidos y gestiona lo que se ve en
+              el mapa.
+            </div>
+          </div>
+          <span className="text-bandera-azul">→</span>
+        </Link>
+      </section>
+
       {/* Centros de acopio: gestión unificada (también internacionales) */}
       <section>
         <h2 className="font-bold text-lg mb-2">Centros de acopio</h2>

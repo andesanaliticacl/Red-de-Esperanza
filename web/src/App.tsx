@@ -21,6 +21,7 @@ const MisConversacionesView = lazy(
   () => import('./views/MisConversacionesView'),
 )
 const AdminView = lazy(() => import('./views/AdminView'))
+const ScrapingAdminView = lazy(() => import('./views/ScrapingAdminView'))
 
 function Cargando() {
   return (
@@ -104,6 +105,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <AdminView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/scraping"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <ScrapingAdminView />
                 </ProtectedRoute>
               }
             />

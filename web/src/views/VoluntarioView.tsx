@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useNotificaciones } from '../context/NotificacionesContext'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
 import { nombresPublicos } from '../lib/perfiles'
@@ -29,6 +30,7 @@ const TIPOS: NecesidadTipo[] = [
 
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
+  const { notificar } = useNotificaciones()
   const esRescatista = rol === 'rescatista' || rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
@@ -122,7 +124,12 @@ export default function VoluntarioView() {
       .eq('id', n.id)
       // evita que dos voluntarios tomen la misma
       .in('estado', ['sin_verificar', 'verificada'])
-    if (error) alert('Error: ' + error.message)
+    if (error) notificar('No se pudo asignar: ' + error.message, 'alerta')
+    else
+      notificar(
+        '✅ Te asignaste. Avisamos a la persona que vas en camino.',
+        'exito',
+      )
     await recargar()
     setTrabajando(null)
   }
@@ -239,7 +246,7 @@ export default function VoluntarioView() {
                       disabled={trabajando === n.id}
                       className="btn-verde py-2 px-3 text-sm whitespace-nowrap disabled:opacity-60"
                     >
-                      🚑 Voy en camino
+                      🙋 Asignarme
                     </button>
                     <button
                       onClick={() => setChat(n)}
@@ -282,10 +289,13 @@ export default function VoluntarioView() {
         <MapaNecesidades
           necesidades={lista}
           onMensaje={(n) => setChat(n)}
-          onVoyEnCamino={(n) => {
+          onAsignarme={(n) => {
             // Un SOS solo lo puede tomar un rescatista (igual que en la lista).
             if ((n.tipo === 'rescate' || n.origen === 'sos') && !esRescatista) {
-              alert('Solo los rescatistas pueden tomar una emergencia SOS.')
+              notificar(
+                'Solo los rescatistas pueden tomar una emergencia SOS.',
+                'alerta',
+              )
               return
             }
             void asignarme(n)

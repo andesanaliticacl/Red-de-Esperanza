@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
@@ -11,6 +12,7 @@ import { useNecesidades } from '../hooks/useNecesidades'
 import { useDesaparecidos } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
+import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   TIPO_META,
   type Necesidad,
@@ -38,8 +40,33 @@ export default function CiudadanoView() {
   const { desaparecidos } = useDesaparecidos()
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
-  const { perfil, session } = useAuth()
+  const { perfil, session, rol } = useAuth()
+  const { notificar } = useNotificaciones()
   const navigate = useNavigate()
+  // Voluntario/rescatista/admin pueden tomar una necesidad desde el mapa.
+  const puedeAtender =
+    rol === 'voluntario' || rol === 'rescatista' || rol === 'admin'
+  const esRescatista = rol === 'rescatista' || rol === 'admin'
+
+  // Tomar una necesidad desde el popup del mapa: la pasa a "en proceso" y le
+  // avisa (Realtime) a quien la creó que alguien ya va en camino.
+  async function asignarme(n: Necesidad) {
+    if ((n.tipo === 'rescate' || n.origen === 'sos') && !esRescatista) {
+      notificar('Solo los rescatistas pueden tomar una emergencia SOS.', 'alerta')
+      return
+    }
+    const { error } = await supabase
+      .from('necesidades')
+      .update({ estado: 'en_proceso', asignado_a: perfil?.id ?? null })
+      .eq('id', n.id)
+      .in('estado', ['sin_verificar', 'verificada'])
+    if (error) notificar('No se pudo asignar: ' + error.message, 'alerta')
+    else
+      notificar(
+        '✅ Te asignaste. Avisamos a la persona que vas en camino.',
+        'exito',
+      )
+  }
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
@@ -134,6 +161,7 @@ export default function CiudadanoView() {
             miUbicacion={coordAuto}
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
+            onAsignarme={puedeAtender ? asignarme : undefined}
           />
         </div>
 

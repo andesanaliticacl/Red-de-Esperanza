@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { nombresPublicos } from '../lib/perfiles'
 import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
-import { sonarMensaje } from '../lib/sonidos'
 import ChatNecesidad from '../components/ChatNecesidad'
 import {
   TIPO_META,
@@ -29,8 +28,6 @@ export default function MisReportesView() {
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   const [borrando, setBorrando] = useState<string | null>(null)
-  // Aviso visible cuando alguien acaba de tomar uno de mis reportes.
-  const [avisoEnCamino, setAvisoEnCamino] = useState<string | null>(null)
 
   async function borrar(n: Necesidad) {
     if (
@@ -88,14 +85,10 @@ export default function MisReportesView() {
           const fila = payload.new as Necesidad
           setLista((prev) => {
             const anterior = prev.find((n) => n.id === fila.id)
-            // Alguien acaba de asignarse → avisamos (sonido + cartel visible).
+            // Alguien acaba de asignarse → resolvemos su nombre para el badge
+            // "Atiende: X". El aviso sonoro + toast lo da el proveedor global
+            // de notificaciones (funciona en cualquier pantalla).
             if (fila.asignado_a && anterior && !anterior.asignado_a) {
-              sonarMensaje()
-              setAvisoEnCamino(
-                `🚑 ¡Buenas noticias! Alguien ya va en camino a atender tu reporte de ${
-                  TIPO_META[fila.tipo].etiqueta
-                }.`,
-              )
               nombresPublicos([fila.asignado_a]).then((m) =>
                 setNombres((prevN) => new Map([...prevN, ...m])),
               )
@@ -117,20 +110,6 @@ export default function MisReportesView() {
         Aquí ves los reportes que enviaste con tu cuenta y puedes comunicarte
         con quien te está ayudando.
       </p>
-
-      {avisoEnCamino && (
-        <div className="rounded-xl bg-green-50 border-2 border-green-300 p-3 flex items-start gap-2 text-sm text-green-900 animate-pulse">
-          <span className="text-lg leading-none">🤝</span>
-          <p className="flex-1 font-semibold">{avisoEnCamino}</p>
-          <button
-            onClick={() => setAvisoEnCamino(null)}
-            className="text-green-700 font-bold leading-none"
-            aria-label="Cerrar aviso"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {cargando ? (
         <div className="card text-center text-gray-500 py-8">Cargando…</div>
