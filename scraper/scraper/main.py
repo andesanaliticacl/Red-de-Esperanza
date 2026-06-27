@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from fuente import Fuente, map_centro, map_persona
@@ -8,10 +9,22 @@ from geocode import Geocoder
 from supabase_sync import registrar_corrida, subir_centros, subir_en_lotes
 
 
+def _muestra(crudos: list, n: int) -> None:
+    """Imprime los primeros N registros CRUDOS para ver los nombres de campo
+    reales que devuelve la API (útil para afinar el mapeo desde el log)."""
+    if not n:
+        return
+    print(f"  --- muestra de {min(n, len(crudos))} registro(s) crudo(s) ---")
+    for raw in crudos[:n]:
+        print("  " + json.dumps(raw, ensure_ascii=False)[:1200])
+    print("  --- fin de la muestra ---")
+
+
 def correr_personas(args, geo) -> int:
     total = 0
     with Fuente(headless=not args.ver, lento=args.cortesia) as f:
         pagina = args.desde
+        primera = True
         while True:
             if args.hasta and pagina > args.hasta:
                 break
@@ -30,6 +43,9 @@ def correr_personas(args, geo) -> int:
             if not crudas:
                 print("  (sin más resultados)")
                 break
+            if primera:
+                _muestra(crudas, args.muestra)
+                primera = False
 
             filas = []
             for raw in crudas:
@@ -55,6 +71,7 @@ def correr_centros(args, geo) -> int:
         print("Buscando centros de acopio / hospitales…")
         crudos = f.fetch_centros()
         print(f"  {len(crudos)} registros crudos")
+        _muestra(crudos, args.muestra)
 
         filas = []
         for raw in crudos:
@@ -93,6 +110,8 @@ def main() -> None:
     ap.add_argument("--ver", action="store_true", help="mostrar el navegador (no headless)")
     ap.add_argument("--cortesia", type=float, default=0.0,
                     help="pausa extra entre peticiones, en segundos")
+    ap.add_argument("--muestra", type=int, default=0,
+                    help="imprime los primeros N registros crudos (para depurar campos)")
     args = ap.parse_args()
 
     geo = None if args.sin_geo else Geocoder()

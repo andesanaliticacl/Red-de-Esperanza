@@ -14,6 +14,14 @@ on:
       hasta:
         description: "Página final (0 = todas). Útil para probar con pocas."
         default: "0"
+      subir:
+        description: "Subir a Supabase (no = prueba sin tocar la BD)"
+        type: choice
+        options: ["si", "no"]
+        default: "si"
+      muestra:
+        description: "Imprimir N registros crudos en el log (0 = no)"
+        default: "0"
   schedule:
     - cron: "0 9 * * *"
 
@@ -59,6 +67,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.subir }}" = "no" ]; then EXTRA="$EXTRA --sin-subir"; fi
           python main.py "${{ github.event.inputs.modo || 'personas' }}" \
             --hasta "${{ github.event.inputs.hasta || '0' }}" \
-            --cortesia 0.2
+            --muestra "${{ github.event.inputs.muestra || '0' }}" \
+            --cortesia 0.2 $EXTRA
