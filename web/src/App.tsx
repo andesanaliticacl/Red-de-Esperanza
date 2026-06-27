@@ -99,9 +99,10 @@ export default function App() {
               }
             />
 
-            {/* Solo admin */}
+            {/* Solo admin — ruta poco adivinable (no usar "/admin") para que
+                nadie la tantee por la URL; igual la protege ProtectedRoute. */}
             <Route
-              path="/admin"
+              path="/panel-x7k2"
               element={
                 <ProtectedRoute roles={['admin']}>
                   <AdminView />
@@ -109,7 +110,7 @@ export default function App() {
               }
             />
             <Route
-              path="/admin/scraping"
+              path="/panel-x7k2/scraping"
               element={
                 <ProtectedRoute roles={['admin']}>
                   <ScrapingAdminView />

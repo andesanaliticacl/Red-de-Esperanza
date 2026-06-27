@@ -56,7 +56,7 @@ export default function ScrapingAdminView() {
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-5">
       <div className="flex items-center gap-2">
-        <Link to="/admin" className="text-bandera-azul font-semibold no-underline">
+        <Link to="/panel-x7k2" className="text-bandera-azul font-semibold no-underline">
           ← Admin
         </Link>
       </div>

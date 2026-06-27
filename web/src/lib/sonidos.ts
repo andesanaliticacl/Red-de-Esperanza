@@ -57,6 +57,19 @@ export function sonarMensaje() {
   tono(c, 'sine', 880, 880, t + 0.13, 0.14, 0.18)
 }
 
+/**
+ * Notificación de nueva necesidad para el equipo (voluntario/rescatista):
+ * llamativa pero sin llegar a la sirena del SOS. Tres pitidos firmes y claros.
+ */
+export function sonarAlerta() {
+  const c = getCtx()
+  if (!c) return
+  const t = c.currentTime
+  tono(c, 'square', 880, 880, t, 0.13, 0.28)
+  tono(c, 'square', 1175, 1175, t + 0.16, 0.13, 0.28)
+  tono(c, 'square', 1568, 1568, t + 0.32, 0.18, 0.3)
+}
+
 /** Notificación de SOS: sirena alarmante y repetida. */
 export function sonarSOS() {
   const c = getCtx()

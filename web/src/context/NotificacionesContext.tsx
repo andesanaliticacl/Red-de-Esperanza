@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-import { sonarMensaje } from '../lib/sonidos'
+import { sonarMensaje, sonarAlerta, sonarSOS } from '../lib/sonidos'
 
 type Tono = 'info' | 'exito' | 'alerta'
 
@@ -103,6 +103,46 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       void supabase.removeChannel(canal)
     }
   }, [perfil?.id, notificar])
+
+  // Aviso al EQUIPO (voluntario/rescatista/admin): cuando alguien crea una
+  // necesidad nueva, suena un aviso llamativo en cualquier pantalla para que
+  // la atiendan cuanto antes. Un SOS suena con la sirena fuerte.
+  useEffect(() => {
+    const rol = perfil?.rol
+    const esStaff =
+      rol === 'voluntario' || rol === 'rescatista' || rol === 'admin'
+    if (!perfil?.id || !esStaff) return
+    const miId = perfil.id
+
+    const canal = supabase
+      .channel(`avisos-nuevas:${miId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'necesidades' },
+        (payload) => {
+          const n = payload.new as {
+            tipo: string
+            origen: string | null
+            reportado_por: string | null
+          }
+          // No nos avisamos a nosotros mismos si reportamos algo.
+          if (n.reportado_por === miId) return
+          const esSOS = n.tipo === 'rescate' || n.origen === 'sos'
+          if (esSOS) {
+            sonarSOS()
+            notificar('🆘 ¡Nueva emergencia SOS! Atiende según prioridad.', 'alerta')
+          } else {
+            sonarAlerta()
+            notificar('🔔 Nueva necesidad reportada. Revísala para atenderla.', 'info')
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(canal)
+    }
+  }, [perfil?.id, perfil?.rol, notificar])
 
   return (
     <Ctx.Provider value={{ notificar }}>

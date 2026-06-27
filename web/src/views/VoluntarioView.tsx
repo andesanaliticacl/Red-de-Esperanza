@@ -5,7 +5,6 @@ import { useNotificaciones } from '../context/NotificacionesContext'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { useAvisoMensajes } from '../hooks/useAvisoMensajes'
 import { nombresPublicos } from '../lib/perfiles'
-import { sonarSOS, sonarMensaje } from '../lib/sonidos'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -34,17 +33,13 @@ export default function VoluntarioView() {
   const esRescatista = rol === 'rescatista' || rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
-  // Al llegar un SOS: el rescatista oye la alarma fuerte (emergencias); el
-  // voluntario recibe un aviso más suave (su foco es la logística).
-  const { necesidades, recargar } = useNecesidades(
-    ['sin_verificar', 'verificada', 'en_proceso'],
-    (n) => {
-      if (n.tipo === 'rescate' || n.origen === 'sos') {
-        if (esRescatista) sonarSOS()
-        else sonarMensaje()
-      }
-    },
-  )
+  // El aviso sonoro de "nueva necesidad / SOS" lo da el proveedor global de
+  // notificaciones, así suena en cualquier pantalla (no solo aquí).
+  const { necesidades, recargar } = useNecesidades([
+    'sin_verificar',
+    'verificada',
+    'en_proceso',
+  ])
   // Emergencias SOS: siempre visibles arriba, sin importar los filtros.
   const sos = useMemo(
     () =>

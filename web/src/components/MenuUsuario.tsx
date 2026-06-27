@@ -138,7 +138,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                 <span className="font-medium">Chat en vivo</span>
               </button>
               {rol === 'admin' && (
-                <ItemLink to="/admin" emoji="🛡️" texto="Administración" onClick={cerrar} />
+                <ItemLink to="/panel-x7k2" emoji="🛡️" texto="Administración" onClick={cerrar} />
               )}
             </nav>
 

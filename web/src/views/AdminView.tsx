@@ -118,7 +118,7 @@ export default function AdminView() {
       <section>
         <h2 className="font-bold text-lg mb-2">Personas desaparecidas</h2>
         <Link
-          to="/admin/scraping"
+          to="/panel-x7k2/scraping"
           className="card flex items-center gap-3 no-underline"
         >
           <span className="text-2xl">🔍</span>
