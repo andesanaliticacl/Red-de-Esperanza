@@ -5,8 +5,8 @@ import EntradaTelefono from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
+import { zonasDePais } from '../lib/zonas'
 import {
-  ESTADOS_VENEZUELA,
   ROL_META,
   type RolRegistro,
   type TipoDocumento,
@@ -64,6 +64,10 @@ export default function RegistroView() {
   const [telefono, setTelefono] = useState('')
   const [estado, setEstado] = useState('')
   const [ciudad, setCiudad] = useState('')
+
+  // Divisiones del país elegido (Estado/Región/Provincia… con sus nombres).
+  const isoPais = PAISES_MUNDO.find((p) => p.nombre === pais)?.iso
+  const zona = zonasDePais(isoPais)
 
   // Voluntario/rescatista solo para quienes están en Venezuela.
   const enVenezuela = pais === 'Venezuela'
@@ -161,6 +165,8 @@ export default function RegistroView() {
               valor={pais}
               onChange={(v) => {
                 setPais(v)
+                // Al cambiar de país, la zona anterior ya no aplica.
+                setEstado('')
                 // Voluntario/rescatista solo en Venezuela: si cambia, reseteamos.
                 if (v !== 'Venezuela' && (rol === 'voluntario' || rol === 'rescatista'))
                   setRol('ciudadano')
@@ -244,21 +250,31 @@ export default function RegistroView() {
             />
           </div>
 
-          {/* Estado + ciudad */}
+          {/* Zona (se adapta al país: Estado / Región / Provincia…) + ciudad */}
           <div className="grid grid-cols-2 gap-2">
-            <select
-              className="input"
-              required
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-            >
-              <option value="">Estado…</option>
-              {ESTADOS_VENEZUELA.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            {zona.opciones.length > 0 ? (
+              <select
+                className="input"
+                required
+                value={estado}
+                onChange={(e) => setEstado(e.target.value)}
+              >
+                <option value="">{zona.etiqueta}…</option>
+                {zona.opciones.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="input"
+                placeholder={zona.etiqueta}
+                required
+                value={estado}
+                onChange={(e) => setEstado(e.target.value)}
+              />
+            )}
             <input
               className="input"
               placeholder="Ciudad"
