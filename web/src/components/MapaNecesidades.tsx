@@ -346,6 +346,13 @@ export default function MapaNecesidades({
             >
               <IconoRuta className="mr-1" /> Cómo llegar
             </a>
+            {/* La fuente solo se muestra en los importados por scraping
+                (tienen id_fuente); los creados en la app no la llevan. */}
+            {a.id_fuente && (
+              <div className="text-[10px] text-gray-400 mt-1">
+                Fuente: Desaparecidos Terremoto Venezuela
+              </div>
+            )}
           </Popup>
         </Marker>
         )

@@ -50,7 +50,7 @@ export function useNecesidades(
       q,
       supabase
         .from('centros_acopio')
-        .select('id, nombre, descripcion, pais, estado, ciudad, direccion, lat, lng'),
+        .select('id, nombre, descripcion, pais, estado, ciudad, direccion, lat, lng, id_fuente'),
     ])
 
     if (nec.error) setError(nec.error.message)

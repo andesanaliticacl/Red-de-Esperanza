@@ -124,6 +124,8 @@ export interface CentroAcopio {
   lng: number
   creado_por: string | null
   creado_en: string
+  /** Id en la web de origen: si está, vino del scraping (mostrar la fuente). */
+  id_fuente: string | null
 }
 
 export interface Perfil {
