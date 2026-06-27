@@ -36,6 +36,13 @@ def _upsert(tabla: str, filas: list[dict], on_conflict: str) -> None:
     if not filas:
         return
     _check_env()
+    # PostgREST exige que TODAS las filas del lote tengan las MISMAS claves.
+    # Como cada fila omite sus campos vacíos, normalizamos a la unión de claves
+    # rellenando con None las que falten.
+    claves: set = set()
+    for f in filas:
+        claves.update(f.keys())
+    filas = [{k: f.get(k) for k in claves} for f in filas]
     r = requests.post(
         f"{SUPABASE_URL}/rest/v1/{tabla}?on_conflict={on_conflict}",
         headers=_headers("resolution=merge-duplicates,return=minimal"),
