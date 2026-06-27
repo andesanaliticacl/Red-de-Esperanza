@@ -1,8 +1,15 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import L from 'leaflet'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
-import type { Desaparecido } from '../hooks/useDesaparecidos'
+import { useDesaparecidosMapa, type ZonaMapa } from '../hooks/useDesaparecidos'
 import {
   iconoDesaparecido,
   iconoNecesidad,
@@ -36,6 +43,33 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
     if (posicion) map.flyTo(posicion, 17, { duration: 0.8 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave])
+  return null
+}
+
+/** Informa la zona visible del mapa (para cargar solo los desaparecidos de
+ *  esa zona). Emite al activarse y cada vez que el usuario mueve el mapa. */
+function RastreadorZona({
+  activo,
+  onZona,
+}: {
+  activo: boolean
+  onZona: (z: ZonaMapa) => void
+}) {
+  const map = useMap()
+  function emitir() {
+    const b = map.getBounds()
+    onZona({
+      norte: b.getNorth(),
+      sur: b.getSouth(),
+      este: b.getEast(),
+      oeste: b.getWest(),
+    })
+  }
+  useMapEvents({ moveend: () => activo && emitir() })
+  useEffect(() => {
+    if (activo) emitir()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activo])
   return null
 }
 
@@ -165,7 +199,6 @@ function ControlesMapa({
 export default function MapaNecesidades({
   necesidades,
   acopios = [],
-  desaparecidos = [],
   miUbicacion,
   miFoto,
   onMensaje,
@@ -177,7 +210,6 @@ export default function MapaNecesidades({
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
-  desaparecidos?: Desaparecido[]
   miUbicacion?: { lat: number; lng: number } | null
   miFoto?: string | null
   /** Si la capa de desaparecidos está visible (controlada desde la vista). */
@@ -211,25 +243,23 @@ export default function MapaNecesidades({
     ...acopios.map((a) => ({ id: `acopio:${a.id}`, lat: a.lat, lng: a.lng })),
   ])
 
-  // --- Capa de desaparecidos: agrupada (clustering) y filtrable por nombre.
-  // La visibilidad y la búsqueda se controlan desde la vista (props).
+  // --- Capa de desaparecidos: se cargan SOLO cuando está activa y SOLO los de
+  // la zona visible (o por nombre si hay búsqueda). Sin realtime. Escala a
+  // miles de visitantes sin descargar las 66k a cada uno.
   const verDesap = verDesaparecidos
-  const desapConCoords = useMemo(
-    () => desaparecidos.filter((d) => d.lat != null && d.lng != null),
-    [desaparecidos],
+  const [zona, setZona] = useState<ZonaMapa | null>(null)
+  const { desaparecidos: desapVisibles } = useDesaparecidosMapa(
+    verDesap,
+    zona,
+    busquedaDesap,
   )
   const q = busquedaDesap.trim().toLowerCase()
-  const desapVisibles = useMemo(
-    () =>
-      q
-        ? desapConCoords.filter((d) => d.nombre.toLowerCase().includes(q))
-        : desapConCoords,
-    [desapConCoords, q],
-  )
   // Si hay búsqueda activa, ajustamos el mapa a los resultados.
   const puntosBusqueda: [number, number][] =
     verDesap && q
-      ? desapVisibles.map((d) => [d.lat as number, d.lng as number])
+      ? desapVisibles
+          .filter((d) => d.lat != null && d.lng != null)
+          .map((d) => [d.lat as number, d.lng as number])
       : []
 
   return (
@@ -358,12 +388,14 @@ export default function MapaNecesidades({
         )
       })}
 
-      {/* Desaparecidos: solo si la capa está activada. Agrupados en clusters
-          (burbujas con número) para no saturar el mapa con miles de puntos. */}
+      {/* Desaparecidos: solo si la capa está activada. Se cargan por zona
+          visible y se agrupan en clusters (burbujas con número). */}
+      <RastreadorZona activo={verDesap} onZona={setZona} />
       {verDesap && <AjustarABusqueda puntos={puntosBusqueda} />}
       {verDesap && (
       <MarkerClusterGroup chunkedLoading maxClusterRadius={50}>
       {desapVisibles
+        .filter((d) => d.lat != null && d.lng != null)
         .map((d) => (
           <Marker
             key={d.id}

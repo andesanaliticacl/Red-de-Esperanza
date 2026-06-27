@@ -10,7 +10,6 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
-import { useDesaparecidos } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -43,15 +42,31 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
 
 export default function CiudadanoView() {
-  const { necesidades, acopios } = useNecesidades([
-    'sin_verificar',
-    'verificada',
-    'en_proceso',
-  ])
-  const { desaparecidos } = useDesaparecidos()
+  const { perfil, session, rol } = useAuth()
+  const { necesidades, acopios } = useNecesidades(
+    ['sin_verificar', 'verificada', 'en_proceso'],
+    undefined,
+    // Realtime solo para usuarios con sesión (staff). Los anónimos refrescan
+    // por sondeo → no abren websocket → escala a miles a la vez.
+    !!session,
+  )
+  // Total de desaparecidos para el contador del botón (consulta barata).
+  const [totalDesap, setTotalDesap] = useState<number | null>(null)
+  useEffect(() => {
+    let cancel = false
+    supabase
+      .from('desaparecidos')
+      .select('id', { count: 'exact', head: true })
+      .not('lat', 'is', null)
+      .then(({ count }) => {
+        if (!cancel) setTotalDesap(count ?? null)
+      })
+    return () => {
+      cancel = true
+    }
+  }, [])
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
-  const { perfil, session, rol } = useAuth()
   const { notificar } = useNotificaciones()
   const navigate = useNavigate()
   // Necesidad a resaltar en el mapa (al venir de un aviso: /?necesidad=ID).
@@ -167,9 +182,7 @@ export default function CiudadanoView() {
   // Regla automática: mostrar desaparecidos si hay 10 o menos necesidades.
   const autoVerDesap = necesidades.length <= 10
   const verDesap = verDesapManual ?? autoVerDesap
-  const desapConCoords = desaparecidos.filter(
-    (d) => d.lat != null && d.lng != null,
-  ).length
+  const desapConCoords = totalDesap ?? 0
 
   // Los acopios solo se ven sin filtro de tipo (para mostrar solo lo del filtro).
   const acopiosVisibles = tipoFiltro === 'todos' ? acopios : []
@@ -200,7 +213,6 @@ export default function CiudadanoView() {
           <MapaNecesidades
             necesidades={filtradas}
             acopios={acopiosVisibles}
-            desaparecidos={desaparecidos}
             miUbicacion={coordAuto}
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
@@ -209,6 +221,7 @@ export default function CiudadanoView() {
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
           />
+          {/* (desaparecidos se cargan por zona dentro del mapa) */}
         </div>
 
         {/* Encabezado + filtros */}

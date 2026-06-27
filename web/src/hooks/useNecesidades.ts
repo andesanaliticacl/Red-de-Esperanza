@@ -23,6 +23,11 @@ const LIMITE = 500
 export function useNecesidades(
   filtroEstados?: Necesidad['estado'][],
   onNueva?: (n: Necesidad) => void,
+  // Realtime (websocket) solo cuando conviene: para usuarios con sesión (staff
+  // que responden SOS al instante). Los visitantes anónimos NO abren websocket
+  // —refrescan por sondeo— para no saturar el tope de conexiones con miles a la
+  // vez. Por defecto true (compatibilidad).
+  tiempoReal: boolean = true,
 ) {
   const [necesidades, setNecesidades] = useState<Necesidad[]>([])
   const [acopios, setAcopios] = useState<CentroAcopio[]>([])
@@ -62,9 +67,15 @@ export function useNecesidades(
   useEffect(() => {
     cargar()
 
-    // Realtime incremental: parchea el estado en lugar de recargar toda la tabla.
-    // Canal único por instancia: evita el conflicto "subscribe multiple times"
-    // que dejaba una vista sin recibir cambios (p. ej. "Abiertas" desfasada del mapa).
+    // Anónimos (sin sesión): NADA de websocket. Refrescan por sondeo cada 30 s.
+    // Evita abrir miles de conexiones realtime simultáneas.
+    if (!tiempoReal) {
+      const id = window.setInterval(cargar, 30000)
+      return () => window.clearInterval(id)
+    }
+
+    // Con sesión (staff): Realtime incremental, parchea el estado en lugar de
+    // recargar toda la tabla. Canal único por instancia.
     const canal = supabase
       .channel(`necesidades-cambios:${Math.random().toString(36).slice(2)}`)
       .on(
@@ -99,7 +110,7 @@ export function useNecesidades(
       supabase.removeChannel(canal)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filtroEstados)])
+  }, [JSON.stringify(filtroEstados), tiempoReal])
 
   return { necesidades, acopios, cargando, error, recargar: cargar }
 }
