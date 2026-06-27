@@ -9,9 +9,15 @@ import {
 } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
+import { distanciaMetros } from '../lib/geo'
 import { sonarMensaje, sonarAlerta, sonarSOS } from '../lib/sonidos'
 
 type Tono = 'info' | 'exito' | 'alerta'
+
+// Radio para considerar "cercano": solo a los voluntarios/rescatistas dentro de
+// esta distancia de la nueva necesidad les llega el aviso. Ajustable.
+const RADIO_AVISO_M = 10000 // 10 km
 
 interface Aviso {
   id: string
@@ -104,49 +110,17 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     }
   }, [perfil?.id, notificar])
 
-  // Aviso al EQUIPO (voluntario/rescatista/admin): cuando alguien crea una
-  // necesidad nueva, suena un aviso llamativo en cualquier pantalla para que
-  // la atiendan cuanto antes. Un SOS suena con la sirena fuerte.
-  useEffect(() => {
-    const rol = perfil?.rol
-    const esStaff =
-      rol === 'voluntario' || rol === 'rescatista' || rol === 'admin'
-    if (!perfil?.id || !esStaff) return
-    const miId = perfil.id
-
-    const canal = supabase
-      .channel(`avisos-nuevas:${miId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'necesidades' },
-        (payload) => {
-          const n = payload.new as {
-            tipo: string
-            origen: string | null
-            reportado_por: string | null
-          }
-          // No nos avisamos a nosotros mismos si reportamos algo.
-          if (n.reportado_por === miId) return
-          const esSOS = n.tipo === 'rescate' || n.origen === 'sos'
-          if (esSOS) {
-            sonarSOS()
-            notificar('🆘 ¡Nueva emergencia SOS! Atiende según prioridad.', 'alerta')
-          } else {
-            sonarAlerta()
-            notificar('🔔 Nueva necesidad reportada. Revísala para atenderla.', 'info')
-          }
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(canal)
-    }
-  }, [perfil?.id, perfil?.rol, notificar])
+  // El aviso de "nueva necesidad" NO es global: solo lo recibe el equipo de
+  // campo (voluntario/rescatista) y solo si está CERCA. Por eso vive en un
+  // componente aparte que únicamente se monta para ellos (así tampoco se pide
+  // la ubicación a ciudadanos ni admin).
+  const esEquipoCampo =
+    perfil?.rol === 'voluntario' || perfil?.rol === 'rescatista'
 
   return (
     <Ctx.Provider value={{ notificar }}>
       {children}
+      {esEquipoCampo && <AvisosEquipoCercano />}
       {/* Pila de avisos flotantes (arriba y centrado, por encima del mapa). */}
       <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[3000] flex flex-col gap-2 w-[92%] max-w-sm pointer-events-none">
         {avisos.map((a) => (
@@ -181,4 +155,69 @@ export function useNotificaciones() {
   if (!ctx)
     throw new Error('useNotificaciones debe usarse dentro de <NotificacionesProvider>')
   return ctx
+}
+
+/**
+ * Avisa de necesidades nuevas SOLO al equipo de campo (voluntario/rescatista)
+ * que esté CERCA del punto reportado. Se monta únicamente para ese equipo, así
+ * que la ubicación solo se pide a quien de verdad la necesita.
+ *
+ * Criterio de cercanía: si conocemos mi ubicación y la de la necesidad, solo
+ * avisa dentro de RADIO_AVISO_M. Si falta alguna coordenada no se puede medir
+ * la distancia → avisa igual (en una emergencia es peor callar que avisar).
+ */
+function AvisosEquipoCercano() {
+  const { perfil } = useAuth()
+  const { notificar } = useNotificaciones()
+  const { coord } = useUbicacionAuto()
+  // Ref para leer mi ubicación más reciente dentro del callback de Realtime
+  // sin tener que reabrir el canal cada vez que cambia.
+  const coordRef = useRef(coord)
+  coordRef.current = coord
+
+  useEffect(() => {
+    if (!perfil?.id) return
+    const miId = perfil.id
+
+    const canal = supabase
+      .channel(`avisos-nuevas:${miId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'necesidades' },
+        (payload) => {
+          const n = payload.new as {
+            tipo: string
+            origen: string | null
+            reportado_por: string | null
+            lat: number | null
+            lng: number | null
+          }
+          // No nos avisamos a nosotros mismos si reportamos algo.
+          if (n.reportado_por === miId) return
+
+          // Filtro de cercanía: si tenemos ambas ubicaciones, descarta lo lejano.
+          const yo = coordRef.current
+          if (yo && n.lat != null && n.lng != null) {
+            const d = distanciaMetros(yo.lat, yo.lng, n.lat, n.lng)
+            if (d > RADIO_AVISO_M) return
+          }
+
+          const esSOS = n.tipo === 'rescate' || n.origen === 'sos'
+          if (esSOS) {
+            sonarSOS()
+            notificar('🆘 ¡Nueva emergencia SOS cerca de ti!', 'alerta')
+          } else {
+            sonarAlerta()
+            notificar('🔔 Nueva necesidad cerca de ti. Revísala para atenderla.', 'info')
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(canal)
+    }
+  }, [perfil?.id, notificar])
+
+  return null
 }
