@@ -100,6 +100,12 @@ export default function CiudadanoView() {
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
+  // Capa de desaparecidos. Por defecto se MUESTRA cuando hay pocas necesidades
+  // (para que el mapa no se vea vacío al inicio) y se OCULTA sola cuando hay
+  // más de 10 necesidades reportadas (prioridad a las emergencias). El usuario
+  // puede forzar mostrar/ocultar; ahí su elección manda.
+  const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
+  const [busqDesap, setBusqDesap] = useState('')
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
   const [chatNec, setChatNec] = useState<Necesidad | null>(null)
@@ -158,6 +164,13 @@ export default function CiudadanoView() {
     [necesidades, tipoFiltro, urgFiltro],
   )
 
+  // Regla automática: mostrar desaparecidos si hay 10 o menos necesidades.
+  const autoVerDesap = necesidades.length <= 10
+  const verDesap = verDesapManual ?? autoVerDesap
+  const desapConCoords = desaparecidos.filter(
+    (d) => d.lat != null && d.lng != null,
+  ).length
+
   // Los acopios solo se ven sin filtro de tipo (para mostrar solo lo del filtro).
   const acopiosVisibles = tipoFiltro === 'todos' ? acopios : []
   const hayFiltro = tipoFiltro !== 'todos' || urgFiltro !== 'todas'
@@ -193,6 +206,8 @@ export default function CiudadanoView() {
             onMensaje={contactar}
             onAsignarme={puedeAtender ? asignarme : undefined}
             resaltadaId={resaltadaId}
+            verDesaparecidos={verDesap}
+            busquedaDesap={busqDesap}
           />
         </div>
 
@@ -298,6 +313,42 @@ export default function CiudadanoView() {
                     ✕ Quitar filtros
                   </button>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Capa de desaparecidos: interruptor (mostrar/ocultar) + buscador. */}
+          <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow mt-2">
+            <button
+              onClick={() => {
+                const nuevo = !verDesap
+                setVerDesapManual(nuevo)
+                if (!nuevo) setBusqDesap('')
+              }}
+              className="w-full flex items-center justify-between px-3 py-2.5"
+            >
+              <span className="text-sm font-bold text-gray-700">
+                🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
+              </span>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full ${
+                  verDesap
+                    ? 'bg-bandera-azul/10 text-bandera-azul'
+                    : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {verDesap ? 'visibles' : 'ocultos'}
+              </span>
+            </button>
+            {verDesap && (
+              <div className="px-2 pb-2">
+                <input
+                  type="search"
+                  value={busqDesap}
+                  onChange={(e) => setBusqDesap(e.target.value)}
+                  placeholder="Buscar desaparecido por nombre…"
+                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm"
+                />
               </div>
             )}
           </div>
