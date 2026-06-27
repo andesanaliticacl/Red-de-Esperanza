@@ -282,6 +282,14 @@ export default function VoluntarioView() {
         <MapaNecesidades
           necesidades={lista}
           onMensaje={(n) => setChat(n)}
+          onVoyEnCamino={(n) => {
+            // Un SOS solo lo puede tomar un rescatista (igual que en la lista).
+            if ((n.tipo === 'rescate' || n.origen === 'sos') && !esRescatista) {
+              alert('Solo los rescatistas pueden tomar una emergencia SOS.')
+              return
+            }
+            void asignarme(n)
+          }}
           ajustarVista
         />
       </div>

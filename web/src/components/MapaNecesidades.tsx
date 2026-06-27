@@ -140,6 +140,7 @@ export default function MapaNecesidades({
   miUbicacion,
   miFoto,
   onMensaje,
+  onVoyEnCamino,
   ajustarVista = false,
 }: {
   necesidades: Necesidad[]
@@ -149,6 +150,12 @@ export default function MapaNecesidades({
   miFoto?: string | null
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
   onMensaje?: (n: Necesidad) => void
+  /**
+   * Si se pasa, el popup de una necesidad aún sin atender muestra un botón
+   * "Voy en camino" para que el rescatista/voluntario se asigne desde el mapa
+   * (esto avisa a quien la creó que alguien ya va).
+   */
+  onVoyEnCamino?: (n: Necesidad) => void
   /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
   ajustarVista?: boolean
 }) {
@@ -213,6 +220,16 @@ export default function MapaNecesidades({
                   >
                     <IconoRuta className="mr-1" /> Cómo llegar
                   </a>
+                  {onVoyEnCamino &&
+                    (n.estado === 'sin_verificar' ||
+                      n.estado === 'verificada') && (
+                      <button
+                        onClick={() => onVoyEnCamino(n)}
+                        className="inline-flex items-center bg-bandera-rojo !text-white font-semibold px-3 py-1.5 rounded-lg"
+                      >
+                        🚑 Voy en camino
+                      </button>
+                    )}
                   {onMensaje && (
                     <button
                       onClick={() => onMensaje(n)}
