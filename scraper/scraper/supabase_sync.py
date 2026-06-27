@@ -12,6 +12,27 @@ import requests
 #   SUPABASE_URL         -> https://xxxx.supabase.co
 #   SUPABASE_SERVICE_KEY -> la "service_role" key (Settings > API). Solo aquí.
 
+def _cargar_dotenv() -> None:
+    """Carga variables desde un archivo `.env` (en esta carpeta o la de arriba)
+    si existe, así no hay que ponerlas a mano en cada ventana de PowerShell.
+    No pisa variables que ya estén definidas en el entorno."""
+    from pathlib import Path
+
+    aqui = Path(__file__).resolve().parent
+    for d in (aqui, aqui.parent):
+        f = d / ".env"
+        if not f.exists():
+            continue
+        for linea in f.read_text(encoding="utf-8").splitlines():
+            linea = linea.strip()
+            if not linea or linea.startswith("#") or "=" not in linea:
+                continue
+            k, v = linea.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+_cargar_dotenv()
+
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
