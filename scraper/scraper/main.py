@@ -121,7 +121,8 @@ def main() -> None:
         description="Scraper desaparecidosterremotovenezuela.com → Supabase."
     )
     ap.add_argument("modo", nargs="?", default="personas",
-                    choices=["personas", "centros"], help="qué scrapear")
+                    choices=["personas", "centros", "todo"],
+                    help="qué scrapear ('todo' = personas + centros)")
     ap.add_argument("--desde", type=int, default=1, help="página inicial (personas)")
     ap.add_argument("--hasta", type=int, default=0, help="página final (0 = hasta el final)")
     ap.add_argument("--tam", type=int, default=50, help="registros por página")
@@ -132,7 +133,17 @@ def main() -> None:
                     help="pausa extra entre peticiones, en segundos")
     ap.add_argument("--muestra", type=int, default=0,
                     help="imprime los primeros N registros crudos (para depurar campos)")
+    ap.add_argument("--refrescar-geo", action="store_true",
+                    help="borra la caché de geocodificación antes de empezar")
     args = ap.parse_args()
+
+    if args.refrescar_geo:
+        from geocode import CACHE_FILE
+        try:
+            CACHE_FILE.unlink()
+            print("Caché de geocodificación borrada (se geocodifica de nuevo).")
+        except FileNotFoundError:
+            pass
 
     geo = None if args.sin_geo else Geocoder()
 
@@ -140,6 +151,13 @@ def main() -> None:
     try:
         if args.modo == "centros":
             total = correr_centros(args, geo)
+        elif args.modo == "todo":
+            print("=== 1/2: PERSONAS ===")
+            tp = correr_personas(args, geo)
+            print("=== 2/2: CENTROS DE ACOPIO Y HOSPITALES ===")
+            tc = correr_centros(args, geo)
+            total = tp + tc
+            print(f"Personas: {tp} · Centros: {tc}")
         else:
             total = correr_personas(args, geo)
     except Exception as exc:
