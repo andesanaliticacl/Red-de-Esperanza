@@ -180,18 +180,26 @@ class Fuente:
         def es_centros(r) -> bool:
             return "/api/centros" in r.url
 
-        # Abrir la pestaña de centros/hospitales esperando su primera respuesta.
+        # La página PRECARGA /api/centros al cargar. Recargamos capturando esa
+        # respuesta (al hacer clic en la pestaña usa caché y no pide de nuevo).
         try:
-            with page.expect_response(es_centros, timeout=20_000) as ev:
-                try:
-                    page.get_by_role(
-                        "button", name="Hospitales, Centros y Listas"
-                    ).click(timeout=10_000)
-                except Exception:
-                    page.click("text=Centros", timeout=5000)
+            with page.expect_response(es_centros, timeout=30_000) as ev:
+                page.goto(SITE_URL, wait_until="domcontentloaded", timeout=60_000)
             capturado.append(ev.value.json())
         except Exception as exc:
-            print(f"  (no llegó la primera respuesta de centros: {exc})")
+            print(f"  (no llegó la precarga de centros: {exc})")
+
+        # Abrir la pestaña para poder hacer scroll en la lista.
+        try:
+            page.get_by_role(
+                "button", name="Hospitales, Centros y Listas"
+            ).click(timeout=10_000)
+        except Exception:
+            try:
+                page.click("text=Centros", timeout=5000)
+            except Exception:
+                pass
+        page.wait_for_timeout(1500)
 
         # Paginación por scroll: cada bajada dispara otra carga.
         for _ in range(80):
