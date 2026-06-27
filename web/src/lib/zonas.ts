@@ -15,6 +15,14 @@ export interface ZonasPais {
 const ZONAS: Record<string, ZonasPais> = {
   ve: { etiqueta: 'Estado', opciones: [...ESTADOS_VENEZUELA] },
 
+  ad: {
+    etiqueta: 'Parroquia',
+    opciones: [
+      'Andorra la Vella', 'Canillo', 'Encamp', 'Escaldes-Engordany',
+      'La Massana', 'Ordino', 'Sant Julià de Lòria',
+    ],
+  },
+
   cl: {
     etiqueta: 'Región',
     opciones: [
@@ -170,6 +178,15 @@ export function zonasDePais(iso?: string): ZonasPais {
 // exhaustivo: son sugerencias; la persona siempre puede escribir otra ciudad.
 // Por ahora Venezuela (núcleo) y Chile; el resto usa texto libre sin sugerencias.
 const CIUDADES: Record<string, Record<string, string[]>> = {
+  ad: {
+    'Andorra la Vella': ['Andorra la Vella', 'Santa Coloma', 'la Margineda'],
+    Canillo: ['Canillo', 'Soldeu', 'el Tarter'],
+    Encamp: ['Encamp', 'Pas de la Casa'],
+    'Escaldes-Engordany': ['Escaldes-Engordany', 'Engolasters'],
+    'La Massana': ['la Massana', 'Pal', 'Arinsal'],
+    Ordino: ['Ordino', 'la Cortinada', 'Arans'],
+    'Sant Julià de Lòria': ['Sant Julià de Lòria', 'Aixirivall', 'Fontaneda'],
+  },
   ve: {
     Amazonas: ['Puerto Ayacucho'],
     Anzoátegui: ['Barcelona', 'Puerto La Cruz', 'El Tigre', 'Anaco', 'Lechería', 'Cantaura'],
