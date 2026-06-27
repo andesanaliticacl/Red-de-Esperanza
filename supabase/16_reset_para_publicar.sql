@@ -1,31 +1,43 @@
 -- ============================================================
--- Red de Esperanza — Migración 16: RESET para publicar (empezar de cero)
--- Ejecutar en el SQL Editor de Supabase.
+-- Red de Esperanza — Migración 16: RESET para publicar (a prueba de fallos)
+-- Ejecutar en el SQL Editor de Supabase. Deja la app en CERO, conservando
+-- solo al admin judicoro02@gmail.com.
 --
--- ⚠️ DESTRUCTIVO: borra TODOS los datos de prueba (necesidades, mensajes,
--- acopios, desaparecidos, chat, eventos) y TODOS los usuarios EXCEPTO el admin
--- judicoro02@gmail.com. Deja la app vacía, lista para que la gente la use.
+-- Por qué la versión anterior podía "no hacer nada": si una sola tabla de la
+-- lista no existía o fallaba, el script entero se cancelaba. Esta versión vacía
+-- tabla por tabla y NO se detiene si alguna falla.
 -- ============================================================
 
--- 1) Vaciar toda la actividad (cascade limpia lo que dependa de estas tablas).
-truncate table
-  eventos,
-  mensajes,
-  contactos_necesidad,
-  necesidades,
-  desaparecidos,
-  centros_acopio,
-  chat_global
-restart identity cascade;
+-- 1) Vaciar toda la actividad, tabla por tabla (sin abortar si alguna falla).
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'eventos','mensajes','contactos_necesidad','necesidades',
+    'desaparecidos','centros_acopio','chat_global'
+  ] loop
+    begin
+      execute format('truncate table public.%I restart identity cascade', t);
+      raise notice 'Vaciada: %', t;
+    exception when others then
+      raise notice 'Saltada % (%): no existe o no se pudo vaciar', t, sqlerrm;
+    end;
+  end loop;
+end $$;
 
--- 2) Borrar todos los usuarios MENOS el admin.
---    Al borrar de auth.users, su perfil se borra en cascada.
+-- 2) Borrar TODOS los usuarios menos el admin (cascada borra sus perfiles).
 delete from auth.users
-where email <> 'judicoro02@gmail.com';
+where email is distinct from 'judicoro02@gmail.com';
 
--- 3) Verificación: deben quedar 0 necesidades y solo el admin.
+-- 3) Limpiar cualquier perfil huérfano que haya quedado suelto.
+delete from public.perfiles
+where id not in (select id from auth.users);
+
+-- 4) Verificación: todo en 0 y solo el admin.
 select
-  (select count(*) from necesidades) as necesidades,
-  (select count(*) from mensajes)    as mensajes,
-  (select count(*) from perfiles)    as perfiles,
-  (select email from auth.users limit 1) as unico_usuario;
+  (select count(*) from public.necesidades) as necesidades,
+  (select count(*) from public.mensajes)    as mensajes,
+  (select count(*) from public.perfiles)    as perfiles,
+  (select count(*) from auth.users)         as usuarios,
+  (select email from auth.users limit 1)    as unico_usuario;
