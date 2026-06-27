@@ -171,41 +171,38 @@ class Fuente:
         propia página obtiene al abrir la pestaña 'Hospitales, Centros y Listas'
         (así el token de reCAPTCHA y los parámetros son los correctos). Hace
         scroll para forzar la paginación interna y capturar todas las páginas."""
+        from playwright.sync_api import TimeoutError as PWTimeout
+
         assert self._page is not None
+        page = self._page
         capturado: list[Any] = []
 
-        def on_response(resp) -> None:
-            if "/api/centros" in resp.url:
-                try:
-                    if "application/json" in (resp.headers.get("content-type") or ""):
-                        capturado.append(resp.json())
-                except Exception:
-                    pass
+        def es_centros(r) -> bool:
+            return "/api/centros" in r.url
 
-        self._page.on("response", on_response)
-        # Abrir la pestaña de centros/hospitales.
+        # Abrir la pestaña de centros/hospitales esperando su primera respuesta.
         try:
-            self._page.get_by_role(
-                "button", name="Hospitales, Centros y Listas"
-            ).click(timeout=10_000)
-        except Exception:
+            with page.expect_response(es_centros, timeout=20_000) as ev:
+                try:
+                    page.get_by_role(
+                        "button", name="Hospitales, Centros y Listas"
+                    ).click(timeout=10_000)
+                except Exception:
+                    page.click("text=Centros", timeout=5000)
+            capturado.append(ev.value.json())
+        except Exception as exc:
+            print(f"  (no llegó la primera respuesta de centros: {exc})")
+
+        # Paginación por scroll: cada bajada dispara otra carga.
+        for _ in range(80):
             try:
-                self._page.click("text=Centros", timeout=5000)
+                with page.expect_response(es_centros, timeout=4000) as ev:
+                    page.mouse.wheel(0, 5000)
+                capturado.append(ev.value.json())
+            except PWTimeout:
+                break
             except Exception:
-                pass
-        self._page.wait_for_timeout(2500)
-        # Scroll para disparar la carga de más páginas (scroll infinito).
-        for _ in range(60):
-            antes = len(capturado)
-            self._page.mouse.wheel(0, 4000)
-            self._page.wait_for_timeout(1200)
-            # si en varias vueltas no llega nada nuevo, paramos
-            if len(capturado) == antes:
-                # un par de intentos más por si tarda
-                self._page.wait_for_timeout(1500)
-                if len(capturado) == antes:
-                    break
-        self._page.remove_listener("response", on_response)
+                break
         print(f"  endpoints de API vistos: {sorted(self._api_paths)}")
         print(f"  respuestas /api/centros capturadas: {len(capturado)}")
 
