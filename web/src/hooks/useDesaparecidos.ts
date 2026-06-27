@@ -80,9 +80,9 @@ export function useDesaparecidosMapa(
           .lte('lat', zona.norte)
           .gte('lng', zona.oeste)
           .lte('lng', zona.este)
-          .limit(1500)
+          .limit(800)
       } else {
-        q = q.limit(800)
+        q = q.limit(500)
       }
       const { data } = await q
       if (!cancel) setDesaparecidos((data ?? []) as Desaparecido[])

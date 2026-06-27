@@ -393,7 +393,17 @@ export default function MapaNecesidades({
       <RastreadorZona activo={verDesap} onZona={setZona} />
       {verDesap && <AjustarABusqueda puntos={puntosBusqueda} />}
       {verDesap && (
-      <MarkerClusterGroup chunkedLoading maxClusterRadius={50}>
+      <MarkerClusterGroup
+        chunkedLoading
+        maxClusterRadius={70}
+        // CLAVE para el móvil: NO "explotar" (spiderfy) un grupo enorme. Con
+        // cientos de personas en el mismo punto, abrir el abanico crasheaba la
+        // página. Al hacer clic, hace zoom; los grupos enormes quedan como
+        // burbuja con número y para ver a alguien se usa el buscador.
+        spiderfyOnMaxZoom={false}
+        showCoverageOnHover={false}
+        zoomToBoundsOnClick={true}
+      >
       {desapVisibles
         .filter((d) => d.lat != null && d.lng != null)
         .map((d) => (

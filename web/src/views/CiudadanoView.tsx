@@ -115,6 +115,8 @@ export default function CiudadanoView() {
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
+  // En móvil, el bloque de roles arranca plegado para no tapar el mapa.
+  const [verRoles, setVerRoles] = useState(false)
   // Capa de desaparecidos. Por defecto se MUESTRA cuando hay pocas necesidades
   // (para que el mapa no se vea vacío al inicio) y se OCULTA sola cuando hay
   // más de 10 necesidades reportadas (prioridad a las emergencias). El usuario
@@ -243,26 +245,36 @@ export default function CiudadanoView() {
           </div>
 
           {/* Accesos directos por rol (solo si no hay sesión): entra o crea
-              cuenta ya con el rol elegido. Compacto y deslizable en móvil. */}
+              cuenta ya con el rol elegido. Plegable para no tapar el mapa. */}
           {!session && (
-            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mb-2">
-              <p className="text-sm font-bold text-gray-700 px-1 pb-1.5">
-                Entra o crea tu cuenta según tu rol:
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {ROLES_ACCESO.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => navigate(`/login?rol=${r}`)}
-                    className="flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-2 py-2 bg-bandera-azul/10 text-bandera-azul hover:bg-bandera-azul/20 active:scale-95 transition"
-                  >
-                    <span className="text-base leading-none">
-                      {ROL_META[r].emoji}
-                    </span>
-                    {ROL_META[r].etiqueta}
-                  </button>
-                ))}
-              </div>
+            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow mb-2">
+              <button
+                onClick={() => setVerRoles((v) => !v)}
+                className="w-full flex items-center justify-between px-3 py-2.5"
+              >
+                <span className="text-sm font-bold text-gray-700">
+                  👤 Entra o crea tu cuenta
+                </span>
+                <span className="text-gray-400 text-lg leading-none">
+                  {verRoles ? '▲' : '▼'}
+                </span>
+              </button>
+              {verRoles && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 px-2 pb-2">
+                  {ROLES_ACCESO.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => navigate(`/login?rol=${r}`)}
+                      className="flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-2 py-2 bg-bandera-azul/10 text-bandera-azul hover:bg-bandera-azul/20 active:scale-95 transition"
+                    >
+                      <span className="text-base leading-none">
+                        {ROL_META[r].emoji}
+                      </span>
+                      {ROL_META[r].etiqueta}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
