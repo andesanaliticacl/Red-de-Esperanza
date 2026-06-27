@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import {
   MapContainer,
@@ -139,6 +139,49 @@ function separarSolapados(
 }
 
 /**
+ * Esparce los desaparecidos que caen en el MISMO punto (la geocodificación es a
+ * nivel de ciudad, así que cientos pueden compartir coordenada). Los reparte en
+ * un disco alrededor del punto, con radio que crece según cuántos sean. Así, al
+ * hacer zoom se separan en lupitas individuales clicables, y ningún pixel
+ * acumula cientos (lo que crasheaba al "explotar" el grupo).
+ *
+ * Devuelve id → posición visual. Es determinista (no salta entre recargas).
+ */
+function esparcirEnDisco(
+  items: { id: string; lat: number; lng: number }[],
+): Map<string, [number, number]> {
+  const grupos = new Map<string, { id: string; lat: number; lng: number }[]>()
+  for (const it of items) {
+    const clave = `${it.lat.toFixed(4)},${it.lng.toFixed(4)}`
+    const g = grupos.get(clave)
+    if (g) g.push(it)
+    else grupos.set(clave, [it])
+  }
+
+  const ANG = 2.399963229728653 // ángulo áureo → relleno uniforme del disco
+  const posiciones = new Map<string, [number, number]>()
+  for (const grupo of grupos.values()) {
+    const n = grupo.length
+    if (n === 1) {
+      const it = grupo[0]
+      posiciones.set(it.id, [it.lat, it.lng])
+      continue
+    }
+    // Radio máximo del disco (grados): grupos grandes se esparcen más, con tope.
+    const maxR = Math.min(0.03, 0.0009 * Math.sqrt(n)) // ~0.2 km (pocos) … ~3 km (cientos)
+    const cosLat = Math.cos((grupo[0].lat * Math.PI) / 180) || 1
+    grupo.forEach((it, i) => {
+      const r = maxR * Math.sqrt((i + 0.5) / n)
+      const a = i * ANG
+      const lat = it.lat + r * Math.cos(a)
+      const lng = it.lng + (r * Math.sin(a)) / cosLat
+      posiciones.set(it.id, [lat, lng])
+    })
+  }
+  return posiciones
+}
+
+/**
  * Controles flotantes del mapa (abajo a la derecha, apilados):
  *  · "Ver Venezuela": centra el mapa en el país para que quien esté fuera
  *    pueda ver de un vistazo todas las emergencias reportadas allá.
@@ -253,13 +296,24 @@ export default function MapaNecesidades({
     zona,
     busquedaDesap,
   )
+  // Esparcir los que comparten coordenada (ciudad) para que se puedan ver y
+  // abrir uno por uno al acercar, sin apilar cientos en un pixel.
+  const posDesap = useMemo(
+    () =>
+      esparcirEnDisco(
+        desapVisibles
+          .filter((d) => d.lat != null && d.lng != null)
+          .map((d) => ({ id: d.id, lat: d.lat as number, lng: d.lng as number })),
+      ),
+    [desapVisibles],
+  )
   const q = busquedaDesap.trim().toLowerCase()
   // Si hay búsqueda activa, ajustamos el mapa a los resultados.
   const puntosBusqueda: [number, number][] =
     verDesap && q
       ? desapVisibles
           .filter((d) => d.lat != null && d.lng != null)
-          .map((d) => [d.lat as number, d.lng as number])
+          .map((d) => posDesap.get(d.id) ?? [d.lat as number, d.lng as number])
       : []
 
   return (
@@ -395,12 +449,11 @@ export default function MapaNecesidades({
       {verDesap && (
       <MarkerClusterGroup
         chunkedLoading
-        maxClusterRadius={70}
-        // CLAVE para el móvil: NO "explotar" (spiderfy) un grupo enorme. Con
-        // cientos de personas en el mismo punto, abrir el abanico crasheaba la
-        // página. Al hacer clic, hace zoom; los grupos enormes quedan como
-        // burbuja con número y para ver a alguien se usa el buscador.
-        spiderfyOnMaxZoom={false}
+        maxClusterRadius={60}
+        // Ya esparcimos los que comparten punto, así que ningún pixel acumula
+        // cientos. Con spiderfy ACTIVO se puede abrir cada persona al acercar,
+        // sin el crash de antes.
+        spiderfyOnMaxZoom={true}
         showCoverageOnHover={false}
         zoomToBoundsOnClick={true}
       >
@@ -409,7 +462,7 @@ export default function MapaNecesidades({
         .map((d) => (
           <Marker
             key={d.id}
-            position={[d.lat as number, d.lng as number]}
+            position={posDesap.get(d.id) ?? [d.lat as number, d.lng as number]}
             icon={iconoDesaparecido(d.estado === 'encontrado')}
             zIndexOffset={-500}
           >
