@@ -64,6 +64,8 @@ export default function RegistroView() {
   const [telefono, setTelefono] = useState('')
   const [estado, setEstado] = useState('')
   const [ciudad, setCiudad] = useState('')
+  // Cuando la ciudad no está en la lista sugerida, se escribe a mano.
+  const [ciudadOtra, setCiudadOtra] = useState(false)
 
   // Divisiones del país elegido (Estado/Región/Provincia… con sus nombres).
   const isoPais = PAISES_MUNDO.find((p) => p.nombre === pais)?.iso
@@ -262,6 +264,7 @@ export default function RegistroView() {
                 onChange={(e) => {
                   setEstado(e.target.value)
                   setCiudad('') // la ciudad anterior ya no corresponde
+                  setCiudadOtra(false)
                 }}
               >
                 <option value="">{zona.etiqueta}…</option>
@@ -280,22 +283,43 @@ export default function RegistroView() {
                 onChange={(e) => {
                   setEstado(e.target.value)
                   setCiudad('')
+                  setCiudadOtra(false)
                 }}
               />
             )}
-            <input
-              className="input"
-              placeholder="Ciudad"
-              required
-              list="lista-ciudades"
-              value={ciudad}
-              onChange={(e) => setCiudad(e.target.value)}
-            />
-            <datalist id="lista-ciudades">
-              {ciudadesSugeridas.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+
+            {/* Ciudad: menú desplegable si tenemos lista; "Otra…" deja escribir. */}
+            {ciudadesSugeridas.length > 0 && !ciudadOtra ? (
+              <select
+                className="input"
+                required
+                value={ciudad}
+                onChange={(e) => {
+                  if (e.target.value === '__otra__') {
+                    setCiudadOtra(true)
+                    setCiudad('')
+                  } else {
+                    setCiudad(e.target.value)
+                  }
+                }}
+              >
+                <option value="">Ciudad…</option>
+                {ciudadesSugeridas.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value="__otra__">✏️ Otra ciudad…</option>
+              </select>
+            ) : (
+              <input
+                className="input"
+                placeholder="Ciudad"
+                required
+                value={ciudad}
+                onChange={(e) => setCiudad(e.target.value)}
+              />
+            )}
           </div>
 
           <div>

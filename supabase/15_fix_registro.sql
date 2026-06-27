@@ -99,23 +99,28 @@ begin
     v_rol := 'ciudadano';
   end if;
 
-  insert into public.perfiles
-    (id, nombre, rol, tipo_documento, documento, telefono, ciudad, estado, pais)
-  values (
-    new.id, v_nombre, v_rol,
-    nullif(new.raw_user_meta_data->>'tipo_documento',''),
-    nullif(new.raw_user_meta_data->>'documento',''),
-    nullif(new.raw_user_meta_data->>'telefono',''),
-    nullif(new.raw_user_meta_data->>'ciudad',''),
-    nullif(new.raw_user_meta_data->>'estado',''),
-    v_pais
-  );
-  return new;
-exception when others then
-  -- Respaldo: si el insert completo falla por lo que sea, creamos un perfil
-  -- mínimo para que la persona SIEMPRE pueda entrar.
-  insert into public.perfiles (id, nombre, rol)
-  values (new.id, v_nombre, v_rol)
-  on conflict (id) do nothing;
+  begin
+    insert into public.perfiles
+      (id, nombre, rol, tipo_documento, documento, telefono, ciudad, estado, pais)
+    values (
+      new.id, v_nombre, v_rol,
+      nullif(new.raw_user_meta_data->>'tipo_documento',''),
+      nullif(new.raw_user_meta_data->>'documento',''),
+      nullif(new.raw_user_meta_data->>'telefono',''),
+      nullif(new.raw_user_meta_data->>'ciudad',''),
+      nullif(new.raw_user_meta_data->>'estado',''),
+      v_pais
+    );
+  exception when others then
+    -- Respaldo: si el insert completo falla por lo que sea, creamos un perfil
+    -- mínimo. Y si hasta eso falla, lo tragamos: el registro NUNCA debe dar 500.
+    begin
+      insert into public.perfiles (id, nombre, rol)
+      values (new.id, v_nombre, v_rol)
+      on conflict (id) do nothing;
+    exception when others then
+      null;
+    end;
+  end;
   return new;
 end; $$;
