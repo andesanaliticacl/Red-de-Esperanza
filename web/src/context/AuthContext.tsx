@@ -25,22 +25,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [cargando, setCargando] = useState(true)
 
-  async function cargarPerfil(userId: string) {
-    const { data, error } = await supabase
+  // Carga el perfil; si no existe (registro nuevo), lo CREA desde los datos
+  // que se guardaron al registrarse (user_metadata). Antes esto lo hacía un
+  // trigger en la base de datos, pero ahora se hace aquí para que el registro
+  // nunca falle por la BD.
+  async function asegurarPerfil(user: {
+    id: string
+    email?: string
+    user_metadata?: Record<string, unknown>
+  }) {
+    const { data } = await supabase
       .from('perfiles')
       .select('*')
-      .eq('id', userId)
-      .single()
-    if (error) {
-      console.error('No se pudo cargar el perfil:', error.message)
-      setPerfil(null)
-    } else {
+      .eq('id', user.id)
+      .maybeSingle()
+    if (data) {
       setPerfil(data as Perfil)
+      return
     }
+
+    // No tiene perfil todavía → lo creamos con lo que escribió en el registro.
+    const m = (user.user_metadata ?? {}) as Record<string, string>
+    let rol = ['voluntario', 'rescatista', 'centro_acopio'].includes(m.rol)
+      ? m.rol
+      : 'ciudadano'
+    // Voluntario/rescatista solo en Venezuela.
+    if (
+      (rol === 'voluntario' || rol === 'rescatista') &&
+      (m.pais || 'Venezuela') !== 'Venezuela'
+    ) {
+      rol = 'ciudadano'
+    }
+    const nombre = m.nombre || user.email || 'Usuario'
+    const completo = {
+      id: user.id,
+      nombre,
+      rol,
+      tipo_documento: m.tipo_documento || null,
+      documento: m.documento || null,
+      telefono: m.telefono || null,
+      ciudad: m.ciudad || null,
+      estado: m.estado || null,
+      pais: m.pais || null,
+    }
+
+    let res = await supabase.from('perfiles').insert(completo).select().maybeSingle()
+    if (res.error) {
+      // Respaldo: si el insert completo falla, creamos un perfil mínimo.
+      res = await supabase
+        .from('perfiles')
+        .insert({ id: user.id, nombre, rol })
+        .select()
+        .maybeSingle()
+    }
+    setPerfil((res.data as Perfil | null) ?? (completo as unknown as Perfil))
   }
 
   async function refrescarPerfil() {
-    if (session?.user) await cargarPerfil(session.user.id)
+    if (session?.user) await asegurarPerfil(session.user)
   }
 
   useEffect(() => {
@@ -49,13 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!activo) return
       setSession(data.session)
-      if (data.session?.user) await cargarPerfil(data.session.user.id)
+      if (data.session?.user) await asegurarPerfil(data.session.user)
       setCargando(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
       setSession(s)
-      if (s?.user) await cargarPerfil(s.user.id)
+      if (s?.user) await asegurarPerfil(s.user)
       else setPerfil(null)
     })
 
