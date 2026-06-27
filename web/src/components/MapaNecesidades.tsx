@@ -309,10 +309,21 @@ export default function MapaNecesidades({
             zIndexOffset={500}
           >
             <Popup>
-              <div className="space-y-1 min-w-[180px]">
+              <div className="space-y-1 min-w-[190px]">
                 <div className="font-bold text-sm">
                   {d.estado === 'encontrado' ? '✅ Encontrado/a' : '🔍 Por localizar'}
                 </div>
+                {d.foto_url && (
+                  <img
+                    src={d.foto_url}
+                    alt={d.nombre}
+                    loading="lazy"
+                    className="w-full max-h-44 object-cover rounded-lg border border-gray-200"
+                    onError={(e) => {
+                      ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                )}
                 <div className="font-semibold">{d.nombre}</div>
                 {d.edad && (
                   <div className="text-xs text-gray-600">
@@ -332,7 +343,17 @@ export default function MapaNecesidades({
                     📞 {d.contacto_familiar}
                   </div>
                 )}
-                <div className="text-xs text-gray-400 mt-1">Fuente: Venezuela Te Busca</div>
+                <a
+                  href="https://desaparecidosterremotovenezuela.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center text-xs font-semibold text-white bg-bandera-azul rounded-lg py-1.5 mt-1 no-underline"
+                >
+                  🔗 Ver en la fuente
+                </a>
+                <div className="text-[10px] text-gray-400 text-center">
+                  Fuente: Desaparecidos Terremoto Venezuela
+                </div>
               </div>
             </Popup>
           </Marker>
