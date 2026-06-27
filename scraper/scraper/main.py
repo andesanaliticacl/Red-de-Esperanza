@@ -6,7 +6,12 @@ import sys
 
 from fuente import Fuente, map_centro, map_persona
 from geocode import Geocoder
-from supabase_sync import registrar_corrida, subir_centros, subir_en_lotes
+from supabase_sync import (
+    faltan_credenciales,
+    registrar_corrida,
+    subir_centros,
+    subir_en_lotes,
+)
 
 
 def _muestra(crudos: list, n: int) -> None:
@@ -136,6 +141,19 @@ def main() -> None:
     ap.add_argument("--refrescar-geo", action="store_true",
                     help="borra la caché de geocodificación antes de empezar")
     args = ap.parse_args()
+
+    # Chequeo TEMPRANO de credenciales: si faltan y vamos a subir, avisamos ya
+    # (antes de geocodificar nada, que es lo lento).
+    if not args.sin_subir and faltan_credenciales():
+        print(
+            "ERROR: no encuentro las credenciales de Supabase.\n"
+            "  Crea el archivo  scraper\\scraper\\.env  con estas dos líneas:\n"
+            "    SUPABASE_URL=https://hqoirxajavaaasvdfjoy.supabase.co\n"
+            "    SUPABASE_SERVICE_KEY=sb_secret_tu_clave\n"
+            "  (o usa --sin-subir para probar sin subir a la base de datos).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if args.refrescar_geo:
         from geocode import CACHE_FILE

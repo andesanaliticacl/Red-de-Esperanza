@@ -23,18 +23,29 @@ def _cargar_dotenv() -> None:
         f = d / ".env"
         if not f.exists():
             continue
-        for linea in f.read_text(encoding="utf-8").splitlines():
-            linea = linea.strip()
+        cargadas = []
+        # utf-8-sig ignora el BOM que Windows mete al inicio del archivo.
+        for linea in f.read_text(encoding="utf-8-sig").splitlines():
+            linea = linea.strip().lstrip("﻿")
             if not linea or linea.startswith("#") or "=" not in linea:
                 continue
             k, v = linea.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+            k = k.strip().lstrip("﻿")
+            os.environ.setdefault(k, v.strip().strip('"').strip("'"))
+            cargadas.append(k)
+        if cargadas:
+            print(f"[.env] leído de {f} -> {', '.join(cargadas)}")
+            return
 
 
 _cargar_dotenv()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+
+def faltan_credenciales() -> bool:
+    return not (SUPABASE_URL and SERVICE_KEY)
 
 
 def _check_env() -> None:
