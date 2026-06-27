@@ -80,10 +80,9 @@ def correr_centros(args, geo) -> int:
                 continue
             if geo and c.lat is None:
                 texto = ", ".join(
-                    [x for x in (c.direccion, c.ciudad, c.estado_region, c.pais) if x]
-                )
-                if texto:
-                    c.lat, c.lng = geo.geocodificar(texto)
+                    [x for x in (c.direccion, c.ciudad, c.estado_region) if x]
+                ) or c.nombre
+                c.lat, c.lng = geo.geocodificar(texto, pais=c.pais)
             # La tabla exige lat/lng NOT NULL: descartamos los sin coordenadas.
             if c.lat is None or c.lng is None:
                 print(f"  · sin coordenadas, se omite: {c.nombre}")

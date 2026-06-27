@@ -167,29 +167,14 @@ class Fuente:
 
     # -- centros / hospitales ----------------------------------------------
     def fetch_centros(self) -> list[dict[str, Any]]:
-        """Trae centros de acopio / hospitales capturando la respuesta que la
-        propia página obtiene al abrir la pestaña 'Hospitales, Centros y Listas'
-        (así el token de reCAPTCHA y los parámetros son los correctos). Hace
-        scroll para forzar la paginación interna y capturar todas las páginas."""
-        from playwright.sync_api import TimeoutError as PWTimeout
-
+        """Lee los centros de acopio / hospitales DIRECTO del DOM (las tarjetas
+        ya están renderizadas en la pestaña 'Hospitales, Centros y Listas').
+        Es más robusto que la API (cacheada y con reCAPTCHA). Hace scroll hasta
+        cargar todas las tarjetas."""
         assert self._page is not None
         page = self._page
-        capturado: list[Any] = []
 
-        def es_centros(r) -> bool:
-            return "/api/centros" in r.url
-
-        # La página PRECARGA /api/centros al cargar. Recargamos capturando esa
-        # respuesta (al hacer clic en la pestaña usa caché y no pide de nuevo).
-        try:
-            with page.expect_response(es_centros, timeout=30_000) as ev:
-                page.goto(SITE_URL, wait_until="domcontentloaded", timeout=60_000)
-            capturado.append(ev.value.json())
-        except Exception as exc:
-            print(f"  (no llegó la precarga de centros: {exc})")
-
-        # Abrir la pestaña para poder hacer scroll en la lista.
+        # Abrir la pestaña de centros/hospitales.
         try:
             page.get_by_role(
                 "button", name="Hospitales, Centros y Listas"
@@ -199,49 +184,35 @@ class Fuente:
                 page.click("text=Centros", timeout=5000)
             except Exception:
                 pass
-        page.wait_for_timeout(1500)
+        page.wait_for_timeout(2500)
 
-        # Paginación por scroll: cada bajada dispara otra carga.
-        for _ in range(80):
-            try:
-                with page.expect_response(es_centros, timeout=4000) as ev:
-                    page.mouse.wheel(0, 5000)
-                capturado.append(ev.value.json())
-            except PWTimeout:
-                break
-            except Exception:
-                break
-        print(f"  endpoints de API vistos: {sorted(self._api_paths)}")
-        print(f"  respuestas /api/centros capturadas: {len(capturado)}")
-
-        # Fallback: si la captura falló, llamar /api/centros directo probando
-        # distintas acciones de reCAPTCHA (la de centros puede no ser 'list_people').
-        if not capturado:
-            for accion in ("list_centers", "list_centros", "list_acopio",
-                           "list_places", ACCION_PERSONAS):
-                for q in (f"/api/centros?page=1&pageSize=500", "/api/centros"):
-                    try:
-                        data = self._get_json(q, accion)
-                    except Exception:
-                        continue
-                    if self._lista(data):
-                        print(f"  fallback OK con accion='{accion}' query='{q}'")
-                        capturado.append(data)
-                        break
-                if capturado:
+        # Scroll hasta que el número de tarjetas deje de crecer (scroll infinito).
+        sel = '[class*="styles_centro__"]'
+        prev = -1
+        for _ in range(300):
+            n = page.eval_on_selector_all(sel, "els => els.length")
+            if n == prev:
+                page.wait_for_timeout(1500)
+                if page.eval_on_selector_all(sel, "els => els.length") == prev:
                     break
+            prev = n
+            page.mouse.wheel(0, 6000)
+            page.wait_for_timeout(900)
 
-        # Aplanar: cada respuesta puede ser una lista o {data:[...]}.
-        todos: list[dict[str, Any]] = []
-        vistos: set[str] = set()
-        for data in capturado:
-            for item in self._lista(data):
-                ident = str(item.get("id") or item.get("_id") or item.get("nombre"))
-                if ident in vistos:
-                    continue
-                vistos.add(ident)
-                todos.append(item)
-        return todos
+        # Extraer nombre, tipo y dirección de cada tarjeta.
+        js = """
+        () => Array.from(document.querySelectorAll('[class*="styles_centro__"]')).map(c => {
+          const t = (sel) => { const e = c.querySelector(sel); return e ? e.textContent.trim() : null; };
+          return {
+            tipo: t('[class*="styles_tipo__"]'),
+            nombre: t('[class*="centroNombre"]'),
+            direccion: t('[class*="centroUbic"]'),
+          };
+        }).filter(x => x.nombre)
+        """
+        items = page.evaluate(js)
+        print(f"  tarjetas de centros leídas del DOM: {len(items)}")
+        return items
 
 
 # ============================================================
@@ -320,23 +291,52 @@ def map_persona(raw: dict[str, Any]) -> Optional[PersonaDesaparecida]:
     )
 
 
+def _inferir_pais(texto: str) -> str:
+    """Deduce el país a partir del nombre/dirección (la web mezcla centros de
+    varios países). Por defecto, Venezuela."""
+    t = (texto or "").lower()
+    if any(k in t for k in ("bogot", "colombia", "cúcuta", "cucuta", "medellín", "medellin")):
+        return "Colombia"
+    if any(k in t for k in ("boa vista", "brasil", "brazil", "roraima", "manaus")):
+        return "Brasil"
+    if any(k in t for k in ("lima", "perú", "peru")):
+        return "Perú"
+    if "ecuador" in t or "quito" in t or "guayaquil" in t:
+        return "Ecuador"
+    return "Venezuela"
+
+
 def map_centro(raw: dict[str, Any]) -> Optional[CentroAcopio]:
     nombre = _primero(raw, "nombre", "name", "title")
     if not nombre:
         return None
+    nombre = str(nombre).strip()
 
     tipo = str(_primero(raw, "tipo", "type", "categoria") or "").strip()
     # Normalizamos la descripción/tipo visible (Hospital / Centro de acopio).
     desc = tipo or _primero(raw, "descripcion", "description")
+    direccion = _primero(raw, "direccion", "address", "ubicacion", "location")
+
+    pais = _primero(raw, "pais", "country")
+    if not pais:
+        pais = _inferir_pais(f"{nombre} {direccion or ''}")
+
+    # Id estable para upsert: el de la fuente si existe, si no un hash del
+    # nombre+dirección (las tarjetas del DOM no traen id).
+    idf = str(_primero(raw, "id", "_id", "slug", "uuid") or "")
+    if not idf:
+        import hashlib
+        base = f"{nombre}|{direccion or ''}".lower()
+        idf = "dom-" + hashlib.md5(base.encode("utf-8")).hexdigest()[:16]
 
     return CentroAcopio(
-        nombre=str(nombre).strip(),
-        id_fuente=str(_primero(raw, "id", "_id", "slug", "uuid") or "") or None,
+        nombre=nombre,
+        id_fuente=idf,
         descripcion=desc,
-        direccion=_primero(raw, "direccion", "address", "ubicacion", "location"),
+        direccion=direccion,
         ciudad=_primero(raw, "ciudad", "city", "municipio"),
         estado_region=_primero(raw, "estado", "region", "provincia", "state", "departamento"),
-        pais=_primero(raw, "pais", "country") or "Venezuela",
+        pais=pais,
         contacto=_primero(raw, "contacto", "telefono", "phone", "contact"),
         lat=_float(_primero(raw, "lat", "latitude", "latitud")),
         lng=_float(_primero(raw, "lng", "lon", "longitude", "longitud")),

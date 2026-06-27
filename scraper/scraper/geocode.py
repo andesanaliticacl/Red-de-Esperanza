@@ -32,25 +32,37 @@ class Geocoder:
             json.dumps(self._cache, ensure_ascii=False), encoding="utf-8"
         )
 
-    def geocodificar(self, texto: Optional[str]) -> tuple[Optional[float], Optional[float]]:
-        """Devuelve (lat, lng) aproximados de un texto de ubicación en Venezuela.
-        Devuelve (None, None) si no se encuentra. Usa caché en disco."""
+    # Códigos de país ISO para acotar la búsqueda en Nominatim.
+    _CC = {
+        "venezuela": "ve", "colombia": "co", "brasil": "br", "brazil": "br",
+        "perú": "pe", "peru": "pe", "ecuador": "ec", "chile": "cl",
+        "argentina": "ar", "panamá": "pa", "panama": "pa",
+    }
+
+    def geocodificar(
+        self, texto: Optional[str], pais: Optional[str] = "Venezuela"
+    ) -> tuple[Optional[float], Optional[float]]:
+        """Devuelve (lat, lng) aproximados de un texto de ubicación.
+        `pais` acota la búsqueda (por defecto Venezuela). Usa caché en disco."""
         if not texto:
             return None, None
-        clave = texto.strip().lower()
+        clave = f"{texto.strip()}|{(pais or '').strip()}".lower()
         if clave in self._cache:
             v = self._cache[clave]
             return (v[0], v[1]) if v else (None, None)
 
+        params = {
+            "q": f"{texto}, {pais}" if pais else texto,
+            "format": "json",
+            "limit": 1,
+        }
+        cc = self._CC.get((pais or "").strip().lower())
+        if cc:
+            params["countrycodes"] = cc
         try:
             r = requests.get(
                 NOMINATIM,
-                params={
-                    "q": f"{texto}, Venezuela",
-                    "format": "json",
-                    "limit": 1,
-                    "countrycodes": "ve",
-                },
+                params=params,
                 headers={"User-Agent": USER_AGENT},
                 timeout=20,
             )
