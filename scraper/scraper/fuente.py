@@ -269,17 +269,21 @@ def map_persona(raw: dict[str, Any]) -> Optional[PersonaDesaparecida]:
     estado_txt = str(
         _primero(raw, "estado", "status", "situacion") or ""
     ).lower()
-    # "sin contacto" / "buscado" = no encontrado ; "localizado"/"encontrado" = encontrado
-    encontrado = ("localiz" in estado_txt or "encontr" in estado_txt
-                  or estado_txt in ("found", "ok"))
+    # Campo real: estado="sin-contacto" (buscado) | "localizado" (encontrado).
+    # Además, si tiene `localizadoPor`, ya fue localizado.
+    encontrado = (
+        "localiz" in estado_txt
+        or "encontr" in estado_txt
+        or estado_txt in ("found", "ok")
+        or bool(raw.get("localizadoPor"))
+    )
     estado = "encontrado" if encontrado else "no_encontrado"
 
-    # contacto: si la fuente marca "sin contacto", lo dejamos explícito.
+    # Contacto del familiar (teléfono). Si está vacío y la fuente marca
+    # "sin contacto", lo dejamos explícito para mostrarlo en la ficha.
     contacto = _primero(raw, "contacto", "contactoFamiliar", "reporta", "contact", "telefono")
-    if not contacto:
-        sin = _primero(raw, "sinContacto", "noContact")
-        if sin:
-            contacto = "Sin contacto"
+    if not contacto and "sin-contacto" in estado_txt:
+        contacto = "Sin contacto"
 
     return PersonaDesaparecida(
         nombre=str(nombre).strip(),
