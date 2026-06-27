@@ -5,7 +5,7 @@ import EntradaTelefono from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
-import { zonasDePais } from '../lib/zonas'
+import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 import {
   ROL_META,
   type RolRegistro,
@@ -68,6 +68,8 @@ export default function RegistroView() {
   // Divisiones del país elegido (Estado/Región/Provincia… con sus nombres).
   const isoPais = PAISES_MUNDO.find((p) => p.nombre === pais)?.iso
   const zona = zonasDePais(isoPais)
+  // Ciudades sugeridas según la zona elegida (autocompletar, no obligatorio).
+  const ciudadesSugeridas = ciudadesDeZona(isoPais, estado)
 
   // Voluntario/rescatista solo para quienes están en Venezuela.
   const enVenezuela = pais === 'Venezuela'
@@ -257,7 +259,10 @@ export default function RegistroView() {
                 className="input"
                 required
                 value={estado}
-                onChange={(e) => setEstado(e.target.value)}
+                onChange={(e) => {
+                  setEstado(e.target.value)
+                  setCiudad('') // la ciudad anterior ya no corresponde
+                }}
               >
                 <option value="">{zona.etiqueta}…</option>
                 {zona.opciones.map((s) => (
@@ -272,16 +277,25 @@ export default function RegistroView() {
                 placeholder={zona.etiqueta}
                 required
                 value={estado}
-                onChange={(e) => setEstado(e.target.value)}
+                onChange={(e) => {
+                  setEstado(e.target.value)
+                  setCiudad('')
+                }}
               />
             )}
             <input
               className="input"
               placeholder="Ciudad"
               required
+              list="lista-ciudades"
               value={ciudad}
               onChange={(e) => setCiudad(e.target.value)}
             />
+            <datalist id="lista-ciudades">
+              {ciudadesSugeridas.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
 
           <div>

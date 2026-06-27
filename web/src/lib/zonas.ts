@@ -165,3 +165,62 @@ export function zonasDePais(iso?: string): ZonasPais {
   if (iso && ZONAS[iso]) return ZONAS[iso]
   return { etiqueta: ETIQUETA_GENERICA, opciones: [] }
 }
+
+// Principales ciudades por zona (para sugerir al escribir). No pretende ser
+// exhaustivo: son sugerencias; la persona siempre puede escribir otra ciudad.
+// Por ahora Venezuela (núcleo) y Chile; el resto usa texto libre sin sugerencias.
+const CIUDADES: Record<string, Record<string, string[]>> = {
+  ve: {
+    Amazonas: ['Puerto Ayacucho'],
+    Anzoátegui: ['Barcelona', 'Puerto La Cruz', 'El Tigre', 'Anaco', 'Lechería', 'Cantaura'],
+    Apure: ['San Fernando de Apure', 'Guasdualito', 'Achaguas'],
+    Aragua: ['Maracay', 'La Victoria', 'Turmero', 'Cagua', 'El Limón', 'Villa de Cura'],
+    Barinas: ['Barinas', 'Socopó', 'Barinitas'],
+    Bolívar: ['Ciudad Bolívar', 'Ciudad Guayana', 'Puerto Ordaz', 'Upata', 'Caicara del Orinoco'],
+    Carabobo: ['Valencia', 'Puerto Cabello', 'Guacara', 'Naguanagua', 'Los Guayos', 'Tocuyito'],
+    Cojedes: ['San Carlos', 'Tinaquillo'],
+    'Delta Amacuro': ['Tucupita'],
+    'Distrito Capital': ['Caracas'],
+    Falcón: ['Coro', 'Punto Fijo', 'Puerto Cumarebo'],
+    Guárico: ['San Juan de los Morros', 'Calabozo', 'Valle de la Pascua', 'Zaraza'],
+    'La Guaira': ['La Guaira', 'Catia La Mar', 'Maiquetía', 'Naiguatá'],
+    Lara: ['Barquisimeto', 'Carora', 'El Tocuyo', 'Cabudare', 'Quíbor'],
+    Mérida: ['Mérida', 'El Vigía', 'Ejido', 'Tovar'],
+    Miranda: ['Los Teques', 'Guarenas', 'Guatire', 'Petare', 'Charallave', 'Cúa', 'Santa Teresa del Tuy', 'Ocumare del Tuy'],
+    Monagas: ['Maturín', 'Punta de Mata', 'Caripito'],
+    'Nueva Esparta': ['Porlamar', 'La Asunción', 'Pampatar', 'Juan Griego', 'Punta de Piedras'],
+    Portuguesa: ['Guanare', 'Acarigua', 'Araure', 'Píritu'],
+    Sucre: ['Cumaná', 'Carúpano', 'Güiria'],
+    Táchira: ['San Cristóbal', 'Táriba', 'Rubio', 'San Antonio del Táchira', 'La Fría'],
+    Trujillo: ['Trujillo', 'Valera', 'Boconó'],
+    Yaracuy: ['San Felipe', 'Yaritagua', 'Chivacoa'],
+    Zulia: ['Maracaibo', 'Cabimas', 'Ciudad Ojeda', 'San Francisco', 'Santa Bárbara del Zulia', 'Machiques'],
+  },
+  cl: {
+    'Arica y Parinacota': ['Arica', 'Putre'],
+    Tarapacá: ['Iquique', 'Alto Hospicio', 'Pozo Almonte'],
+    Antofagasta: ['Antofagasta', 'Calama', 'Tocopilla', 'Mejillones'],
+    Atacama: ['Copiapó', 'Vallenar', 'Caldera'],
+    Coquimbo: ['La Serena', 'Coquimbo', 'Ovalle', 'Illapel'],
+    Valparaíso: ['Valparaíso', 'Viña del Mar', 'Quilpué', 'Villa Alemana', 'San Antonio', 'Quillota'],
+    'Metropolitana de Santiago': ['Santiago', 'Puente Alto', 'Maipú', 'La Florida', 'Las Condes', 'San Bernardo', 'Ñuñoa'],
+    "Libertador General Bernardo O'Higgins": ['Rancagua', 'San Fernando', 'Rengo', 'Machalí'],
+    Maule: ['Talca', 'Curicó', 'Linares', 'Cauquenes'],
+    Ñuble: ['Chillán', 'San Carlos', 'Bulnes'],
+    Biobío: ['Concepción', 'Talcahuano', 'Los Ángeles', 'Coronel', 'Chiguayante', 'San Pedro de la Paz'],
+    'La Araucanía': ['Temuco', 'Padre Las Casas', 'Villarrica', 'Angol', 'Pucón'],
+    'Los Ríos': ['Valdivia', 'La Unión', 'Río Bueno', 'Panguipulli'],
+    'Los Lagos': ['Puerto Montt', 'Osorno', 'Castro', 'Ancud', 'Puerto Varas'],
+    'Aysén del General Carlos Ibáñez del Campo': ['Coyhaique', 'Puerto Aysén'],
+    'Magallanes y de la Antártica Chilena': ['Punta Arenas', 'Puerto Natales'],
+  },
+}
+
+/**
+ * Ciudades sugeridas para una zona concreta de un país. Vacío = sin sugerencias
+ * (la persona escribe la ciudad a mano). Siempre se permite texto libre.
+ */
+export function ciudadesDeZona(iso?: string, zona?: string): string[] {
+  if (!iso || !zona) return []
+  return CIUDADES[iso]?.[zona] ?? []
+}
