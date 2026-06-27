@@ -173,26 +173,39 @@ class Fuente:
         cargar todas las tarjetas."""
         assert self._page is not None
         page = self._page
+        sel = '[class*="styles_centro__"]'
 
-        # Abrir la pestaña de centros/hospitales.
-        clic = False
-        try:
-            page.get_by_role(
-                "button", name="Hospitales, Centros y Listas"
-            ).click(timeout=10_000)
-            clic = True
-        except Exception:
+        def abrir_pestana() -> bool:
             try:
-                page.click("text=Centros", timeout=5000)
-                clic = True
+                page.get_by_role(
+                    "button", name="Hospitales, Centros y Listas"
+                ).click(timeout=10_000)
+                return True
+            except Exception:
+                try:
+                    page.click("text=Centros", timeout=5000)
+                    return True
+                except Exception:
+                    return False
+
+        # La lista de centros la carga la propia página vía /api/centros (con
+        # reCAPTCHA). A veces puntúa bajo y no renderiza nada: reintentamos
+        # recargando hasta que aparezcan tarjetas.
+        for intento in range(1, 5):
+            abrir_pestana()
+            page.wait_for_timeout(3500)
+            n = page.eval_on_selector_all(sel, "els => els.length")
+            if n > 0:
+                break
+            print(f"  intento {intento}: 0 tarjetas, recargando…")
+            page.goto(SITE_URL, wait_until="domcontentloaded", timeout=60_000)
+            try:
+                page.mouse.move(300, 300); page.wait_for_timeout(700)
+                page.mouse.wheel(0, 500); page.wait_for_timeout(1200)
             except Exception:
                 pass
-        page.wait_for_timeout(3000)
-        if not clic:
-            print("  ⚠ no se pudo abrir la pestaña de centros")
 
         # Scroll hasta que el número de tarjetas deje de crecer (scroll infinito).
-        sel = '[class*="styles_centro__"]'
         prev = -1
         for _ in range(300):
             n = page.eval_on_selector_all(sel, "els => els.length")
