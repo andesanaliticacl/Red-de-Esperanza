@@ -66,6 +66,27 @@ def correr_personas(args, geo) -> int:
     return total
 
 
+def _geocode_centro(geo, c):
+    """Geocodifica un centro con fallback: prueba la dirección completa y, si
+    falla, va quitando el primer segmento (la calle) hasta llegar a la
+    ciudad/región, que Nominatim sí reconoce."""
+    intentos: list[str] = []
+    base = ", ".join([x for x in (c.direccion, c.ciudad, c.estado_region) if x])
+    if base:
+        intentos.append(base)
+    if c.direccion and "," in c.direccion:
+        partes = [p.strip() for p in c.direccion.split(",") if p.strip()]
+        for i in range(1, len(partes)):
+            cola = ", ".join(partes[i:] + [x for x in (c.ciudad, c.estado_region) if x])
+            if cola and cola not in intentos:
+                intentos.append(cola)
+    for t in intentos:
+        lat, lng = geo.geocodificar(t, pais=c.pais)
+        if lat is not None:
+            return lat, lng
+    return None, None
+
+
 def correr_centros(args, geo) -> int:
     with Fuente(headless=not args.ver, lento=args.cortesia) as f:
         print("Buscando centros de acopio / hospitales…")
@@ -74,20 +95,20 @@ def correr_centros(args, geo) -> int:
         _muestra(crudos, args.muestra)
 
         filas = []
+        omitidos = 0
         for raw in crudos:
             c = map_centro(raw)
             if not c:
                 continue
             if geo and c.lat is None:
-                texto = ", ".join(
-                    [x for x in (c.direccion, c.ciudad, c.estado_region) if x]
-                ) or c.nombre
-                c.lat, c.lng = geo.geocodificar(texto, pais=c.pais)
+                c.lat, c.lng = _geocode_centro(geo, c)
             # La tabla exige lat/lng NOT NULL: descartamos los sin coordenadas.
             if c.lat is None or c.lng is None:
-                print(f"  · sin coordenadas, se omite: {c.nombre}")
+                omitidos += 1
                 continue
             filas.append(c.to_row())
+        if omitidos:
+            print(f"  ({omitidos} sin coordenadas, omitidos)")
 
         if not args.sin_subir:
             subir_centros(filas)

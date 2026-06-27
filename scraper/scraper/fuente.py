@@ -188,27 +188,8 @@ class Fuente:
             except Exception:
                 pass
         page.wait_for_timeout(3000)
-        print(f"  clic en pestaña centros: {clic}")
-
-        # DEBUG: ver qué botones y clases existen realmente en el DOM.
-        try:
-            botones = page.eval_on_selector_all(
-                "button", "els => els.map(e => e.textContent.trim()).filter(Boolean).slice(0,15)"
-            )
-            print(f"  botones visibles: {botones}")
-            clases = page.evaluate(
-                """() => {
-                  const s = new Set();
-                  document.querySelectorAll('[class]').forEach(e =>
-                    String(e.className).split(/\\s+/).forEach(c => {
-                      if (/centro|tipo|card|hospital|acopio/i.test(c)) s.add(c);
-                    }));
-                  return Array.from(s).slice(0, 30);
-                }"""
-            )
-            print(f"  clases relevantes en DOM: {clases}")
-        except Exception as exc:
-            print(f"  (debug DOM falló: {exc})")
+        if not clic:
+            print("  ⚠ no se pudo abrir la pestaña de centros")
 
         # Scroll hasta que el número de tarjetas deje de crecer (scroll infinito).
         sel = '[class*="styles_centro__"]'
