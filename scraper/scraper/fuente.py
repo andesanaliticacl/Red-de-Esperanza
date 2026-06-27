@@ -214,6 +214,23 @@ class Fuente:
         print(f"  endpoints de API vistos: {sorted(self._api_paths)}")
         print(f"  respuestas /api/centros capturadas: {len(capturado)}")
 
+        # Fallback: si la captura falló, llamar /api/centros directo probando
+        # distintas acciones de reCAPTCHA (la de centros puede no ser 'list_people').
+        if not capturado:
+            for accion in ("list_centers", "list_centros", "list_acopio",
+                           "list_places", ACCION_PERSONAS):
+                for q in (f"/api/centros?page=1&pageSize=500", "/api/centros"):
+                    try:
+                        data = self._get_json(q, accion)
+                    except Exception:
+                        continue
+                    if self._lista(data):
+                        print(f"  fallback OK con accion='{accion}' query='{q}'")
+                        capturado.append(data)
+                        break
+                if capturado:
+                    break
+
         # Aplanar: cada respuesta puede ser una lista o {data:[...]}.
         todos: list[dict[str, Any]] = []
         vistos: set[str] = set()
