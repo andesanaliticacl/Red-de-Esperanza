@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
 import {
   iconoDesaparecido,
@@ -32,6 +33,22 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
   const clave = posicion ? posicion.join(',') : ''
   useEffect(() => {
     if (posicion) map.flyTo(posicion, 17, { duration: 0.8 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+  return null
+}
+
+/** Ajusta el mapa a los resultados de la búsqueda de desaparecidos. */
+function AjustarABusqueda({ puntos }: { puntos: [number, number][] }) {
+  const map = useMap()
+  const clave = puntos.map((p) => p.join(',')).join('|')
+  useEffect(() => {
+    if (puntos.length === 0) return
+    if (puntos.length === 1) {
+      map.flyTo(puntos[0], 13, { duration: 0.6 })
+      return
+    }
+    map.fitBounds(L.latLngBounds(puntos), { padding: [60, 60], maxZoom: 13 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave])
   return null
@@ -187,6 +204,29 @@ export default function MapaNecesidades({
     ...acopios.map((a) => ({ id: `acopio:${a.id}`, lat: a.lat, lng: a.lng })),
   ])
 
+  // --- Capa de desaparecidos: oculta por defecto, agrupada (clustering) y con
+  // buscador por nombre. El usuario la activa con el interruptor del mapa.
+  const [verDesap, setVerDesap] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+
+  const desapConCoords = useMemo(
+    () => desaparecidos.filter((d) => d.lat != null && d.lng != null),
+    [desaparecidos],
+  )
+  const q = busqueda.trim().toLowerCase()
+  const desapVisibles = useMemo(
+    () =>
+      q
+        ? desapConCoords.filter((d) => d.nombre.toLowerCase().includes(q))
+        : desapConCoords,
+    [desapConCoords, q],
+  )
+  // Si hay búsqueda activa, ajustamos el mapa a los resultados.
+  const puntosBusqueda: [number, number][] =
+    verDesap && q
+      ? desapVisibles.map((d) => [d.lat as number, d.lng as number])
+      : []
+
   return (
     <MapContainer
       center={CENTRO_VENEZUELA}
@@ -298,15 +338,18 @@ export default function MapaNecesidades({
         </Marker>
       ))}
 
-      {/* Desaparecidos */}
-      {desaparecidos
-        .filter((d) => d.lat != null && d.lng != null)
+      {/* Desaparecidos: solo si la capa está activada. Agrupados en clusters
+          (burbujas con número) para no saturar el mapa con miles de puntos. */}
+      {verDesap && <AjustarABusqueda puntos={puntosBusqueda} />}
+      {verDesap && (
+      <MarkerClusterGroup chunkedLoading maxClusterRadius={50}>
+      {desapVisibles
         .map((d) => (
           <Marker
             key={d.id}
             position={[d.lat as number, d.lng as number]}
             icon={iconoDesaparecido(d.estado === 'encontrado')}
-            zIndexOffset={500}
+            zIndexOffset={-500}
           >
             <Popup>
               <div className="space-y-1 min-w-[190px]">
@@ -358,6 +401,8 @@ export default function MapaNecesidades({
             </Popup>
           </Marker>
         ))}
+      </MarkerClusterGroup>
+      )}
 
       {/* Mi ubicación: marcador con mi foto. */}
       {miUbicacion && (
@@ -372,6 +417,56 @@ export default function MapaNecesidades({
 
       {/* Controles: "Ver Venezuela" (siempre) y "Mi ubicación" (si la tenemos). */}
       <ControlesMapa miUbicacion={miUbicacion} />
+
+      {/* Interruptor de la capa de desaparecidos + buscador por nombre. */}
+      <div
+        className="absolute left-3 top-3 z-[1100] flex flex-col items-start gap-1.5"
+        onMouseDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={() => {
+            setVerDesap((v) => !v)
+            if (verDesap) setBusqueda('')
+          }}
+          className={`rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 font-semibold text-xs sm:text-sm ${
+            verDesap
+              ? 'bg-bandera-azul text-white'
+              : 'bg-white text-bandera-azul hover:bg-gray-50'
+          }`}
+          title="Mostrar u ocultar las personas desaparecidas"
+        >
+          <span className="text-base leading-none">🔍</span>
+          <span className="whitespace-nowrap">
+            Desaparecidos{desapConCoords.length ? ` (${desapConCoords.length})` : ''}
+          </span>
+        </button>
+
+        {verDesap && (
+          <div className="bg-white rounded-xl shadow-lg border p-2 w-56 max-w-[70vw]">
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre…"
+              className="w-full text-sm border rounded-lg px-2 py-1.5 outline-none focus:border-bandera-azul"
+            />
+            {q && (
+              <div className="text-[11px] text-gray-500 mt-1">
+                {desapVisibles.length} resultado
+                {desapVisibles.length === 1 ? '' : 's'}
+                {desapVisibles.length === 0 && ' — revisa el nombre'}
+              </div>
+            )}
+            {!q && (
+              <div className="text-[11px] text-gray-400 mt-1">
+                Agrupados por zona. Acércate o busca un nombre.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </MapContainer>
   )
 }

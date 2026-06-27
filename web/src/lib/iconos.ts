@@ -119,20 +119,22 @@ export function iconoUsuario(fotoUrl?: string | null): L.DivIcon {
 }
 
 // Ícono para personas desaparecidas
+// Ícono de persona desaparecida: más PEQUEÑO que los de necesidad/SOS, para
+// darles prioridad visual a las emergencias urgentes.
 export const iconoDesaparecido = (encontrado: boolean) =>
   L.divIcon({
     className: '',
     html: `
       <div style="
-        width:36px; height:36px; border-radius:50%;
+        width:24px; height:24px; border-radius:50%;
         background:${encontrado ? '#16a34a' : '#7c3aed'};
-        border: 3px solid white;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        border: 2px solid white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.35);
         display:flex; align-items:center; justify-content:center;
-        font-size:18px;
+        font-size:12px;
       ">${encontrado ? '✅' : '🔍'}</div>
     `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -20],
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
   })
