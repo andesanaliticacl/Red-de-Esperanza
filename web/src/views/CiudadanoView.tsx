@@ -253,105 +253,93 @@ export default function CiudadanoView() {
             </div>
           )}
 
-          <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow">
-            {/* Cabecera: abre/cierra el filtro con una flechita. */}
+          {/* Controles compactos: una sola fila con Filtrar + Desaparecidos,
+              para no saturar la pantalla (sobre todo en el teléfono). */}
+          <div className="pointer-events-auto flex gap-2">
             <button
               onClick={() => setVerFiltros((v) => !v)}
-              className="w-full flex items-center justify-between px-3 py-2.5"
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl shadow px-2 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap ${
+                verFiltros || hayFiltro
+                  ? 'bg-bandera-azul text-white'
+                  : 'bg-white/95 backdrop-blur text-gray-700'
+              }`}
             >
-              <span className="text-sm font-bold text-gray-700">
-                🔎 Filtrar el mapa
-                {hayFiltro && (
-                  <span className="ml-2 text-xs bg-bandera-azul/10 text-bandera-azul px-2 py-0.5 rounded-full">
-                    activo
-                  </span>
-                )}
-              </span>
-              <span className="text-gray-400 text-lg leading-none">
-                {verFiltros ? '▲' : '▼'}
-              </span>
+              🔎 Filtrar{hayFiltro ? ' •' : ''}
+              <span className="text-[10px] leading-none">{verFiltros ? '▲' : '▼'}</span>
             </button>
-
-            {verFiltros && (
-              <div className="px-2 pb-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
-                    value={tipoFiltro}
-                    onChange={(e) =>
-                      setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
-                    }
-                  >
-                    <option value="todos">🗂️ Todo tipo de ayuda</option>
-                    {TIPOS_FILTRO.map((t) => (
-                      <option key={t} value={t}>
-                        {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
-                    value={urgFiltro}
-                    onChange={(e) =>
-                      setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
-                    }
-                  >
-                    <option value="todas">⏱️ Cualquier urgencia</option>
-                    <option value="alta">🔴 Urgencia alta</option>
-                    <option value="media">🟠 Urgencia media</option>
-                    <option value="baja">🟢 Urgencia baja</option>
-                  </select>
-                </div>
-                {hayFiltro && (
-                  <button
-                    onClick={() => {
-                      setTipoFiltro('todos')
-                      setUrgFiltro('todas')
-                    }}
-                    className="mt-2 text-xs text-bandera-rojo font-semibold"
-                  >
-                    ✕ Quitar filtros
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Capa de desaparecidos: interruptor (mostrar/ocultar) + buscador. */}
-          <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow mt-2">
             <button
               onClick={() => {
                 const nuevo = !verDesap
                 setVerDesapManual(nuevo)
                 if (!nuevo) setBusqDesap('')
               }}
-              className="w-full flex items-center justify-between px-3 py-2.5"
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl shadow px-2 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap ${
+                verDesap
+                  ? 'bg-bandera-azul text-white'
+                  : 'bg-white/95 backdrop-blur text-gray-700'
+              }`}
             >
-              <span className="text-sm font-bold text-gray-700">
-                🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
-              </span>
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full ${
-                  verDesap
-                    ? 'bg-bandera-azul/10 text-bandera-azul'
-                    : 'bg-gray-100 text-gray-400'
-                }`}
-              >
-                {verDesap ? 'visibles' : 'ocultos'}
-              </span>
+              🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
             </button>
-            {verDesap && (
-              <div className="px-2 pb-2">
-                <input
-                  type="search"
-                  value={busqDesap}
-                  onChange={(e) => setBusqDesap(e.target.value)}
-                  placeholder="Buscar desaparecido por nombre…"
-                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm"
-                />
-              </div>
-            )}
           </div>
+
+          {/* Panel de filtros (solo si está abierto) */}
+          {verFiltros && (
+            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
+                  value={tipoFiltro}
+                  onChange={(e) =>
+                    setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
+                  }
+                >
+                  <option value="todos">🗂️ Todo tipo de ayuda</option>
+                  {TIPOS_FILTRO.map((t) => (
+                    <option key={t} value={t}>
+                      {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
+                  value={urgFiltro}
+                  onChange={(e) =>
+                    setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
+                  }
+                >
+                  <option value="todas">⏱️ Cualquier urgencia</option>
+                  <option value="alta">🔴 Urgencia alta</option>
+                  <option value="media">🟠 Urgencia media</option>
+                  <option value="baja">🟢 Urgencia baja</option>
+                </select>
+              </div>
+              {hayFiltro && (
+                <button
+                  onClick={() => {
+                    setTipoFiltro('todos')
+                    setUrgFiltro('todas')
+                  }}
+                  className="mt-2 text-xs text-bandera-rojo font-semibold"
+                >
+                  ✕ Quitar filtros
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Buscador de desaparecidos (solo si la capa está visible) */}
+          {verDesap && (
+            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
+              <input
+                type="search"
+                value={busqDesap}
+                onChange={(e) => setBusqDesap(e.target.value)}
+                placeholder="Buscar desaparecido por nombre…"
+                className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm"
+              />
+            </div>
+          )}
         </div>
 
         {/* Botones flotantes: SOS + Reportar */}

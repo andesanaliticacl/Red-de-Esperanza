@@ -51,33 +51,43 @@ class Geocoder:
             v = self._cache[clave]
             return (v[0], v[1]) if v else (None, None)
 
-        params = {
-            "q": f"{texto}, {pais}" if pais else texto,
-            "format": "json",
-            "limit": 1,
-        }
         cc = self._CC.get((pais or "").strip().lower())
-        if cc:
-            params["countrycodes"] = cc
-        try:
-            r = requests.get(
-                NOMINATIM,
-                params=params,
-                headers={"User-Agent": USER_AGENT},
-                timeout=20,
-            )
-            data = r.json()
-            if data:
-                lat = float(data[0]["lat"])
-                lng = float(data[0]["lon"])
-                self._cache[clave] = [lat, lng]
-                self._guardar()
-                time.sleep(1.1)  # respetar el límite de 1/seg
-                return lat, lng
-        except Exception:
-            pass
+        # Varios intentos, de más específico a más amplio, para subir la tasa
+        # de aciertos: (1) con país y código de país, (2) con país sin código,
+        # (3) solo el texto sin país.
+        intentos: list[tuple[str, Optional[str]]] = []
+        if pais:
+            intentos.append((f"{texto}, {pais}", cc))
+            intentos.append((f"{texto}, {pais}", None))
+        intentos.append((texto, None))
 
-        self._cache[clave] = None
-        self._guardar()
-        time.sleep(1.1)
-        return None, None
+        try:
+            for q, codigo in intentos:
+                res = self._consultar(q, codigo)
+                time.sleep(1.1)  # respetar el límite de 1/seg
+                if res:
+                    self._cache[clave] = [res[0], res[1]]
+                    self._guardar()
+                    return res
+            # Se consultó y NO se encontró: lo recordamos para no repetir.
+            self._cache[clave] = None
+            self._guardar()
+            return None, None
+        except Exception:
+            # Error transitorio (timeout/red): NO lo cacheamos, para reintentar
+            # en la próxima corrida en vez de marcarlo como "sin coordenadas".
+            return None, None
+
+    def _consultar(
+        self, q: str, codigo: Optional[str]
+    ) -> Optional[tuple[float, float]]:
+        params = {"q": q, "format": "json", "limit": 1}
+        if codigo:
+            params["countrycodes"] = codigo
+        r = requests.get(
+            NOMINATIM, params=params, headers={"User-Agent": USER_AGENT}, timeout=20
+        )
+        data = r.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+        return None
