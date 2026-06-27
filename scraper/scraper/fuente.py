@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from typing import Any, Optional
 
@@ -308,6 +309,60 @@ def map_persona(raw: dict[str, Any]) -> Optional[PersonaDesaparecida]:
     )
 
 
+# Estados de Venezuela (sin tildes) para validar lo que saquemos del nombre.
+_ESTADOS_VE = {
+    "amazonas", "anzoategui", "apure", "aragua", "barinas", "bolivar",
+    "carabobo", "cojedes", "delta amacuro", "falcon", "guarico", "lara",
+    "merida", "miranda", "monagas", "nueva esparta", "portuguesa", "sucre",
+    "tachira", "trujillo", "vargas", "la guaira", "yaracuy", "zulia",
+    "distrito capital", "caracas",
+}
+
+
+def _sin_tildes(s: str) -> str:
+    tabla = str.maketrans("áéíóúüñÁÉÍÓÚÜÑ", "aeiouunAEIOUUN")
+    return s.translate(tabla)
+
+
+def parse_ubicacion_nombre(nombre: str) -> tuple[Optional[str], Optional[str]]:
+    """De nombres tipo 'Centro de Acopio Edo. Carabobo (Guacara)' deduce
+    (estado, ciudad). La ubicación real de muchos centros viene SOLO en el
+    nombre (la dirección que trae la web suele ser genérica, p. ej. 'Venezuela'),
+    así que esto es clave para geocodificar bien. Devuelve (None, None) si no
+    encuentra patrón."""
+    estado: Optional[str] = None
+    ciudad: Optional[str] = None
+
+    # Ciudad / municipio entre paréntesis: "(Guacara)".
+    m = re.search(r"\(([^)]+)\)", nombre)
+    if m:
+        ciudad = m.group(1).strip() or None
+
+    # Estado tras "Edo." / "Edo" / "Estado": "Edo. Carabobo".
+    m = re.search(
+        r"(?:edo\.?|estado)\s+([A-Za-zÁÉÍÓÚáéíóúüÜñÑ.\s]+?)(?:\s*\(|$)",
+        nombre,
+        re.I,
+    )
+    if m:
+        cand = m.group(1).strip().rstrip(".").strip()
+        # Validamos contra la lista de estados (quita falsos positivos).
+        if _sin_tildes(cand).lower() in _ESTADOS_VE:
+            estado = cand
+
+    # Respaldo: si no había "Edo.", buscar un nombre de estado suelto en el texto
+    # (p. ej. 'Lista de Refugio Zulia'). Solo nombres de la lista, para no
+    # confundir ciudades con estados.
+    if not estado:
+        plano = _sin_tildes(nombre).lower()
+        for est in sorted(_ESTADOS_VE, key=len, reverse=True):
+            if re.search(rf"\b{re.escape(est)}\b", plano):
+                estado = est.title()
+                break
+
+    return estado, ciudad
+
+
 def _inferir_pais(texto: str) -> str:
     """Deduce el país a partir del nombre/dirección (la web mezcla centros de
     varios países). Por defecto, Venezuela."""
@@ -334,6 +389,15 @@ def map_centro(raw: dict[str, Any]) -> Optional[CentroAcopio]:
     desc = tipo or _primero(raw, "descripcion", "description")
     direccion = _primero(raw, "direccion", "address", "ubicacion", "location")
 
+    ciudad = _primero(raw, "ciudad", "city", "municipio")
+    estado_region = _primero(raw, "estado", "region", "provincia", "state", "departamento")
+    # La ubicación fiable suele venir en el nombre ('Edo. Carabobo (Guacara)'):
+    # la usamos para rellenar lo que falte, porque la dirección de la web es
+    # genérica y hace que el geocoder caiga en el lugar equivocado.
+    est_nom, ciu_nom = parse_ubicacion_nombre(nombre)
+    estado_region = estado_region or est_nom
+    ciudad = ciudad or ciu_nom
+
     pais = _primero(raw, "pais", "country")
     if not pais:
         pais = _inferir_pais(f"{nombre} {direccion or ''}")
@@ -351,8 +415,8 @@ def map_centro(raw: dict[str, Any]) -> Optional[CentroAcopio]:
         id_fuente=idf,
         descripcion=desc,
         direccion=direccion,
-        ciudad=_primero(raw, "ciudad", "city", "municipio"),
-        estado_region=_primero(raw, "estado", "region", "provincia", "state", "departamento"),
+        ciudad=ciudad,
+        estado_region=estado_region,
         pais=pais,
         contacto=_primero(raw, "contacto", "telefono", "phone", "contact"),
         lat=_float(_primero(raw, "lat", "latitude", "latitud")),

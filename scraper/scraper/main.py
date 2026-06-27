@@ -72,23 +72,37 @@ def correr_personas(args, geo) -> int:
 
 
 def _geocode_centro(geo, c):
-    """Geocodifica un centro con fallback: prueba la dirección completa y, si
-    falla, va quitando el primer segmento (la calle) hasta llegar a la
-    ciudad/región, que Nominatim sí reconoce."""
+    """Geocodifica un centro priorizando lo MÁS fiable: el municipio/ciudad y el
+    estado (que casi siempre vienen en el nombre, p. ej. 'Edo. Carabobo
+    (Guacara)'). La dirección textual de la web suele ser genérica ('Venezuela')
+    y, si se usa primero, hace que el punto caiga en el lugar equivocado; por eso
+    va al final y se descarta cuando es solo el país."""
+    pais = c.pais or "Venezuela"
     intentos: list[str] = []
-    base = ", ".join([x for x in (c.direccion, c.ciudad, c.estado_region) if x])
-    if base:
-        intentos.append(base)
-    if c.direccion and "," in c.direccion:
-        partes = [p.strip() for p in c.direccion.split(",") if p.strip()]
-        for i in range(1, len(partes)):
-            cola = ", ".join(partes[i:] + [x for x in (c.ciudad, c.estado_region) if x])
-            if cola and cola not in intentos:
-                intentos.append(cola)
+
+    def add(t: str | None) -> None:
+        t = (t or "").strip(" ,")
+        if t and t.lower() != pais.lower() and t not in intentos:
+            intentos.append(t)
+
+    # 1) Lo más específico y confiable: municipio/ciudad + estado.
+    if c.ciudad and c.estado_region:
+        add(f"{c.ciudad}, {c.estado_region}")
+    add(c.ciudad)
+    add(c.estado_region)
+
+    # 2) Dirección textual (descartando valores genéricos = solo el país), de la
+    #    calle hacia la ciudad por si la forma larga no la reconoce Nominatim.
+    dir_txt = (c.direccion or "").strip()
+    if dir_txt and dir_txt.lower() not in (pais.lower(), "venezuela"):
+        partes = [p.strip() for p in dir_txt.split(",") if p.strip()]
+        for i in range(len(partes)):
+            add(", ".join(partes[i:] + [x for x in (c.ciudad, c.estado_region) if x]))
+
     for t in intentos:
         # forzar=True: los centros son pocos; siempre se geocodifican frescos
         # para corregir ubicaciones malas sin borrar la caché de personas.
-        lat, lng = geo.geocodificar(t, pais=c.pais, forzar=True)
+        lat, lng = geo.geocodificar(t, pais=pais, forzar=True)
         if lat is not None:
             return lat, lng
     return None, None
