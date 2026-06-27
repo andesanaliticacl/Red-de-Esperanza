@@ -69,18 +69,53 @@ class Fuente:
         from playwright.sync_api import sync_playwright
 
         self._pw = sync_playwright().start()
-        self._browser = self._pw.chromium.launch(headless=self.headless)
+        # Argumentos anti-detección: ocultar la bandera de automatización. En CI
+        # corremos headed bajo Xvfb (pantalla virtual) porque reCAPTCHA v3 da
+        # mejor puntaje a un navegador "visible" que a uno headless.
+        args = [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+        ]
+        self._browser = self._pw.chromium.launch(headless=self.headless, args=args)
         ctx = self._browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-            )
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            locale="es-VE",
+            timezone_id="America/Caracas",
+            viewport={"width": 1366, "height": 768},
+        )
+        # Parches "stealth": que el JS de la página no detecte que es un robot.
+        ctx.add_init_script(
+            """
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-VE','es','en'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
+            const orig = navigator.permissions && navigator.permissions.query;
+            if (orig) {
+              navigator.permissions.query = (p) =>
+                p && p.name === 'notifications'
+                  ? Promise.resolve({ state: Notification.permission })
+                  : orig(p);
+            }
+            """
         )
         self._page = ctx.new_page()
         # Cargar la página real establece el contexto de reCAPTCHA (grecaptcha).
-        self._page.goto(SITE_URL, wait_until="networkidle", timeout=60_000)
-        # Esperar a que grecaptcha esté disponible.
+        self._page.goto(SITE_URL, wait_until="domcontentloaded", timeout=60_000)
         self._page.wait_for_function("() => !!window.grecaptcha", timeout=30_000)
+        # Simular un poco de actividad humana (mejora el puntaje de reCAPTCHA v3).
+        try:
+            self._page.mouse.move(300, 300)
+            self._page.wait_for_timeout(800)
+            self._page.mouse.move(500, 450)
+            self._page.mouse.wheel(0, 600)
+            self._page.wait_for_timeout(1500)
+        except Exception:
+            pass
         return self
 
     def __exit__(self, *exc) -> None:
