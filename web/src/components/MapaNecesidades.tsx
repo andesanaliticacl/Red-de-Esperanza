@@ -355,7 +355,7 @@ export default function MapaNecesidades({
           <Circle
             key={`zona:${n.id}`}
             center={[n.lat as number, n.lng as number]}
-            radius={(n.radio_km ?? 10) * 1000}
+            radius={(n.radio_km ?? 5) * 1000}
             pathOptions={{
               className: 'zona-pulsante',
               color: '#CC0001',
@@ -385,7 +385,7 @@ export default function MapaNecesidades({
                 {n.zona && <div className="text-xs text-gray-600">📍 {n.zona}</div>}
                 {n.tipo === 'zona_sin_atender' && (
                   <div className="text-xs text-bandera-rojo font-semibold">
-                    ⭕ Zona de ~{n.radio_km ?? 10} km a la redonda
+                    ⭕ Zona de ~{(n.radio_km ?? 5) * 2} km de diámetro
                   </div>
                 )}
                 <div className="text-xs">

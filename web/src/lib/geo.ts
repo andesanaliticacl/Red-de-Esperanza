@@ -1,4 +1,5 @@
 // Utilidades geográficas sin dependencias (no usamos PostGIS).
+import { geocodificarGoogle } from './googleGeocode'
 
 /** Distancia en metros entre dos puntos (fórmula de Haversine). */
 export function distanciaMetros(
@@ -70,6 +71,11 @@ export async function geocodificarDireccion(
   const pais = (opciones.pais ?? 'Venezuela').trim()
   const codigo = (opciones.cc ?? 've').toLowerCase()
 
+  // 1) Google Maps (preciso, con número de casa/departamento) si hay clave.
+  const porGoogle = await geocodificarGoogle(limpio, codigo)
+  if (porGoogle) return porGoogle
+
+  // 2) Respaldo: OpenStreetMap (Nominatim).
   // OpenStreetMap no tiene todos los números de casa de Venezuela, así que una
   // dirección REAL puede no aparecer tal cual. Probamos variantes de lo más
   // específico a lo más general para no rechazar direcciones válidas: con el
@@ -95,6 +101,25 @@ export async function geocodificarDireccion(
     if (r) return r
   }
   return null
+}
+
+/**
+ * Interpreta coordenadas pegadas (p. ej. de Google Maps): "10.5061, -66.9146".
+ * Acepta separador coma o espacio. Devuelve null si no son válidas o caen fuera
+ * de rango. Permite ubicación EXACTA sin depender de la base de direcciones.
+ */
+export function parsearCoordenadas(
+  texto: string,
+): { lat: number; lng: number } | null {
+  const m = texto
+    .trim()
+    .match(/^(-?\d{1,2}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)$/)
+  if (!m) return null
+  const lat = parseFloat(m[1])
+  const lng = parseFloat(m[2])
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
+  return { lat, lng }
 }
 
 export type FuenteUbicacion = 'gps' | 'ip'

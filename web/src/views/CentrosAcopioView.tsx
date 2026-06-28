@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext'
 import {
   obtenerUbicacion,
   geocodificarDireccion,
+  parsearCoordenadas,
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
+import SelectorPunto from '../components/SelectorPunto'
 import { PAISES_MUNDO, isoDe } from '../lib/paises'
 import Bandera from '../components/Bandera'
 import IconoRuta from '../components/IconoRuta'
@@ -332,63 +334,86 @@ function FormCentro({
   const [direccion, setDireccion] = useState('')
   const [contacto, setContacto] = useState('')
   const [descripcion, setDescripcion] = useState('')
-  const [lat, setLat] = useState('')
-  const [lng, setLng] = useState('')
+  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
+  const [coordsTexto, setCoordsTexto] = useState('')
   const [gps, setGps] = useState<'idle' | 'buscando' | 'error'>('idle')
+  const [geoEstado, setGeoEstado] = useState<'idle' | 'buscando'>('idle')
   const [estado, setEstado] = useState<'idle' | 'guardando'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
-  const hayUbicacion = !Number.isNaN(parseFloat(lat)) && !Number.isNaN(parseFloat(lng))
+  function consultaDireccion() {
+    return [direccion, ciudad, region]
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(', ')
+  }
 
   async function usarGPS() {
     setGps('buscando')
     try {
       const u = await obtenerUbicacion()
-      setLat(u.lat.toFixed(6))
-      setLng(u.lng.toFixed(6))
+      setCoord({ lat: u.lat, lng: u.lng })
       setGps('idle')
     } catch {
       setGps('error')
     }
   }
 
+  // Busca la dirección (Google si hay clave; si no, OpenStreetMap) y centra el
+  // pin ahí; luego se puede arrastrar al punto EXACTO.
+  async function buscarDireccion() {
+    const consulta = consultaDireccion()
+    if (!consulta) {
+      setErrorMsg('Escribe la dirección (calle y ciudad) para buscarla.')
+      return
+    }
+    setErrorMsg('')
+    setGeoEstado('buscando')
+    const g = await geocodificarDireccion(consulta, {
+      pais: pais.trim() || 'Venezuela',
+      cc: isoDe(pais),
+    })
+    setGeoEstado('idle')
+    if (g) setCoord(g)
+    else
+      setErrorMsg(
+        'No encontramos esa dirección. Arrastra el pin al lugar exacto, usa tu ubicación o pega coordenadas.',
+      )
+  }
+
+  function aplicarCoordsTexto() {
+    const c = parsearCoordenadas(coordsTexto)
+    if (c) {
+      setCoord(c)
+      setErrorMsg('')
+    } else {
+      setErrorMsg('Coordenadas no válidas. Ejemplo: 10.5061, -66.9146')
+    }
+  }
+
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg('')
-    setEstado('guardando')
 
-    let nLat = parseFloat(lat)
-    let nLng = parseFloat(lng)
-    // Si NO se usó el GPS, ubicamos el centro por la DIRECCIÓN escrita (precisa:
-    // calle + ciudad + estado + país). Así aparece en el punto correcto del mapa
-    // y el botón "Cómo llegar" abre Google Maps justo ahí.
-    if (Number.isNaN(nLat) || Number.isNaN(nLng)) {
-      const consulta = [direccion, ciudad, region]
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .join(', ')
-      if (!consulta) {
-        setErrorMsg(
-          'Escribe la dirección del centro (calle y ciudad), o toca “Usar mi ubicación GPS”.',
-        )
-        setEstado('idle')
-        return
+    let pt = coord
+    // Si aún no hay punto pero sí dirección, intentamos geocodificar al guardar.
+    if (!pt) {
+      const consulta = consultaDireccion()
+      if (consulta) {
+        pt = await geocodificarDireccion(consulta, {
+          pais: pais.trim() || 'Venezuela',
+          cc: isoDe(pais),
+        })
       }
-      const g = await geocodificarDireccion(consulta, {
-        pais: pais.trim() || 'Venezuela',
-        cc: isoDe(pais),
-      })
-      if (!g) {
-        setErrorMsg(
-          'No encontramos esa dirección. Revísala (calle, número y ciudad) o usa “Usar mi ubicación GPS”.',
-        )
-        setEstado('idle')
-        return
-      }
-      nLat = g.lat
-      nLng = g.lng
+    }
+    if (!pt) {
+      setErrorMsg(
+        'Falta la ubicación: busca la dirección, arrastra el pin, usa tu ubicación o pega coordenadas.',
+      )
+      return
     }
 
+    setEstado('guardando')
     const { error } = await supabase.from('centros_acopio').insert({
       nombre: nombre.trim(),
       pais: pais.trim() || 'Venezuela',
@@ -397,8 +422,8 @@ function FormCentro({
       direccion: direccion.trim() || null,
       contacto: contacto.trim() || null,
       descripcion: descripcion.trim() || null,
-      lat: nLat,
-      lng: nLng,
+      lat: pt.lat,
+      lng: pt.lng,
       creado_por: creadoPor,
     })
     if (error) {
@@ -481,64 +506,74 @@ function FormCentro({
           Para que la gente pueda escribirte y coordinar la ayuda.
         </p>
       </div>
-      {/* Ubicación: por DIRECCIÓN (precisa) y, opcionalmente, por GPS. */}
+      {/* Ubicación: buscar dirección (Google/OSM) y AJUSTAR el pin al punto exacto. */}
       <div
         className={`rounded-xl border-2 p-3 ${
-          hayUbicacion ? 'border-green-300 bg-green-50' : 'border-gray-200'
+          coord ? 'border-green-300 bg-green-50' : 'border-gray-200'
         }`}
       >
-        <p className="font-semibold text-sm mb-1">Ubicación del centro</p>
-        {hayUbicacion ? (
-          <>
-            <p className="text-sm text-green-700">
-              ✅ Se usará tu ubicación GPS: {parseFloat(lat).toFixed(4)},{' '}
-              {parseFloat(lng).toFixed(4)}
-            </p>
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={usarGPS}
-                disabled={gps === 'buscando'}
-                className="btn-gris py-2 px-3 text-sm disabled:opacity-70"
-              >
-                🔄 Actualizar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLat('')
-                  setLng('')
-                }}
-                className="text-sm text-bandera-azul font-semibold px-2"
-              >
-                ↩ Usar la dirección escrita
-              </button>
-            </div>
-          </>
+        <p className="font-semibold text-sm mb-1">
+          Ubicación del centro <span className="text-bandera-rojo">*</span>
+        </p>
+        <p className="text-xs text-gray-500 mb-2">
+          Busca la dirección y <strong>arrastra el pin</strong> al lugar exacto
+          (también puedes tocar el mapa).
+        </p>
+        <div className="flex gap-2 mb-2">
+          <button
+            type="button"
+            onClick={buscarDireccion}
+            disabled={geoEstado === 'buscando'}
+            className="btn-azul flex-1 py-2.5 text-sm disabled:opacity-60"
+          >
+            {geoEstado === 'buscando' ? 'Buscando…' : '🔎 Buscar dirección'}
+          </button>
+          <button
+            type="button"
+            onClick={usarGPS}
+            disabled={gps === 'buscando'}
+            className="btn-amber flex-1 py-2.5 text-sm disabled:opacity-60"
+          >
+            {gps === 'buscando' ? 'Buscando…' : '📍 Mi ubicación'}
+          </button>
+        </div>
+
+        <SelectorPunto
+          coord={coord}
+          onCambio={(la, ln) => setCoord({ lat: la, lng: ln })}
+        />
+
+        {coord ? (
+          <p className="text-xs text-green-700 mt-1.5">
+            ✅ Punto fijado: {coord.lat.toFixed(5)}, {coord.lng.toFixed(5)}
+          </p>
         ) : (
-          <>
-            <p className="text-xs text-gray-600 mb-2">
-              📍 Ubicaremos el centro por la <strong>dirección</strong> que
-              escribiste arriba (escríbela lo más precisa posible: calle, número
-              y ciudad). Si prefieres, marca tu ubicación actual:
-            </p>
+          <p className="text-xs text-amber-700 mt-1.5">
+            Aún sin punto. Busca la dirección o toca el mapa.
+          </p>
+        )}
+
+        <details className="mt-2">
+          <summary className="text-xs text-bandera-azul font-semibold cursor-pointer">
+            📌 Pegar coordenadas de Google Maps (opcional)
+          </summary>
+          <div className="flex gap-2 mt-2">
+            <input
+              className="input text-sm"
+              placeholder="Ej: 10.5061, -66.9146"
+              value={coordsTexto}
+              onChange={(e) => setCoordsTexto(e.target.value)}
+            />
             <button
               type="button"
-              onClick={usarGPS}
-              disabled={gps === 'buscando'}
-              className="btn-azul w-full disabled:opacity-70"
+              onClick={aplicarCoordsTexto}
+              className="btn-gris py-2 px-3 text-sm"
             >
-              {gps === 'buscando' ? (
-                <>
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                  Detectando ubicación…
-                </>
-              ) : (
-                <>📍 Usar mi ubicación GPS</>
-              )}
+              Usar
             </button>
-          </>
-        )}
+          </div>
+        </details>
+
         {gps === 'error' && (
           <p className="text-sm text-bandera-rojo mt-2">
             No pudimos obtener tu ubicación. Activa el GPS e inténtalo de nuevo.
