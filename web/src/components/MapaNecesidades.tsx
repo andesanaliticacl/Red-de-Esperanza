@@ -76,6 +76,29 @@ function RastreadorZona({
   return null
 }
 
+/**
+ * Reporta los límites visibles del mapa (con margen) para dibujar SOLO los
+ * marcadores que caen dentro. Leaflet no recorta los marcadores fuera de
+ * pantalla: si hay cientos, los pinta todos en el DOM y el teléfono se traba.
+ * Recortando a la vista, en zoom de ciudad se dibujan decenas en vez de miles.
+ */
+function RastreadorVista({
+  onBounds,
+}: {
+  onBounds: (b: L.LatLngBounds) => void
+}) {
+  const map = useMap()
+  useMapEvents({
+    moveend: () => onBounds(map.getBounds().pad(0.6)),
+    zoomend: () => onBounds(map.getBounds().pad(0.6)),
+  })
+  useEffect(() => {
+    onBounds(map.getBounds().pad(0.6))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return null
+}
+
 /** Ajusta el mapa a los resultados de la búsqueda de desaparecidos. */
 function AjustarABusqueda({ puntos }: { puntos: [number, number][] }) {
   const map = useMap()
@@ -308,6 +331,28 @@ export default function MapaNecesidades({
   // subárboles de React con botones/imágenes), lo que ralentizaba la entrada.
   const [abierto, setAbierto] = useState<string | null>(null)
 
+  // Recorte por vista: solo dibujamos los marcadores dentro de lo que se ve
+  // (con margen). Clave para el teléfono, que se trababa al pintar cientos a la
+  // vez. Mientras no sepamos la vista (primer frame), no dibujamos ninguno: el
+  // RastreadorVista la fija al instante y aparecen los visibles.
+  const [vista, setVista] = useState<L.LatLngBounds | null>(null)
+  const necesidadesEnVista = useMemo(
+    () =>
+      vista
+        ? necesidades.filter(
+            (n) =>
+              n.lat != null &&
+              n.lng != null &&
+              vista.contains([n.lat as number, n.lng as number]),
+          )
+        : [],
+    [necesidades, vista],
+  )
+  const acopiosEnVista = useMemo(
+    () => (vista ? acopios.filter((a) => vista.contains([a.lat, a.lng])) : []),
+    [acopios, vista],
+  )
+
   // --- Capa de desaparecidos: se cargan SOLO cuando está activa y SOLO los de
   // la zona visible (o por nombre si hay búsqueda). Sin realtime. Escala a
   // miles de visitantes sin descargar las 66k a cada uno.
@@ -380,8 +425,10 @@ export default function MapaNecesidades({
       <Pane name="primerPlano" style={{ zIndex: 650 }} />
       <Pane name="acopios" style={{ zIndex: 630 }} />
 
-      {/* Todos los marcadores se muestran siempre (sin agrupar). */}
-      {necesidades
+      {/* Marcadores dentro de la vista (recortados para no trabar el teléfono).
+          El rastreador de abajo fija la vista al cargar y al mover/zoom. */}
+      <RastreadorVista onBounds={setVista} />
+      {necesidadesEnVista
         .filter((n) => n.lat != null && n.lng != null)
         .map((n) => (
           <Marker
@@ -455,7 +502,7 @@ export default function MapaNecesidades({
           </Marker>
         ))}
 
-      {acopios.map((a) => {
+      {acopiosEnVista.map((a) => {
         const esHospital = (a.descripcion ?? '').toLowerCase().includes('hospital')
         // Fuera de Venezuela: pequeño y uniforme. Dentro: tamaño normal.
         const fuera = !dentroDelRecuadroVE(a.lat, a.lng)
