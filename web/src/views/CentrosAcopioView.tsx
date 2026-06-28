@@ -6,9 +6,21 @@ import {
   obtenerUbicacion,
   geocodificarDireccion,
   parsearCoordenadas,
+  paisPorCoordenadas,
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
+
+/**
+ * País a MOSTRAR de un centro. Los scrapeados (con id_fuente) guardaron mal el
+ * país (el scraper puso "Venezuela" por defecto aunque estén en España,
+ * Argentina, EE. UU.…); como su ubicación SÍ es correcta, lo deducimos de las
+ * coordenadas. Los creados por usuarios (sin id_fuente) sí tienen el país bueno.
+ */
+function paisMostrado(c: CentroAcopio): string {
+  if (c.id_fuente) return paisPorCoordenadas(c.lat, c.lng) ?? c.pais
+  return c.pais
+}
 import SelectorPunto from '../components/SelectorPunto'
 import { PAISES_MUNDO, isoDe } from '../lib/paises'
 import Bandera from '../components/Bandera'
@@ -59,7 +71,7 @@ export default function CentrosAcopioView() {
 
   // Opciones de filtro derivadas de los datos existentes.
   const paisesDisponibles = useMemo(
-    () => [...new Set(centros.map((c) => c.pais).filter(Boolean))].sort(),
+    () => [...new Set(centros.map(paisMostrado).filter(Boolean))].sort(),
     [centros],
   )
   const estadosDisponibles = useMemo(
@@ -67,7 +79,7 @@ export default function CentrosAcopioView() {
       [
         ...new Set(
           centros
-            .filter((c) => !fPais || c.pais === fPais)
+            .filter((c) => !fPais || paisMostrado(c) === fPais)
             .map((c) => c.estado)
             .filter((x): x is string => Boolean(x)),
         ),
@@ -78,7 +90,7 @@ export default function CentrosAcopioView() {
   const centrosFiltrados = useMemo(
     () =>
       centros.filter((c) => {
-        if (fPais && c.pais !== fPais) return false
+        if (fPais && paisMostrado(c) !== fPais) return false
         if (fEstado && (c.estado ?? '') !== fEstado) return false
         if (
           fCiudad.trim() &&
@@ -98,7 +110,7 @@ export default function CentrosAcopioView() {
   const porPais = useMemo(() => {
     const grupos = new Map<string, CentroAcopio[]>()
     for (const c of centrosFiltrados) {
-      const k = c.pais || 'Otro'
+      const k = paisMostrado(c) || 'Otro'
       if (!grupos.has(k)) grupos.set(k, [])
       grupos.get(k)!.push(c)
     }

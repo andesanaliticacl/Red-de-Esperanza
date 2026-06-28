@@ -142,6 +142,44 @@ export function parsearCoordenadas(
 // nada. Para los bordes (Colombia, Brasil, Guyana) se confirma el país real.
 const VE_BBOX = { sur: 0.5, norte: 13.0, oeste: -73.6, este: -59.0 }
 
+// Recuadros aproximados de los países donde suele haber centros (Venezuela y la
+// diáspora). Se revisan EN ORDEN: el primero que contenga el punto gana, por eso
+// Venezuela y los vecinos van antes que Brasil (que es enorme y se solaparía).
+const CAJAS_PAIS: {
+  nombre: string
+  sur: number
+  norte: number
+  oeste: number
+  este: number
+}[] = [
+  { nombre: 'Venezuela', sur: 0.5, norte: 13.0, oeste: -73.6, este: -59.0 },
+  { nombre: 'Colombia', sur: -4.3, norte: 13.5, oeste: -79.1, este: -66.8 },
+  { nombre: 'Ecuador', sur: -5.1, norte: 1.7, oeste: -81.1, este: -75.2 },
+  { nombre: 'Perú', sur: -18.4, norte: 0.1, oeste: -81.4, este: -68.6 },
+  { nombre: 'Panamá', sur: 7.0, norte: 9.7, oeste: -83.1, este: -77.0 },
+  { nombre: 'Brasil', sur: -33.8, norte: 5.3, oeste: -74.0, este: -34.0 },
+  { nombre: 'Chile', sur: -56.0, norte: -17.4, oeste: -75.7, este: -66.4 },
+  { nombre: 'Argentina', sur: -55.1, norte: -21.7, oeste: -73.6, este: -53.6 },
+  { nombre: 'México', sur: 14.5, norte: 32.8, oeste: -118.5, este: -86.7 },
+  { nombre: 'Estados Unidos', sur: 24.0, norte: 49.5, oeste: -125.0, este: -66.9 },
+  { nombre: 'España', sur: 35.9, norte: 43.9, oeste: -9.4, este: 4.4 }, // península
+  { nombre: 'España', sur: 27.5, norte: 29.5, oeste: -18.3, este: -13.3 }, // Canarias
+]
+
+/**
+ * País aproximado de unas coordenadas (por recuadro). Útil para clasificar los
+ * centros scrapeados, cuyo campo `pais` quedó mal pero su ubicación es correcta.
+ * Devuelve el nombre en español (igual que PAISES_MUNDO) o null si no encaja.
+ */
+export function paisPorCoordenadas(lat: number, lng: number): string | null {
+  for (const c of CAJAS_PAIS) {
+    if (lat >= c.sur && lat <= c.norte && lng >= c.oeste && lng <= c.este) {
+      return c.nombre
+    }
+  }
+  return null
+}
+
 export function dentroDelRecuadroVE(lat: number, lng: number): boolean {
   return (
     lat >= VE_BBOX.sur &&

@@ -1,13 +1,14 @@
 /** Instructivo súper simple de cómo funciona la app + mensaje de esperanza. */
 export default function TutorialModal({ onCerrar }: { onCerrar: () => void }) {
   const pasos = [
-    { emoji: '🗺️', t: 'Mira el mapa', d: 'Cada marcador es alguien que necesita ayuda cerca de ti. Tócalo para ver el detalle.' },
-    { emoji: '📍', t: 'Tu ubicación', d: 'Apareces en el mapa con tu foto. Usa el botón 🎯 para centrarte cuando te pierdas.' },
-    { emoji: '🆘', t: '¿Emergencia?', d: 'Toca SOS y enviamos tu ubicación a los rescatistas al instante.' },
-    { emoji: '➕', t: 'Reporta', d: 'Avisa de una necesidad (agua, medicinas, un derrumbe…) en un toque. Deja tu contacto para que te ubiquen.' },
-    { emoji: '🎚️', t: 'Filtra', d: 'Filtra por tipo y urgencia para ver solo lo que te interesa en el mapa.' },
+    { emoji: '🗺️', t: 'Mira el mapa', d: 'Cada marcador es una necesidad de ayuda. Los marcadores grandes son emergencias dentro de Venezuela; tócalos para ver el detalle.' },
+    { emoji: '🆘', t: '¿Emergencia?', d: 'Toca el botón rojo SOS y enviamos tu ubicación a los rescatistas al instante.' },
+    { emoji: '➕', t: 'Reporta una necesidad', d: 'Agua, medicinas, refugio, un edificio derrumbado… En una sola pantalla: busca la dirección (Google Maps) y arrastra el pin al punto exacto. Solo dentro de Venezuela.' },
+    { emoji: '🚩', t: 'Zona sin atender', d: 'Marca una ZONA donde aún no ha llegado ayuda. Se ve como un círculo rojo, para que rescatistas y voluntarios sepan a dónde ir.' },
+    { emoji: '🔍', t: 'Personas desaparecidas', d: 'Activa la capa 🔍 Desaparecidos para verlas y buscarlas por nombre. ⚠️ Su ubicación es APROXIMADA (a nivel de ciudad/zona): es una referencia y puede fallar, no es exacta.' },
+    { emoji: '🎚️', t: 'Filtra', d: 'Filtra por tipo (rescate, agua, medicinas, refugio, derrumbe, zona, centros de acopio, hospitales…) y por urgencia, para ver solo lo que te interesa.' },
+    { emoji: '📦', t: 'Centros de acopio', d: 'En “Acopios” encuentras dónde llevar o enviar ayuda, con su bandera por país. Los de Venezuela se ven más grandes; los de la diáspora (otros países) más pequeños.' },
     { emoji: '💬', t: 'Conversa', d: 'Usa el chat en vivo para coordinar con la gente de tu estado.' },
-    { emoji: '📦', t: 'Acopios', d: 'En “Acopios” encuentras dónde llevar o enviar ayuda, dentro y fuera del país.' },
     { emoji: '🤝', t: '¿Quieres ayudar?', d: 'Crea una cuenta y elige tu rol (voluntario, rescatista…) para atender casos.' },
   ]
 

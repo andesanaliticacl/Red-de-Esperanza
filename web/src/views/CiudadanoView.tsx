@@ -255,8 +255,11 @@ export default function CiudadanoView() {
             </span>
             <button
               onClick={() => setAbrirTutorial(true)}
-              className="bg-white/70 backdrop-blur text-bandera-azul font-semibold px-3 py-2 rounded-xl shadow text-sm"
+              className="flex items-center gap-1.5 bg-bandera-amarillo text-white font-bold px-3 py-2 rounded-xl shadow-md text-sm hover:brightness-105 active:scale-95 transition"
             >
+              <span className="grid place-items-center h-5 w-5 rounded-full bg-white/25 text-[13px] leading-none animate-pulse">
+                💡
+              </span>
               ¿Cómo funciona?
             </button>
             <div className="ml-auto flex items-center gap-2">
