@@ -8,7 +8,7 @@ import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
  */
 // Tamaño uniforme para CUALQUIER marcador que esté FUERA de Venezuela: todos
 // quedan pequeños e iguales (la emergencia es dentro del país).
-export const TAM_FUERA = 30
+export const TAM_FUERA = 40
 
 export function iconoNecesidad(
   tipo: NecesidadTipo,
@@ -43,7 +43,13 @@ export function iconoNecesidad(
   // Los CENTROS DE ACOPIO van más pequeños (36px), igual que los hospitales.
   // FUERA de Venezuela, cualquier marcador va pequeño y uniforme (TAM_FUERA).
   const tam = fuera ? TAM_FUERA : resaltada ? 60 : esAcopio ? 36 : 54
-  const fuente = fuera ? 15 : resaltada ? 28 : esAcopio ? 18 : 26
+  const fuente = fuera
+    ? Math.round(TAM_FUERA * 0.46)
+    : resaltada
+      ? 28
+      : esAcopio
+        ? 18
+        : 26
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe

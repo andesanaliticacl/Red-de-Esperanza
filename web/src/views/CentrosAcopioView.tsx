@@ -41,10 +41,14 @@ export default function CentrosAcopioView() {
   const [fCiudad, setFCiudad] = useState('')
 
   async function cargar() {
+    // Supabase devuelve máx. 1000 filas por defecto: subimos el tope para que
+    // NO se queden fuera los centros de países con pocos (España, EE. UU.,
+    // Argentina…) y así aparezcan en el filtro por país.
     const { data } = await supabase
       .from('centros_acopio')
       .select('*')
       .order('pais', { ascending: true })
+      .limit(10000)
     setCentros((data ?? []) as CentroAcopio[])
     setCargando(false)
   }
