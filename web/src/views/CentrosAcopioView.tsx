@@ -23,7 +23,8 @@ function enlaceWhatsApp(contacto: string): string {
 import SelectorBandera, {
   type OpcionBandera,
 } from '../components/SelectorBandera'
-import { ESTADOS_VENEZUELA, type CentroAcopio } from '../lib/types'
+import { type CentroAcopio } from '../lib/types'
+import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 
 export default function CentrosAcopioView() {
   const { perfil, rol } = useAuth()
@@ -329,8 +330,9 @@ function FormCentro({
 }) {
   const [nombre, setNombre] = useState('')
   const [pais, setPais] = useState('Venezuela')
-  const [region, setRegion] = useState('') // estado / región
+  const [region, setRegion] = useState('') // estado / región / provincia…
   const [ciudad, setCiudad] = useState('')
+  const [ciudadOtra, setCiudadOtra] = useState(false) // escribir ciudad a mano
   const [direccion, setDireccion] = useState('')
   const [contacto, setContacto] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -434,6 +436,12 @@ function FormCentro({
     }
   }
 
+  // División territorial según el país (Estado / Región / Provincia / Dpto…) y
+  // ciudades sugeridas para la zona elegida. Igual que en el registro de cuenta.
+  const isoPais = isoDe(pais)
+  const zonaInfo = zonasDePais(isoPais)
+  const ciudadesSugeridas = ciudadesDeZona(isoPais, region)
+
   return (
     <form onSubmit={guardar} className="card space-y-3 border-2 border-green-200">
       <h3 className="font-bold">Registrar centro de acopio</h3>
@@ -455,16 +463,23 @@ function FormCentro({
           onChange={(v) => {
             setPais(v)
             setRegion('')
+            setCiudad('')
+            setCiudadOtra(false)
           }}
         />
-        {pais === 'Venezuela' ? (
+        {/* Región/Estado/Provincia/Departamento: menú según el país. */}
+        {zonaInfo.opciones.length > 0 ? (
           <select
             className="input"
             value={region}
-            onChange={(e) => setRegion(e.target.value)}
+            onChange={(e) => {
+              setRegion(e.target.value)
+              setCiudad('')
+              setCiudadOtra(false)
+            }}
           >
-            <option value="">Estado…</option>
-            {ESTADOS_VENEZUELA.map((s) => (
+            <option value="">{zonaInfo.etiqueta}…</option>
+            {zonaInfo.opciones.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -473,18 +488,46 @@ function FormCentro({
         ) : (
           <input
             className="input"
-            placeholder="Estado / región"
+            placeholder={zonaInfo.etiqueta}
             value={region}
-            onChange={(e) => setRegion(e.target.value)}
+            onChange={(e) => {
+              setRegion(e.target.value)
+              setCiudad('')
+              setCiudadOtra(false)
+            }}
           />
         )}
       </div>
-      <input
-        className="input"
-        placeholder="Ciudad"
-        value={ciudad}
-        onChange={(e) => setCiudad(e.target.value)}
-      />
+      {/* Ciudad: menú si tenemos lista para esa zona; "Otra…" deja escribir. */}
+      {ciudadesSugeridas.length > 0 && !ciudadOtra ? (
+        <select
+          className="input"
+          value={ciudad}
+          onChange={(e) => {
+            if (e.target.value === '__otra__') {
+              setCiudadOtra(true)
+              setCiudad('')
+            } else {
+              setCiudad(e.target.value)
+            }
+          }}
+        >
+          <option value="">Ciudad…</option>
+          {ciudadesSugeridas.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+          <option value="__otra__">✏️ Otra ciudad…</option>
+        </select>
+      ) : (
+        <input
+          className="input"
+          placeholder="Ciudad"
+          value={ciudad}
+          onChange={(e) => setCiudad(e.target.value)}
+        />
+      )}
       <input
         className="input"
         placeholder="Dirección (calle, número, referencia)"
