@@ -118,10 +118,8 @@ export default function CiudadanoView() {
   const [verFiltros, setVerFiltros] = useState(false)
   // En móvil, el bloque de roles arranca plegado para no tapar el mapa.
   const [verRoles, setVerRoles] = useState(false)
-  // Capa de desaparecidos. Por defecto se MUESTRA cuando hay pocas necesidades
-  // (para que el mapa no se vea vacío al inicio) y se OCULTA sola cuando hay
-  // más de 10 necesidades reportadas (prioridad a las emergencias). El usuario
-  // puede forzar mostrar/ocultar; ahí su elección manda.
+  // Capa de desaparecidos: OCULTA al entrar. Solo se muestra cuando el usuario
+  // la activa con el botón 🔍 Desaparecidos. null = aún no ha tocado (oculta).
   const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
   const [busqDesap, setBusqDesap] = useState('')
   const [abrirReporte, setAbrirReporte] = useState(false)
@@ -182,9 +180,10 @@ export default function CiudadanoView() {
     [necesidades, tipoFiltro, urgFiltro],
   )
 
-  // Regla automática: mostrar desaparecidos si hay 10 o menos necesidades.
-  const autoVerDesap = necesidades.length <= 10
-  const verDesap = verDesapManual ?? autoVerDesap
+  // Los desaparecidos NO se muestran al entrar a la página: quedan ocultos hasta
+  // que el usuario pulse el botón 🔍 Desaparecidos (o busque por nombre). Así no
+  // tapan las necesidades a primera vista.
+  const verDesap = verDesapManual ?? false
   const desapConCoords = totalDesap ?? 0
 
   // Los acopios solo se ven sin filtro de tipo (para mostrar solo lo del filtro).
