@@ -37,8 +37,8 @@ export function iconoNecesidad(
   // desaparecidos (24px) para que sobresalgan y no se pierdan en el mapa.
   // Derrumbe y zona (banderita) van aún más grandes. Resaltada: la mayor, con
   // halo rojo que late, para ubicarla al instante.
-  const tam = resaltada ? 60 : esDerrumbe || esZona ? 56 : 48
-  const fuente = resaltada ? 28 : esDerrumbe || esZona ? 26 : 23
+  const tam = resaltada ? 66 : esDerrumbe || esZona ? 62 : 54
+  const fuente = resaltada ? 31 : esDerrumbe || esZona ? 29 : 26
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe
@@ -90,18 +90,18 @@ export const iconoHospital: L.DivIcon = L.divIcon({
   className: '',
   html: `
     <div style="
-      width:34px; height:34px; border-radius:50% 50% 50% 0;
+      width:48px; height:48px; border-radius:50% 50% 50% 0;
       transform: rotate(-45deg);
-      background:#CC0001; border:2px solid white;
-      box-shadow:0 2px 5px rgba(0,0,0,0.4);
+      background:#CC0001; border:3px solid white;
+      box-shadow:0 2px 6px rgba(0,0,0,0.4);
       display:flex; align-items:center; justify-content:center;">
-      <svg width="16" height="16" viewBox="0 0 24 24" style="transform: rotate(45deg);">
+      <svg width="22" height="22" viewBox="0 0 24 24" style="transform: rotate(45deg);">
         <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" fill="white"/>
       </svg>
     </div>`,
-  iconSize: [34, 34],
-  iconAnchor: [17, 34],
-  popupAnchor: [0, -30],
+  iconSize: [48, 48],
+  iconAnchor: [24, 48],
+  popupAnchor: [0, -44],
 })
 
 /**

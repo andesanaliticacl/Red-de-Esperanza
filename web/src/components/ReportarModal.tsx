@@ -33,12 +33,10 @@ const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
 ]
 
 /**
- * Reportar necesidad.
- *  · rescate: una sola pantalla (sin pasos) para no perder tiempo.
- *  · derrumbe / zona sin atender: TODO en una sola pantalla, con mini-mapa para
- *    fijar el punto EXACTO (buscar dirección, arrastrar el pin, GPS o pegar
- *    coordenadas). Un edificio/zona no está donde está quien reporta.
- *  · resto: detalle → ubicación (GPS) + contacto.
+ * Reportar necesidad. Todos los tipos (menos el rescate, que va en SosModal) se
+ * reportan en UNA sola pantalla con mini-mapa para fijar el punto EXACTO: buscar
+ * la dirección (Google Maps si hay clave; si no, OpenStreetMap), arrastrar el
+ * pin, usar el GPS o pegar coordenadas. La "zona sin atender" añade un radio.
  */
 export default function ReportarModal({
   onCerrar,
@@ -55,9 +53,15 @@ export default function ReportarModal({
   const [tipo, setTipo] = useState<NecesidadTipo>('otro')
   const [descripcion, setDescripcion] = useState('')
   const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
-  const [zona, setZona] = useState('') // "dirección" en derrumbe y zona sin atender
+  const [zona, setZona] = useState('') // dirección / referencia del lugar
   const [tamZonaKm, setTamZonaKm] = useState(3) // diámetro aprox. de la zona
   const [contacto, setContacto] = useState('')
+  // Punto fijado (el pin). coordAuto = ubicación detectada del usuario, que se
+  // usa como punto por defecto en las necesidades comunes (no en derrumbe/zona,
+  // que están donde está el edificio/zona, no donde está quien reporta).
+  const [coordAuto, setCoordAuto] = useState<{ lat: number; lng: number } | null>(
+    coordInicial ?? null,
+  )
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
     coordInicial ?? null,
   )
@@ -74,15 +78,13 @@ export default function ReportarModal({
 
   const esDerrumbe = tipo === 'derrumbe'
   const esZona = tipo === 'zona_sin_atender'
-  const esRescate = tipo === 'rescate'
-  // Tipos que se ubican por DIRECCIÓN/mapa (no por el GPS automático).
-  const usaDireccion = esDerrumbe || esZona
 
   async function actualizarUbicacion() {
     setGpsEstado('buscando')
     try {
       const u = await obtenerUbicacion()
       setCoord({ lat: u.lat, lng: u.lng })
+      setCoordAuto({ lat: u.lat, lng: u.lng })
       setFuente(u.fuente)
       setGpsEstado('idle')
     } catch {
@@ -90,8 +92,7 @@ export default function ReportarModal({
     }
   }
 
-  // Si no llegó una ubicación inicial, la buscamos automáticamente al abrir
-  // (para los tipos que se ubican por GPS; derrumbe/zona la limpian al elegir).
+  // Si no llegó una ubicación inicial, la buscamos automáticamente al abrir.
   useEffect(() => {
     if (!coordInicial) actualizarUbicacion()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,16 +103,13 @@ export default function ReportarModal({
     if (t === 'derrumbe' || t === 'rescate' || t === 'zona_sin_atender')
       setUrgencia('alta')
     // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
-    if (t === 'derrumbe' || t === 'zona_sin_atender') {
-      setCoord(null)
-      setFuente(null)
-    }
+    setCoord(t === 'derrumbe' || t === 'zona_sin_atender' ? null : coordAuto)
     setErrorMsg('')
     setPaso(2)
   }
 
-  // Geocodifica la dirección escrita y centra el pin ahí (luego se puede ajustar
-  // arrastrándolo). Best-effort: si no la encuentra, avisa sin bloquear.
+  // Geocodifica la dirección escrita (Google → OSM) y centra el pin ahí; luego
+  // se puede arrastrar al punto exacto. Si no la encuentra, avisa sin bloquear.
   async function buscarDireccion() {
     const dir = zona.trim()
     if (!dir) {
@@ -150,32 +148,30 @@ export default function ReportarModal({
       let lat = coord?.lat ?? null
       let lng = coord?.lng ?? null
 
-      if (usaDireccion) {
-        // Si aún no hay punto pero sí dirección, intentamos geocodificar.
-        if ((lat === null || lng === null) && zona.trim()) {
-          const g = await geocodificarDireccion(zona.trim())
-          if (g) {
-            lat = g.lat
-            lng = g.lng
-          }
+      // Si aún no hay punto pero sí dirección, intentamos geocodificar.
+      if ((lat === null || lng === null) && zona.trim()) {
+        const g = await geocodificarDireccion(zona.trim())
+        if (g) {
+          lat = g.lat
+          lng = g.lng
         }
-        if (lat === null || lng === null) {
-          throw new Error(
-            'Falta la ubicación. Busca la dirección, arrastra el pin, usa tu ubicación o pega coordenadas.',
-          )
-        }
+      }
+      if (lat === null || lng === null) {
+        throw new Error(
+          'Falta la ubicación. Busca la dirección, arrastra el pin, usa tu ubicación o pega coordenadas.',
+        )
       }
 
       await crearNecesidad({
         tipo,
         urgencia,
         descripcion: descripcion.trim() || TIPO_META[tipo].etiqueta,
-        zona: usaDireccion ? zona.trim() || null : null,
+        zona: zona.trim() || null,
         lat,
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
         contacto: contacto.trim() || null,
-        origen: esRescate ? 'sos' : 'web',
+        origen: 'web',
       })
       onCreado()
     } catch (e) {
@@ -184,50 +180,17 @@ export default function ReportarModal({
     }
   }
 
-  // Bloque de ubicación automática por GPS (tipos no-dirección).
-  const bloqueUbicacion = (
-    <div>
-      <p className="font-bold mb-2">Ubicación</p>
-      <div className="rounded-xl border bg-gray-50 p-3">
-        {gpsEstado === 'buscando' ? (
-          <p className="text-sm text-gray-600 flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded-full border-2 border-gray-300 border-t-bandera-azul animate-spin" />
-            Detectando tu ubicación…
-          </p>
-        ) : coord ? (
-          <p className="text-sm text-green-700">
-            ✅ Ubicación detectada: {coord.lat.toFixed(4)},{' '}
-            {coord.lng.toFixed(4)}
-            {fuente === 'ip' && (
-              <span className="block text-amber-600">Aproximada por red.</span>
-            )}
-          </p>
-        ) : (
-          <p className="text-sm text-bandera-rojo">
-            No pudimos detectar tu ubicación. Activa el GPS e inténtalo de nuevo.
-          </p>
-        )}
-        <button
-          onClick={actualizarUbicacion}
-          disabled={gpsEstado === 'buscando'}
-          className="btn-gris mt-2 py-2 px-3 text-sm disabled:opacity-60"
-        >
-          🔄 Actualizar ubicación
-        </button>
-      </div>
-    </div>
-  )
-
-  // Bloque de ubicación para derrumbe / zona: mini-mapa con pin EXACTO.
+  // Bloque de ubicación con mini-mapa (común a todos los tipos).
   const bloqueUbicacionMapa = (
     <div>
       <p className="font-bold mb-1">
-        Ubicación {esZona ? 'de la zona' : 'del edificio'}{' '}
+        Ubicación{' '}
+        {esZona ? 'de la zona' : esDerrumbe ? 'del edificio' : 'del reporte'}{' '}
         <span className="text-bandera-rojo">*</span>
       </p>
       <p className="text-xs text-gray-500 mb-2">
-        Búscala y luego <strong>arrastra el pin</strong> al punto exacto
-        (también puedes tocar el mapa).
+        Búscala y luego <strong>arrastra el pin</strong> al punto exacto (también
+        puedes tocar el mapa).
       </p>
       <div className="flex gap-2 mb-2">
         <button
@@ -248,11 +211,15 @@ export default function ReportarModal({
         </button>
       </div>
 
-      <SelectorPunto coord={coord} onCambio={(la, ln) => setCoord({ lat: la, lng: ln })} />
+      <SelectorPunto
+        coord={coord}
+        onCambio={(la, ln) => setCoord({ lat: la, lng: ln })}
+      />
 
       {coord ? (
         <p className="text-xs text-green-700 mt-1.5">
           ✅ Punto fijado: {coord.lat.toFixed(5)}, {coord.lng.toFixed(5)}
+          {fuente === 'ip' && ' (aproximado por red)'}
         </p>
       ) : (
         <p className="text-xs text-amber-700 mt-1.5">
@@ -260,7 +227,6 @@ export default function ReportarModal({
         </p>
       )}
 
-      {/* Coordenadas exactas (opcional): pegar de Google Maps. */}
       <details className="mt-2">
         <summary className="text-xs text-bandera-azul font-semibold cursor-pointer">
           📌 Pegar coordenadas de Google Maps (opcional)
@@ -331,17 +297,36 @@ export default function ReportarModal({
     </div>
   )
 
-  const titulo = esRescate
-    ? 'Pedir rescate'
-    : esDerrumbe && paso > 1
-      ? 'Edificio derrumbado'
-      : esZona && paso > 1
-        ? 'Zona sin atender'
-        : 'Reportar necesidad'
+  // Textos por tipo.
+  const intro = esDerrumbe
+    ? '🏚️ Reporta un edificio o departamento colapsado. Indica la dirección y ajusta el pin al lugar exacto.'
+    : esZona
+      ? null // la zona lleva su propio aviso con <strong>
+      : `${TIPO_META[tipo].emoji} Indica qué necesitas y el lugar exacto. Ajusta el pin si hace falta.`
 
-  // El indicador de 3 pasos solo aplica a los tipos multi-paso (no rescate, no
-  // derrumbe/zona, que ahora son de una sola pantalla).
-  const muestraPasos = !esRescate && !usaDireccion
+  const etiquetaDir = esDerrumbe
+    ? 'Dirección del edificio'
+    : esZona
+      ? 'Dirección o referencia de la zona'
+      : 'Dirección o lugar (opcional)'
+
+  const placeholderDir = esDerrumbe
+    ? 'Calle, número, edificio, urbanización…'
+    : esZona
+      ? 'Sector, urbanización, pueblo, carretera…'
+      : 'Calle, número, sector, referencia…'
+
+  const etiquetaDetalle =
+    esDerrumbe || esZona ? 'Detalles (opcional)' : '¿Qué necesitas?'
+
+  const placeholderDetalle = esDerrumbe
+    ? 'Ej: 4 pisos, posible gente atrapada en el 2.º'
+    : esZona
+      ? 'Ej: caseríos incomunicados tras el derrumbe de la vía'
+      : 'Ej: Familia con 2 niños sin agua desde ayer'
+
+  const titulo =
+    paso > 1 ? TIPO_META[tipo].etiqueta : 'Reportar necesidad'
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -356,19 +341,6 @@ export default function ReportarModal({
             ✕
           </button>
         </div>
-
-        {muestraPasos && (
-          <div className="flex gap-2 mb-5">
-            {[1, 2, 3].map((p) => (
-              <div
-                key={p}
-                className={`h-2 flex-1 rounded-full ${
-                  p <= paso ? 'bg-bandera-azul' : 'bg-gray-200'
-                }`}
-              />
-            ))}
-          </div>
-        )}
 
         {/* PASO 1: tipo */}
         {paso === 1 && (
@@ -393,65 +365,26 @@ export default function ReportarModal({
           </div>
         )}
 
-        {/* RESCATE: todo en una sola pantalla */}
-        {paso > 1 && esRescate && (
+        {/* PASO 2: TODO en una sola pantalla, con mini-mapa */}
+        {paso > 1 && (
           <div className="space-y-4">
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-              🆘 Pedir rescate. Enviamos tu ubicación a los rescatistas. Con un
-              contacto te ubican más rápido.
-            </div>
-            <div>
-              <p className="font-bold mb-2">¿Qué pasa? (opcional)</p>
-              <textarea
-                className="input min-h-[70px]"
-                placeholder="Ej: 2 personas atrapadas"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-              />
-            </div>
-            {bloqueUbicacion}
-            {bloqueContacto}
-            {avisoError}
-            <div className="flex gap-2">
-              <button onClick={() => setPaso(1)} className="btn-gris flex-1">
-                ← Atrás
-              </button>
-              <button
-                onClick={enviar}
-                disabled={guardando}
-                className="btn-rojo flex-1 disabled:opacity-60"
-              >
-                {guardando ? 'Enviando…' : '🆘 Enviar rescate'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* DERRUMBE / ZONA: todo en una sola pantalla, con mini-mapa */}
-        {paso > 1 && usaDireccion && (
-          <div className="space-y-4">
-            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-              {esDerrumbe ? (
-                <>🏚️ Reporta un edificio o departamento colapsado. Indica la
-                  dirección y ajusta el pin al lugar exacto.</>
-              ) : (
-                <>🚩 Marca una <strong>zona</strong> donde aún no ha llegado
+              {esZona ? (
+                <>
+                  🚩 Marca una <strong>zona</strong> donde aún no ha llegado
                   ayuda, para que rescatistas y voluntarios sepan dónde ir. Se
-                  verá en el mapa como un círculo.</>
+                  verá en el mapa como un círculo.
+                </>
+              ) : (
+                intro
               )}
             </div>
 
             <div>
-              <p className="font-bold mb-2">
-                {esZona ? 'Dirección o referencia de la zona' : 'Dirección del edificio'}
-              </p>
+              <p className="font-bold mb-2">{etiquetaDir}</p>
               <input
                 className="input"
-                placeholder={
-                  esZona
-                    ? 'Sector, urbanización, pueblo, carretera…'
-                    : 'Calle, número, edificio, urbanización…'
-                }
+                placeholder={placeholderDir}
                 value={zona}
                 onChange={(e) => setZona(e.target.value)}
               />
@@ -481,14 +414,10 @@ export default function ReportarModal({
             {bloqueUbicacionMapa}
 
             <div>
-              <p className="font-bold mb-2">Detalles (opcional)</p>
+              <p className="font-bold mb-2">{etiquetaDetalle}</p>
               <textarea
                 className="input min-h-[70px]"
-                placeholder={
-                  esDerrumbe
-                    ? 'Ej: 4 pisos, posible gente atrapada en el 2.º'
-                    : 'Ej: caseríos incomunicados tras el derrumbe de la vía'
-                }
+                placeholder={placeholderDetalle}
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
               />
@@ -500,51 +429,6 @@ export default function ReportarModal({
 
             <div className="flex gap-2">
               <button onClick={() => setPaso(1)} className="btn-gris flex-1">
-                ← Atrás
-              </button>
-              <button
-                onClick={enviar}
-                disabled={guardando}
-                className="btn-verde flex-1 disabled:opacity-60"
-              >
-                {guardando ? 'Enviando…' : 'Enviar reporte'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* PASO 2 (tipos por GPS): detalle */}
-        {paso === 2 && !esRescate && !usaDireccion && (
-          <div className="space-y-4">
-            <div>
-              <p className="font-bold mb-2">Describe brevemente</p>
-              <textarea
-                className="input min-h-[90px]"
-                placeholder="Ej: Familia con 2 niños sin agua desde ayer"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-              />
-            </div>
-            {selectorUrgencia}
-            <div className="flex gap-2">
-              <button onClick={() => setPaso(1)} className="btn-gris flex-1">
-                ← Atrás
-              </button>
-              <button onClick={() => setPaso(3)} className="btn-azul flex-1">
-                Siguiente →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* PASO 3 (tipos por GPS): ubicación + contacto */}
-        {paso === 3 && !esRescate && !usaDireccion && (
-          <div className="space-y-4">
-            {bloqueUbicacion}
-            {bloqueContacto}
-            {avisoError}
-            <div className="flex gap-2">
-              <button onClick={() => setPaso(2)} className="btn-gris flex-1">
                 ← Atrás
               </button>
               <button
