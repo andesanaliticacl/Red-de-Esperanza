@@ -21,8 +21,11 @@ export function iconoNecesidad(
   estado: NecesidadEstado,
   resaltada = false,
   fuera = false,
+  // En teléfonos los marcadores van un poco más pequeños para no saturar la
+  // pantalla ni recargar el dibujado. En escritorio: compacto = false.
+  compacto = false,
 ): L.DivIcon {
-  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}`
+  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}|${compacto ? 1 : 0}`
   const enCache = _cacheNecesidad.get(clave)
   if (enCache) return enCache
   const { color, emoji } = TIPO_META[tipo]
@@ -51,14 +54,20 @@ export function iconoNecesidad(
   // zona…) se ven grandes (54px) para sobresalir sobre los desaparecidos (24px).
   // Los CENTROS DE ACOPIO van más pequeños (36px), igual que los hospitales.
   // FUERA de Venezuela, cualquier marcador va pequeño y uniforme (TAM_FUERA).
-  const tam = fuera ? TAM_FUERA : resaltada ? 60 : esAcopio ? 36 : 54
-  const fuente = fuera
-    ? Math.round(TAM_FUERA * 0.46)
-    : resaltada
-      ? 28
-      : esAcopio
-        ? 18
-        : 26
+  // Fuera de Venezuela ya van pequeños y uniformes (no se reducen más).
+  const escala = compacto && !fuera ? 0.78 : 1
+  const tam = Math.round(
+    (fuera ? TAM_FUERA : resaltada ? 60 : esAcopio ? 36 : 54) * escala,
+  )
+  const fuente = Math.round(
+    (fuera
+      ? Math.round(TAM_FUERA * 0.46)
+      : resaltada
+        ? 28
+        : esAcopio
+          ? 18
+          : 26) * escala,
+  )
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe
@@ -128,6 +137,7 @@ function iconoCaja(tam: number): L.DivIcon {
 }
 
 export const iconoAcopio: L.DivIcon = iconoCaja(36) // dentro de Venezuela
+export const iconoAcopioCompacto: L.DivIcon = iconoCaja(30) // móvil (un poco menor)
 export const iconoAcopioFuera: L.DivIcon = iconoCaja(TAM_FUERA) // fuera (pequeño)
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
@@ -154,6 +164,7 @@ function iconoCruz(tam: number): L.DivIcon {
 }
 
 export const iconoHospital: L.DivIcon = iconoCruz(36) // dentro de Venezuela
+export const iconoHospitalCompacto: L.DivIcon = iconoCruz(30) // móvil (un poco menor)
 export const iconoHospitalFuera: L.DivIcon = iconoCruz(TAM_FUERA) // fuera (pequeño)
 
 /**

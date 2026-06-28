@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import L from 'leaflet'
 import {
   MapContainer,
@@ -15,8 +15,10 @@ import {
   iconoDesaparecido,
   iconoNecesidad,
   iconoAcopio,
+  iconoAcopioCompacto,
   iconoAcopioFuera,
   iconoHospital,
+  iconoHospitalCompacto,
   iconoHospitalFuera,
   iconoUsuario,
 } from '../lib/iconos'
@@ -97,6 +99,35 @@ function RastreadorVista({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return null
+}
+
+/**
+ * Capa de marcadores de necesidades + acopios. En TELÉFONO los agrupa en
+ * burbujas con número (clustering) para no dibujar cientos a la vez —la causa
+ * de que el móvil se trabe—; al acercar el zoom se separan en marcadores
+ * individuales (disableClusteringAtZoom). En ESCRITORIO no agrupa: se ve igual
+ * que siempre, marcador por marcador.
+ */
+function CapaMarcadores({
+  agrupar,
+  children,
+}: {
+  agrupar: boolean
+  children: ReactNode
+}) {
+  if (!agrupar) return <>{children}</>
+  return (
+    <MarkerClusterGroup
+      chunkedLoading
+      maxClusterRadius={45}
+      disableClusteringAtZoom={16}
+      showCoverageOnHover={false}
+      spiderfyOnMaxZoom={true}
+      zoomToBoundsOnClick={true}
+    >
+      {children}
+    </MarkerClusterGroup>
+  )
 }
 
 /** Ajusta el mapa a los resultados de la búsqueda de desaparecidos. */
@@ -331,6 +362,17 @@ export default function MapaNecesidades({
   // subárboles de React con botones/imágenes), lo que ralentizaba la entrada.
   const [abierto, setAbierto] = useState<string | null>(null)
 
+  // ¿Estamos en un teléfono? En móvil: íconos un poco más pequeños y, sobre
+  // todo, AGRUPAMOS necesidades y acopios en burbujas con número (clustering)
+  // para no dibujar cientos de marcadores a la vez —lo que trababa el teléfono.
+  // En escritorio NO se agrupa: se ve exactamente igual que ahora.
+  const esMovil = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 768px)').matches,
+    [],
+  )
+
   // Recorte por vista: solo dibujamos los marcadores dentro de lo que se ve
   // (con margen). Clave para el teléfono, que se trababa al pintar cientos a la
   // vez. Mientras no sepamos la vista (primer frame), no dibujamos ninguno: el
@@ -428,6 +470,7 @@ export default function MapaNecesidades({
       {/* Marcadores dentro de la vista (recortados para no trabar el teléfono).
           El rastreador de abajo fija la vista al cargar y al mover/zoom. */}
       <RastreadorVista onBounds={setVista} />
+      <CapaMarcadores agrupar={esMovil}>
       {necesidadesEnVista
         .filter((n) => n.lat != null && n.lng != null)
         .map((n) => (
@@ -439,8 +482,10 @@ export default function MapaNecesidades({
               n.estado,
               n.id === resaltadaId,
               !dentroDelRecuadroVE(n.lat as number, n.lng as number),
+              esMovil,
             )}
-            pane="primerPlano"
+            // Dentro de un clúster (móvil) no usamos panes propios.
+            pane={esMovil ? undefined : 'primerPlano'}
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}
             eventHandlers={{
               popupopen: () => setAbierto(n.id),
@@ -509,16 +554,20 @@ export default function MapaNecesidades({
         const iconoCentro = esHospital
           ? fuera
             ? iconoHospitalFuera
-            : iconoHospital
+            : esMovil
+              ? iconoHospitalCompacto
+              : iconoHospital
           : fuera
             ? iconoAcopioFuera
-            : iconoAcopio
+            : esMovil
+              ? iconoAcopioCompacto
+              : iconoAcopio
         return (
         <Marker
           key={a.id}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
           icon={iconoCentro}
-          pane="acopios"
+          pane={esMovil ? undefined : 'acopios'}
           eventHandlers={{
             popupopen: () => setAbierto(`acopio:${a.id}`),
             popupclose: () =>
@@ -559,6 +608,7 @@ export default function MapaNecesidades({
         </Marker>
         )
       })}
+      </CapaMarcadores>
 
       {/* Desaparecidos: solo si la capa está activada. Se cargan por zona
           visible y se agrupan en clusters (burbujas con número). */}
