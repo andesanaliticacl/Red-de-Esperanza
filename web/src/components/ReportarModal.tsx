@@ -369,7 +369,11 @@ export default function ReportarModal({
             </div>
             {bloqueUbicacion}
             {bloqueContacto}
-            {errorMsg && <p className="text-bandera-rojo">⚠️ {errorMsg}</p>}
+            {errorMsg && (
+              <div className="rounded-xl border-2 border-bandera-rojo bg-red-50 p-3 text-sm font-semibold text-bandera-rojo">
+                ⚠️ {errorMsg}
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={() => setPaso(1)} className="btn-gris flex-1">
                 ← Atrás
@@ -484,7 +488,11 @@ export default function ReportarModal({
           <div className="space-y-4">
             {usaDireccion ? bloqueUbicacionDireccion : bloqueUbicacion}
             {bloqueContacto}
-            {errorMsg && <p className="text-bandera-rojo">⚠️ {errorMsg}</p>}
+            {errorMsg && (
+              <div className="rounded-xl border-2 border-bandera-rojo bg-red-50 p-3 text-sm font-semibold text-bandera-rojo">
+                ⚠️ {errorMsg}
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={() => setPaso(2)} className="btn-gris flex-1">
                 ← Atrás

@@ -545,7 +545,11 @@ function FormCentro({
           </p>
         )}
       </div>
-      {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
+      {errorMsg && (
+        <div className="rounded-xl border-2 border-bandera-rojo bg-red-50 p-3 text-sm font-semibold text-bandera-rojo">
+          ⚠️ {errorMsg}
+        </div>
+      )}
       <button
         type="submit"
         disabled={estado === 'guardando'}
