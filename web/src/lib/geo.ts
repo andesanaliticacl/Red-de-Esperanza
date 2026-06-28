@@ -166,6 +166,62 @@ const CAJAS_PAIS: {
   { nombre: 'España', sur: 27.5, norte: 29.5, oeste: -18.3, este: -13.3 }, // Canarias
 ]
 
+// Pistas de texto para deducir el país desde el nombre/dirección del centro.
+// Solo palabras CLARAS (país, estado o ciudad inconfundible), para no confundir
+// ciudades que se repiten en varios países (Valencia, Córdoba, San Antonio…).
+// Útil sobre todo en la frontera EE. UU.–México, que el recuadro no separa bien.
+const PISTAS_PAIS: { nombre: string; claves: string[] }[] = [
+  {
+    nombre: 'Estados Unidos',
+    claves: [
+      'estados unidos', 'ee.uu', 'eeuu', ' usa', 'u.s.a', 'texas', ' tx ',
+      ' tx,', 'miami', 'florida', ' fl ', 'new york', 'nueva york', 'houston',
+      'los angeles', 'new jersey', 'nueva jersey', 'orlando', 'doral',
+      'chicago', 'atlanta', 'dallas', 'washington', 'boston', 'utah',
+    ],
+  },
+  {
+    nombre: 'España',
+    claves: [
+      'espana', 'tenerife', 'canarias', 'gran canaria', 'la laguna',
+      'las palmas', 'madrid', 'barcelona', 'sevilla', 'bilbao', 'malaga',
+      'zaragoza',
+    ],
+  },
+  {
+    nombre: 'Argentina',
+    claves: ['argentina', 'buenos aires', ' caba', 'palermo', 'colegiales'],
+  },
+  {
+    nombre: 'Chile',
+    claves: ['chile', 'providencia', 'las condes', 'nunoa', 'vina del mar'],
+  },
+  {
+    nombre: 'México',
+    claves: ['mexico', 'cdmx', 'guadalajara', 'monterrey', 'tijuana', 'cancun'],
+  },
+  { nombre: 'Panamá', claves: ['panama'] },
+]
+
+function _sinAcentos(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+/**
+ * País deducido del texto (nombre + dirección) de un centro. Devuelve el nombre
+ * en español o null si ninguna pista coincide.
+ */
+export function paisPorTexto(texto: string): string | null {
+  const t = ` ${_sinAcentos(texto)} `
+  for (const p of PISTAS_PAIS) {
+    if (p.claves.some((k) => t.includes(k))) return p.nombre
+  }
+  return null
+}
+
 /**
  * País aproximado de unas coordenadas (por recuadro). Útil para clasificar los
  * centros scrapeados, cuyo campo `pais` quedó mal pero su ubicación es correcta.

@@ -7,6 +7,7 @@ import {
   geocodificarDireccion,
   parsearCoordenadas,
   paisPorCoordenadas,
+  paisPorTexto,
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
@@ -14,12 +15,17 @@ import {
 /**
  * País a MOSTRAR de un centro. Los scrapeados (con id_fuente) guardaron mal el
  * país (el scraper puso "Venezuela" por defecto aunque estén en España,
- * Argentina, EE. UU.…); como su ubicación SÍ es correcta, lo deducimos de las
- * coordenadas. Los creados por usuarios (sin id_fuente) sí tienen el país bueno.
+ * Argentina, EE. UU.…). Como su ubicación SÍ es correcta, lo deducimos: primero
+ * por el TEXTO (nombre/dirección, que separa bien casos de frontera como
+ * Texas→EE. UU.) y, si no, por las COORDENADAS. Los creados por usuarios (sin
+ * id_fuente) ya tienen el país bueno.
  */
 function paisMostrado(c: CentroAcopio): string {
-  if (c.id_fuente) return paisPorCoordenadas(c.lat, c.lng) ?? c.pais
-  return c.pais
+  if (!c.id_fuente) return c.pais
+  const texto = [c.nombre, c.direccion, c.ciudad, c.estado]
+    .filter(Boolean)
+    .join(' ')
+  return paisPorTexto(texto) ?? paisPorCoordenadas(c.lat, c.lng) ?? c.pais
 }
 import SelectorPunto from '../components/SelectorPunto'
 import { PAISES_MUNDO, isoDe } from '../lib/paises'
