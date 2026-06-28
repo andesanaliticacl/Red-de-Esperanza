@@ -22,3 +22,7 @@ npm-debug.log*
 .DS_Store
 .vscode/
 *.swp
+
+# Empaquetados locales del scraper (no versionar)
+scraper.rar
+*.rar
