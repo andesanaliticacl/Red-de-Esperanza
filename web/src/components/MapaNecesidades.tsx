@@ -367,10 +367,13 @@ export default function MapaNecesidades({
           />
         ))}
 
-      {/* Pane en primer plano: las NECESIDADES y los centros van por ENCIMA de
-          los desaparecidos (clusters y números), que conservan su tamaño pero
-          quedan debajo. markerPane normal = 600; este = 650. */}
+      {/* Orden de capas (z-index) de mayor a menor:
+          · 650 NECESIDADES reportadas (lo más visible, nunca tapado).
+          · 630 centros de acopio y hospitales (encima de desaparecidos, pero
+                NUNCA por encima de las necesidades).
+          · 600 desaparecidos (markerPane normal): conservan su tamaño, debajo. */}
       <Pane name="primerPlano" style={{ zIndex: 650 }} />
+      <Pane name="acopios" style={{ zIndex: 630 }} />
 
       {/* Todos los marcadores se muestran siempre (sin agrupar). */}
       {necesidades
@@ -443,7 +446,7 @@ export default function MapaNecesidades({
           key={a.id}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
           icon={esHospital ? iconoHospital : iconoAcopio}
-          pane="primerPlano"
+          pane="acopios"
         >
           <Popup>
             <div className="font-bold">

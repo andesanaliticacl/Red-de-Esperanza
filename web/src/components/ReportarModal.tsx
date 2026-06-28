@@ -9,6 +9,7 @@ import {
   obtenerUbicacion,
   geocodificarDireccion,
   parsearCoordenadas,
+  estaEnVenezuela,
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
@@ -159,6 +160,13 @@ export default function ReportarModal({
       if (lat === null || lng === null) {
         throw new Error(
           'Falta la ubicación. Busca la dirección, arrastra el pin, usa tu ubicación o pega coordenadas.',
+        )
+      }
+
+      // Las necesidades SOLO pueden reportarse dentro de Venezuela.
+      if (!(await estaEnVenezuela(lat, lng))) {
+        throw new Error(
+          'Las necesidades solo se pueden reportar dentro de Venezuela. El punto está fuera del país: corrige la dirección o mueve el pin.',
         )
       }
 

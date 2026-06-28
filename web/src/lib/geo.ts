@@ -137,6 +137,55 @@ export function parsearCoordenadas(
   return { lat, lng }
 }
 
+// Recuadro (bounding box) aproximado de Venezuela. Sirve como filtro RÁPIDO:
+// un punto claramente fuera (Chile, EE. UU., etc.) se descarta sin consultar
+// nada. Para los bordes (Colombia, Brasil, Guyana) se confirma el país real.
+const VE_BBOX = { sur: 0.5, norte: 13.0, oeste: -73.6, este: -59.0 }
+
+export function dentroDelRecuadroVE(lat: number, lng: number): boolean {
+  return (
+    lat >= VE_BBOX.sur &&
+    lat <= VE_BBOX.norte &&
+    lng >= VE_BBOX.oeste &&
+    lng <= VE_BBOX.este
+  )
+}
+
+/** Código de país (ISO alfa-2, minúscula) de unas coordenadas, vía OSM. */
+async function paisDeCoordenadas(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=json&zoom=3` +
+      `&lat=${lat}&lon=${lng}`
+    const r = await fetch(url, { headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    const cc = j?.address?.country_code
+    return cc ? String(cc).toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * ¿El punto está dentro de Venezuela? Las NECESIDADES (no los centros de acopio)
+ * solo pueden reportarse en el país. Primero el recuadro (rápido); si está
+ * dentro, se confirma el país real (para descartar bordes de Colombia/Brasil/
+ * Guyana). Si no se puede confirmar (sin red), se da por válido para no bloquear
+ * un reporte legítimo por un fallo de conexión.
+ */
+export async function estaEnVenezuela(
+  lat: number,
+  lng: number,
+): Promise<boolean> {
+  if (!dentroDelRecuadroVE(lat, lng)) return false
+  const cc = await paisDeCoordenadas(lat, lng)
+  if (cc === null) return true // sin certeza: no bloqueamos
+  return cc === 've'
+}
+
 export type FuenteUbicacion = 'gps' | 'ip'
 export interface Ubicacion {
   lat: number
