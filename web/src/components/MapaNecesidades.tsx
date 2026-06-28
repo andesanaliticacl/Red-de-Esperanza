@@ -4,7 +4,6 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Circle,
   Pane,
   Popup,
   useMap,
@@ -354,25 +353,10 @@ export default function MapaNecesidades({
         />
       )}
 
-      {/* Zonas sin atender: círculo rojo translúcido que late (~radio_km).
-          Muestra a rescatistas/voluntarios un ÁREA, no un punto. El marcador
-          🚩 del centro lo dibuja el bucle de necesidades de abajo. */}
-      {necesidades
-        .filter((n) => n.tipo === 'zona_sin_atender' && n.lat != null && n.lng != null)
-        .map((n) => (
-          <Circle
-            key={`zona:${n.id}`}
-            center={[n.lat as number, n.lng as number]}
-            radius={(n.radio_km ?? 1.5) * 1000}
-            pathOptions={{
-              className: 'zona-pulsante',
-              color: '#CC0001',
-              weight: 2,
-              fillColor: '#CC0001',
-              fillOpacity: 0.15,
-            }}
-          />
-        ))}
+      {/* Zonas sin atender: SOLO se muestran con su marcador 🚩 (lo dibuja el
+          bucle de necesidades de abajo). Antes se pintaba además un círculo rojo
+          translúcido por zona, pero al acumularse varias saturaban el mapa y lo
+          tapaban por completo, así que se eliminó. */}
 
       {/* Orden de capas (z-index) de mayor a menor:
           · 650 NECESIDADES reportadas (lo más visible, nunca tapado).
