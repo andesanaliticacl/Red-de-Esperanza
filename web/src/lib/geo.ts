@@ -33,18 +33,26 @@ export function enlaceComoLlegar(lat: number, lng: number): string {
 
 /**
  * Convierte una dirección escrita (calle, urbanización, ciudad…) en coordenadas
- * usando Nominatim (OpenStreetMap). Se restringe a Venezuela para no caer en
- * otro país. Devuelve null si no la encuentra. Se llama solo al enviar un
- * reporte (no en cada tecla), así que respeta el uso razonable del servicio.
+ * usando Nominatim (OpenStreetMap). Devuelve null si no la encuentra. Se llama
+ * solo al enviar/guardar (no en cada tecla), así que respeta el uso razonable
+ * del servicio.
+ *
+ * Por defecto se restringe a Venezuela (para reportes locales como derrumbes o
+ * zonas), pero acepta un país/código distinto: los centros de acopio pueden
+ * estar en cualquier país.
  */
 export async function geocodificarDireccion(
   texto: string,
+  opciones: { pais?: string; cc?: string } = {},
 ): Promise<{ lat: number; lng: number } | null> {
   const limpio = texto.trim()
   if (!limpio) return null
-  const q = encodeURIComponent(`${limpio}, Venezuela`)
+  const pais = (opciones.pais ?? 'Venezuela').trim()
+  const codigo = (opciones.cc ?? 've').toLowerCase()
+  const q = encodeURIComponent(pais ? `${limpio}, ${pais}` : limpio)
+  const restriccion = codigo ? `&countrycodes=${codigo}` : ''
   const url =
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ve&q=${q}`
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1${restriccion}&q=${q}`
   try {
     const r = await fetch(url, { headers: { Accept: 'application/json' } })
     const j = await r.json()

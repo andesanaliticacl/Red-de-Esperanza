@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import {
   obtenerUbicacion,
+  geocodificarDireccion,
   distanciaMetros,
   enlaceComoLlegar,
 } from '../lib/geo'
@@ -354,13 +355,40 @@ function FormCentro({
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg('')
-    const nLat = parseFloat(lat)
-    const nLng = parseFloat(lng)
-    if (Number.isNaN(nLat) || Number.isNaN(nLng)) {
-      setErrorMsg('La ubicación es obligatoria. Toca “Usar mi ubicación GPS”.')
-      return
-    }
     setEstado('guardando')
+
+    let nLat = parseFloat(lat)
+    let nLng = parseFloat(lng)
+    // Si NO se usó el GPS, ubicamos el centro por la DIRECCIÓN escrita (precisa:
+    // calle + ciudad + estado + país). Así aparece en el punto correcto del mapa
+    // y el botón "Cómo llegar" abre Google Maps justo ahí.
+    if (Number.isNaN(nLat) || Number.isNaN(nLng)) {
+      const consulta = [direccion, ciudad, region]
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join(', ')
+      if (!consulta) {
+        setErrorMsg(
+          'Escribe la dirección del centro (calle y ciudad), o toca “Usar mi ubicación GPS”.',
+        )
+        setEstado('idle')
+        return
+      }
+      const g = await geocodificarDireccion(consulta, {
+        pais: pais.trim() || 'Venezuela',
+        cc: isoDe(pais),
+      })
+      if (!g) {
+        setErrorMsg(
+          'No encontramos esa dirección. Revísala (calle, número y ciudad) o usa “Usar mi ubicación GPS”.',
+        )
+        setEstado('idle')
+        return
+      }
+      nLat = g.lat
+      nLng = g.lng
+    }
+
     const { error } = await supabase.from('centros_acopio').insert({
       nombre: nombre.trim(),
       pais: pais.trim() || 'Venezuela',
@@ -453,37 +481,63 @@ function FormCentro({
           Para que la gente pueda escribirte y coordinar la ayuda.
         </p>
       </div>
-      {/* Ubicación obligatoria */}
+      {/* Ubicación: por DIRECCIÓN (precisa) y, opcionalmente, por GPS. */}
       <div
         className={`rounded-xl border-2 p-3 ${
           hayUbicacion ? 'border-green-300 bg-green-50' : 'border-gray-200'
         }`}
       >
-        <p className="font-semibold text-sm mb-2">
-          Ubicación del centro <span className="text-bandera-rojo">*</span>
-        </p>
-        <button
-          type="button"
-          onClick={usarGPS}
-          disabled={gps === 'buscando'}
-          className="btn-azul w-full disabled:opacity-70"
-        >
-          {gps === 'buscando' ? (
-            <>
-              <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              Detectando ubicación…
-            </>
-          ) : hayUbicacion ? (
-            <>🔄 Actualizar mi ubicación</>
-          ) : (
-            <>📍 Usar mi ubicación GPS</>
-          )}
-        </button>
-        {hayUbicacion && (
-          <p className="text-sm text-green-700 mt-2">
-            ✅ Ubicación lista: {parseFloat(lat).toFixed(4)},{' '}
-            {parseFloat(lng).toFixed(4)}
-          </p>
+        <p className="font-semibold text-sm mb-1">Ubicación del centro</p>
+        {hayUbicacion ? (
+          <>
+            <p className="text-sm text-green-700">
+              ✅ Se usará tu ubicación GPS: {parseFloat(lat).toFixed(4)},{' '}
+              {parseFloat(lng).toFixed(4)}
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={usarGPS}
+                disabled={gps === 'buscando'}
+                className="btn-gris py-2 px-3 text-sm disabled:opacity-70"
+              >
+                🔄 Actualizar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLat('')
+                  setLng('')
+                }}
+                className="text-sm text-bandera-azul font-semibold px-2"
+              >
+                ↩ Usar la dirección escrita
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-gray-600 mb-2">
+              📍 Ubicaremos el centro por la <strong>dirección</strong> que
+              escribiste arriba (escríbela lo más precisa posible: calle, número
+              y ciudad). Si prefieres, marca tu ubicación actual:
+            </p>
+            <button
+              type="button"
+              onClick={usarGPS}
+              disabled={gps === 'buscando'}
+              className="btn-azul w-full disabled:opacity-70"
+            >
+              {gps === 'buscando' ? (
+                <>
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  Detectando ubicación…
+                </>
+              ) : (
+                <>📍 Usar mi ubicación GPS</>
+              )}
+            </button>
+          </>
         )}
         {gps === 'error' && (
           <p className="text-sm text-bandera-rojo mt-2">
