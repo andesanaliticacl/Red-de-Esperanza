@@ -10,12 +10,21 @@ import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
 // quedan pequeños e iguales (la emergencia es dentro del país).
 export const TAM_FUERA = 40
 
+// Caché de íconos: el divIcon de una necesidad solo depende de
+// (tipo, estado, resaltada, fuera). Sin caché se reconstruía el HTML de CADA
+// marcador en CADA render (cientos de veces) → mapa lento al entrar. Con caché
+// se crea una sola vez por combinación y se reutiliza la misma instancia.
+const _cacheNecesidad = new Map<string, L.DivIcon>()
+
 export function iconoNecesidad(
   tipo: NecesidadTipo,
   estado: NecesidadEstado,
   resaltada = false,
   fuera = false,
 ): L.DivIcon {
+  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}`
+  const enCache = _cacheNecesidad.get(clave)
+  if (enCache) return enCache
   const { color, emoji } = TIPO_META[tipo]
   // El marcador NO desaparece al ser atendido: cambia de aspecto.
   //  · en proceso → borde azul (alguien ya lo tomó), sigue bien visible.
@@ -70,7 +79,7 @@ export function iconoNecesidad(
             box-shadow:0 1px 3px rgba(0,0,0,.45);border:1px solid #fff;">🚑 Alguien va en camino</div>`
       : ''
 
-  return L.divIcon({
+  const icono = L.divIcon({
     className: 'marcador-necesidad',
     html: `
       <div style="position:relative;width:${tam}px;height:${tam}px;">
@@ -91,6 +100,8 @@ export function iconoNecesidad(
     iconAnchor: [tam / 2, tam],
     popupAnchor: [0, -tam + 2],
   })
+  _cacheNecesidad.set(clave, icono)
+  return icono
 }
 
 // Caja de centro de acopio (gota verde con 📦). El tamaño cambia según el país:
@@ -186,7 +197,7 @@ export function iconoUsuario(fotoUrl?: string | null): L.DivIcon {
 // Ícono para personas desaparecidas
 // Ícono de persona desaparecida: más PEQUEÑO que los de necesidad/SOS, para
 // darles prioridad visual a las emergencias urgentes.
-export const iconoDesaparecido = (encontrado: boolean) =>
+const _iconoDesap = (encontrado: boolean) =>
   L.divIcon({
     className: '',
     html: `
@@ -203,3 +214,8 @@ export const iconoDesaparecido = (encontrado: boolean) =>
     iconAnchor: [12, 12],
     popupAnchor: [0, -12],
   })
+// Solo hay dos variantes; se crean una vez y se reutilizan (no por cada marcador).
+const _desapPorLocalizar = _iconoDesap(false)
+const _desapEncontrado = _iconoDesap(true)
+export const iconoDesaparecido = (encontrado: boolean): L.DivIcon =>
+  encontrado ? _desapEncontrado : _desapPorLocalizar

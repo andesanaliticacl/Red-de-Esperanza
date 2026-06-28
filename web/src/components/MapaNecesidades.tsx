@@ -280,19 +280,33 @@ export default function MapaNecesidades({
   /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
   ajustarVista?: boolean
 }) {
-  const puntos: [number, number][] = necesidades
-    .filter((n) => n.lat != null && n.lng != null)
-    .map((n) => [n.lat as number, n.lng as number])
+  const puntos: [number, number][] = useMemo(
+    () =>
+      necesidades
+        .filter((n) => n.lat != null && n.lng != null)
+        .map((n) => [n.lat as number, n.lng as number] as [number, number]),
+    [necesidades],
+  )
 
   // Repartimos en círculo los marcadores que caen casi en el mismo sitio,
   // así nunca queda uno escondido debajo de otro. Mezclamos necesidades y
-  // acopios para que también se separen entre sí.
-  const posiciones = separarSolapados([
-    ...necesidades
-      .filter((n) => n.lat != null && n.lng != null)
-      .map((n) => ({ id: n.id, lat: n.lat as number, lng: n.lng as number })),
-    ...acopios.map((a) => ({ id: `acopio:${a.id}`, lat: a.lat, lng: a.lng })),
-  ])
+  // acopios para que también se separen entre sí. Memoizado: solo se recalcula
+  // cuando cambian las necesidades o los acopios (no en cada render).
+  const posiciones = useMemo(
+    () =>
+      separarSolapados([
+        ...necesidades
+          .filter((n) => n.lat != null && n.lng != null)
+          .map((n) => ({ id: n.id, lat: n.lat as number, lng: n.lng as number })),
+        ...acopios.map((a) => ({ id: `acopio:${a.id}`, lat: a.lat, lng: a.lng })),
+      ]),
+    [necesidades, acopios],
+  )
+
+  // Popup "perezoso": solo se monta el contenido del marcador que está ABIERTO.
+  // Antes se montaban a la vez los popups de TODOS los marcadores (cientos de
+  // subárboles de React con botones/imágenes), lo que ralentizaba la entrada.
+  const [abierto, setAbierto] = useState<string | null>(null)
 
   // --- Capa de desaparecidos: se cargan SOLO cuando está activa y SOLO los de
   // la zona visible (o por nombre si hay búsqueda). Sin realtime. Escala a
@@ -381,8 +395,13 @@ export default function MapaNecesidades({
             )}
             pane="primerPlano"
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}
+            eventHandlers={{
+              popupopen: () => setAbierto(n.id),
+              popupclose: () => setAbierto((p) => (p === n.id ? null : p)),
+            }}
           >
             <Popup>
+              {abierto === n.id && (
               <div className="space-y-1">
                 <div className="font-bold">
                   {TIPO_META[n.tipo].emoji} {TIPO_META[n.tipo].etiqueta}
@@ -431,6 +450,7 @@ export default function MapaNecesidades({
                   )}
                 </div>
               </div>
+              )}
             </Popup>
           </Marker>
         ))}
@@ -452,8 +472,15 @@ export default function MapaNecesidades({
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
           icon={iconoCentro}
           pane="acopios"
+          eventHandlers={{
+            popupopen: () => setAbierto(`acopio:${a.id}`),
+            popupclose: () =>
+              setAbierto((p) => (p === `acopio:${a.id}` ? null : p)),
+          }}
         >
           <Popup>
+            {abierto === `acopio:${a.id}` && (
+            <div>
             <div className="font-bold">
               {esHospital ? '🏥' : '📦'} {a.nombre}
             </div>
@@ -478,6 +505,8 @@ export default function MapaNecesidades({
               <div className="text-[10px] text-gray-400 mt-1">
                 Fuente: Desaparecidos Terremoto Venezuela
               </div>
+            )}
+            </div>
             )}
           </Popup>
         </Marker>
@@ -507,8 +536,13 @@ export default function MapaNecesidades({
             position={posDesap.get(d.id) ?? [d.lat as number, d.lng as number]}
             icon={iconoDesaparecido(d.estado === 'encontrado')}
             zIndexOffset={-500}
+            eventHandlers={{
+              popupopen: () => setAbierto(d.id),
+              popupclose: () => setAbierto((p) => (p === d.id ? null : p)),
+            }}
           >
             <Popup>
+              {abierto === d.id && (
               <div className="space-y-1 min-w-[190px]">
                 <div className="font-bold text-sm">
                   {d.estado === 'encontrado' ? '✅ Encontrado/a' : '🔍 Por localizar'}
@@ -555,6 +589,7 @@ export default function MapaNecesidades({
                   Fuente: Desaparecidos Terremoto Venezuela
                 </div>
               </div>
+              )}
             </Popup>
           </Marker>
         ))}
