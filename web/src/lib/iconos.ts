@@ -32,11 +32,13 @@ export function iconoNecesidad(
   // El derrumbe se ve más explícito: pin más grande, halo que late y una
   // insignia ⚠️ para que se entienda al instante que es un edificio colapsado.
   const esDerrumbe = tipo === 'derrumbe'
-  // Los marcadores de NECESIDAD se hacen notar: más grandes que los de
+  const esZona = tipo === 'zona_sin_atender'
+  // Los marcadores de NECESIDAD se hacen notar: bastante más grandes que los de
   // desaparecidos (24px) para que sobresalgan y no se pierdan en el mapa.
-  // Resaltada: aún más grande y con halo rojo que late, para ubicarla al instante.
-  const tam = resaltada ? 56 : esDerrumbe ? 50 : 44
-  const fuente = resaltada ? 26 : esDerrumbe ? 24 : 21
+  // Derrumbe y zona (banderita) van aún más grandes. Resaltada: la mayor, con
+  // halo rojo que late, para ubicarla al instante.
+  const tam = resaltada ? 60 : esDerrumbe || esZona ? 56 : 48
+  const fuente = resaltada ? 28 : esDerrumbe || esZona ? 26 : 23
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe

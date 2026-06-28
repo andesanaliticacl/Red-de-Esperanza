@@ -23,9 +23,9 @@ const TIPOS: NecesidadTipo[] = [
   'derrumbe',
   'otro',
 ]
-// Tamaños (DIÁMETRO aprox.) de una "zona sin atender", en km. Por defecto 10.
-// Guardamos el radio = diámetro / 2 para que el círculo sea proporcional.
-const TAMANOS_ZONA = [5, 10, 20]
+// Tamaños (DIÁMETRO aprox.) de una "zona sin atender", en km. Por defecto 3.
+// Guardamos el radio = diámetro / 2 para que el círculo sea fino y proporcional.
+const TAMANOS_ZONA = [1, 3, 5]
 const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
   { v: 'alta', etiqueta: 'Alta', clase: 'btn-rojo' },
   { v: 'media', etiqueta: 'Media', clase: 'btn-amber' },
@@ -56,7 +56,7 @@ export default function ReportarModal({
   const [descripcion, setDescripcion] = useState('')
   const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
   const [zona, setZona] = useState('') // "dirección" en derrumbe y zona sin atender
-  const [tamZonaKm, setTamZonaKm] = useState(10) // diámetro aprox. de la zona
+  const [tamZonaKm, setTamZonaKm] = useState(3) // diámetro aprox. de la zona
   const [contacto, setContacto] = useState('')
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
     coordInicial ?? null,

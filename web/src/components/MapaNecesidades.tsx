@@ -5,6 +5,7 @@ import {
   TileLayer,
   Marker,
   Circle,
+  Pane,
   Popup,
   useMap,
   useMapEvents,
@@ -355,7 +356,7 @@ export default function MapaNecesidades({
           <Circle
             key={`zona:${n.id}`}
             center={[n.lat as number, n.lng as number]}
-            radius={(n.radio_km ?? 5) * 1000}
+            radius={(n.radio_km ?? 1.5) * 1000}
             pathOptions={{
               className: 'zona-pulsante',
               color: '#CC0001',
@@ -366,6 +367,11 @@ export default function MapaNecesidades({
           />
         ))}
 
+      {/* Pane en primer plano: las NECESIDADES y los centros van por ENCIMA de
+          los desaparecidos (clusters y números), que conservan su tamaño pero
+          quedan debajo. markerPane normal = 600; este = 650. */}
+      <Pane name="primerPlano" style={{ zIndex: 650 }} />
+
       {/* Todos los marcadores se muestran siempre (sin agrupar). */}
       {necesidades
         .filter((n) => n.lat != null && n.lng != null)
@@ -374,6 +380,7 @@ export default function MapaNecesidades({
             key={n.id}
             position={posiciones.get(n.id) ?? [n.lat as number, n.lng as number]}
             icon={iconoNecesidad(n.tipo, n.estado, n.id === resaltadaId)}
+            pane="primerPlano"
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}
           >
             <Popup>
@@ -385,7 +392,7 @@ export default function MapaNecesidades({
                 {n.zona && <div className="text-xs text-gray-600">📍 {n.zona}</div>}
                 {n.tipo === 'zona_sin_atender' && (
                   <div className="text-xs text-bandera-rojo font-semibold">
-                    ⭕ Zona de ~{(n.radio_km ?? 5) * 2} km de diámetro
+                    ⭕ Zona de ~{(n.radio_km ?? 1.5) * 2} km de diámetro
                   </div>
                 )}
                 <div className="text-xs">
@@ -436,6 +443,7 @@ export default function MapaNecesidades({
           key={a.id}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
           icon={esHospital ? iconoHospital : iconoAcopio}
+          pane="primerPlano"
         >
           <Popup>
             <div className="font-bold">
