@@ -71,36 +71,51 @@ export async function geocodificarDireccion(
   const pais = (opciones.pais ?? 'Venezuela').trim()
   const codigo = (opciones.cc ?? 've').toLowerCase()
 
-  // 1) Google Maps (preciso, con número de casa/departamento) si hay clave.
-  const porGoogle = await geocodificarGoogle(limpio, codigo)
-  if (porGoogle) return porGoogle
-
-  // 2) Respaldo: OpenStreetMap (Nominatim).
-  // OpenStreetMap no tiene todos los números de casa de Venezuela, así que una
-  // dirección REAL puede no aparecer tal cual. Probamos variantes de lo más
-  // específico a lo más general para no rechazar direcciones válidas: con el
-  // texto completo, sin el número de casa, y soltando segmentos (de la calle
-  // hacia la ciudad/estado). Así "Catia La Mar 1162, La Guaira" cae al menos en
-  // Catia La Mar. (NO caemos al centro del país: una dirección inventada sí
-  // debe fallar para mostrar el aviso.)
+  // Construimos variantes de la dirección. La gente suele meter "ruido" en el
+  // medio ("strip center, local 21"), que despista al geocodificador y lo manda
+  // al centro de la ciudad. Por eso probamos primero CALLE + CIUDAD + ESTADO
+  // (quitando lo del medio), luego el texto completo, luego sin número, y luego
+  // soltando segmentos hacia la ciudad. Así una dirección real cae bien.
   const intentos: string[] = []
   const add = (s: string) => {
     const t = s.replace(/\s*,\s*/g, ', ').replace(/^,\s*|\s*,$/g, '').trim()
     if (t && !intentos.includes(t)) intentos.push(t)
   }
   const conPais = (s: string) => (pais ? `${s}, ${pais}` : s)
+  const partes = limpio.split(',').map((s) => s.trim()).filter(Boolean)
 
+  // 1) Calle (primer segmento) + ciudad/estado (últimos 2): quita el ruido medio.
+  if (partes.length >= 3) {
+    add(conPais([partes[0], ...partes.slice(-2)].join(', ')))
+  }
+  // 2) Texto completo tal cual.
   add(conPais(limpio))
+  // 3) Sin número de casa (para OSM, que a veces no lo tiene).
   const sinNumero = limpio.replace(/\b\d{1,6}\b/g, '').replace(/\s{2,}/g, ' ').trim()
   if (sinNumero && sinNumero !== limpio) add(conPais(sinNumero))
-  const partes = limpio.split(',').map((s) => s.trim()).filter(Boolean)
+  // 4) Soltando segmentos desde el frente (de la calle hacia la ciudad).
   for (let i = 1; i < partes.length; i++) add(conPais(partes.slice(i).join(', ')))
 
+  // Google primero (preciso): si alguna variante da un punto EXACTO, lo usamos.
+  // Guardamos el primer resultado aproximado por si ninguna es exacta.
+  let aprox: { lat: number; lng: number } | null = null
+  for (const q of intentos) {
+    const g = await geocodificarGoogle(q, codigo)
+    if (g) {
+      if (g.preciso) return { lat: g.lat, lng: g.lng }
+      if (!aprox) aprox = { lat: g.lat, lng: g.lng }
+    }
+  }
+
+  // OSM como respaldo (no tiene clave ni costo).
   for (const q of intentos) {
     const r = await _buscarNominatim(q, codigo)
     if (r) return r
   }
-  return null
+
+  // Si Google solo dio algo aproximado, mejor eso que nada (el usuario ajusta
+  // el pin). Si no hubo nada, null → se muestra el aviso de "no encontrada".
+  return aprox
 }
 
 /**

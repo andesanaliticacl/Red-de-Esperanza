@@ -32,15 +32,22 @@ export function hayGoogleMaps(): boolean {
   return Boolean(import.meta.env.VITE_GOOGLE_MAPS_KEY)
 }
 
+export interface ResultadoGeo {
+  lat: number
+  lng: number
+  /** true si Google ubicó la dirección EXACTA (no el centro de la ciudad). */
+  preciso: boolean
+}
+
 /**
  * Geocodifica una dirección con Google. Restringe el país (cc, p. ej. 've') para
- * no caer fuera. Devuelve coordenadas exactas o null si no la reconoce / no hay
- * clave configurada.
+ * no caer fuera. Devuelve coordenadas (con un indicador de precisión) o null si
+ * no la reconoce / no hay clave configurada.
  */
 export async function geocodificarGoogle(
   texto: string,
   cc?: string,
-): Promise<{ lat: number; lng: number } | null> {
+): Promise<ResultadoGeo | null> {
   const key = import.meta.env.VITE_GOOGLE_MAPS_KEY as string | undefined
   if (!key) return null
   try {
@@ -54,7 +61,17 @@ export async function geocodificarGoogle(
     })
     const r = resp?.results?.[0]
     if (r?.geometry?.location) {
-      return { lat: r.geometry.location.lat(), lng: r.geometry.location.lng() }
+      // ROOFTOP / RANGE_INTERPOLATED = punto exacto de la dirección.
+      // GEOMETRIC_CENTER / APPROXIMATE = aproximado (calle, barrio o ciudad).
+      const tipo = r.geometry.location_type
+      const preciso =
+        !r.partial_match &&
+        (tipo === 'ROOFTOP' || tipo === 'RANGE_INTERPOLATED')
+      return {
+        lat: r.geometry.location.lat(),
+        lng: r.geometry.location.lng(),
+        preciso,
+      }
     }
   } catch {
     /* sin red, clave inválida o sin resultados: caemos al respaldo */
