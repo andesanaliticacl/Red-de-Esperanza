@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
+import { registrarVisita } from './lib/visitas'
 import BarraSuperior from './components/BarraSuperior'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -32,6 +33,11 @@ function Cargando() {
 }
 
 export default function App() {
+  // Cuenta de visitantes (anónima, para el panel de administración).
+  useEffect(() => {
+    void registrarVisita()
+  }, [])
+
   return (
     <div className="h-full flex flex-col">
       <BarraSuperior />

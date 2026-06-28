@@ -22,6 +22,7 @@ export default function AdminView() {
     'resuelta',
   ])
   const [perfiles, setPerfiles] = useState<Perfil[]>([])
+  const [visitas, setVisitas] = useState<{ pais: string | null }[]>([])
 
   async function cargarPerfiles() {
     const { data, error } = await supabase
@@ -31,9 +32,26 @@ export default function AdminView() {
     if (!error) setPerfiles((data ?? []) as Perfil[])
   }
 
+  async function cargarVisitas() {
+    const { data } = await supabase.from('visitas').select('pais').limit(100000)
+    if (data) setVisitas(data as { pais: string | null }[])
+  }
+
   useEffect(() => {
     cargarPerfiles()
+    cargarVisitas()
   }, [])
+
+  // Visitantes únicos y desglose por país (de mayor a menor).
+  const totalVisitas = visitas.length
+  const visitasPorPais = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const v of visitas) {
+      const p = v.pais?.trim() || 'Desconocido'
+      m.set(p, (m.get(p) ?? 0) + 1)
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [visitas])
 
   const stats = useMemo(() => {
     const c = (estado: string) =>
@@ -70,6 +88,39 @@ export default function AdminView() {
         <Tarjeta n={stats.en_proceso} etiqueta="En proceso" color="#002FA7" />
         <Tarjeta n={stats.resuelta} etiqueta="Resueltas" color="#0891B2" />
         <Tarjeta n={stats.voluntarios} etiqueta="Equipo activo" color="#CF9B00" />
+      </section>
+
+      {/* Visitantes (personas que han usado la página) */}
+      <section className="card">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-lg">👥 Visitantes</h2>
+          <div className="text-right">
+            <div className="text-3xl font-extrabold text-bandera-azul">
+              {totalVisitas}
+            </div>
+            <div className="text-xs text-gray-500">personas (dispositivos)</div>
+          </div>
+        </div>
+        {visitasPorPais.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            Aún sin datos de visitas (o falta correr la migración 23).
+          </p>
+        ) : (
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-2">Por país</p>
+            <ul className="space-y-1">
+              {visitasPorPais.map(([pais, n]) => (
+                <li
+                  key={pais}
+                  className="flex items-center justify-between text-sm border-b border-gray-100 pb-1"
+                >
+                  <span>{pais}</span>
+                  <span className="font-semibold">{n}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       {/* Gestión de usuarios */}
