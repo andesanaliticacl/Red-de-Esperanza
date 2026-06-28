@@ -56,6 +56,8 @@ export function iconoNecesidad(
   // FUERA de Venezuela, cualquier marcador va pequeño y uniforme (TAM_FUERA).
   // Fuera de Venezuela ya van pequeños y uniformes (no se reducen más).
   const escala = compacto && !fuera ? 0.78 : 1
+  // En móvil el EMOJI se reduce un poco más que el pin (se pedía más pequeño).
+  const escalaEmoji = compacto && !fuera ? 0.62 : 1
   const tam = Math.round(
     (fuera ? TAM_FUERA : resaltada ? 60 : esAcopio ? 36 : 54) * escala,
   )
@@ -66,7 +68,7 @@ export function iconoNecesidad(
         ? 28
         : esAcopio
           ? 18
-          : 26) * escala,
+          : 26) * escalaEmoji,
   )
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'

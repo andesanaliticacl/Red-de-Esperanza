@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import {
   MapContainer,
@@ -86,48 +86,24 @@ function RastreadorZona({
  */
 function RastreadorVista({
   onBounds,
+  esMovil = false,
 }: {
   onBounds: (b: L.LatLngBounds) => void
+  esMovil?: boolean
 }) {
   const map = useMap()
+  // En móvil usamos menos margen (menos marcadores fuera de pantalla = más
+  // ligero). En escritorio, más margen para que al mover no parpadeen.
+  const margen = esMovil ? 0.25 : 0.6
   useMapEvents({
-    moveend: () => onBounds(map.getBounds().pad(0.6)),
-    zoomend: () => onBounds(map.getBounds().pad(0.6)),
+    moveend: () => onBounds(map.getBounds().pad(margen)),
+    zoomend: () => onBounds(map.getBounds().pad(margen)),
   })
   useEffect(() => {
-    onBounds(map.getBounds().pad(0.6))
+    onBounds(map.getBounds().pad(margen))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return null
-}
-
-/**
- * Capa de marcadores de necesidades + acopios. En TELÉFONO los agrupa en
- * burbujas con número (clustering) para no dibujar cientos a la vez —la causa
- * de que el móvil se trabe—; al acercar el zoom se separan en marcadores
- * individuales (disableClusteringAtZoom). En ESCRITORIO no agrupa: se ve igual
- * que siempre, marcador por marcador.
- */
-function CapaMarcadores({
-  agrupar,
-  children,
-}: {
-  agrupar: boolean
-  children: ReactNode
-}) {
-  if (!agrupar) return <>{children}</>
-  return (
-    <MarkerClusterGroup
-      chunkedLoading
-      maxClusterRadius={45}
-      disableClusteringAtZoom={16}
-      showCoverageOnHover={false}
-      spiderfyOnMaxZoom={true}
-      zoomToBoundsOnClick={true}
-    >
-      {children}
-    </MarkerClusterGroup>
-  )
 }
 
 /** Ajusta el mapa a los resultados de la búsqueda de desaparecidos. */
@@ -469,8 +445,7 @@ export default function MapaNecesidades({
 
       {/* Marcadores dentro de la vista (recortados para no trabar el teléfono).
           El rastreador de abajo fija la vista al cargar y al mover/zoom. */}
-      <RastreadorVista onBounds={setVista} />
-      <CapaMarcadores agrupar={esMovil}>
+      <RastreadorVista onBounds={setVista} esMovil={esMovil} />
       {necesidadesEnVista
         .filter((n) => n.lat != null && n.lng != null)
         .map((n) => (
@@ -484,8 +459,7 @@ export default function MapaNecesidades({
               !dentroDelRecuadroVE(n.lat as number, n.lng as number),
               esMovil,
             )}
-            // Dentro de un clúster (móvil) no usamos panes propios.
-            pane={esMovil ? undefined : 'primerPlano'}
+            pane="primerPlano"
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}
             eventHandlers={{
               popupopen: () => setAbierto(n.id),
@@ -567,7 +541,7 @@ export default function MapaNecesidades({
           key={a.id}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
           icon={iconoCentro}
-          pane={esMovil ? undefined : 'acopios'}
+          pane="acopios"
           eventHandlers={{
             popupopen: () => setAbierto(`acopio:${a.id}`),
             popupclose: () =>
@@ -608,7 +582,6 @@ export default function MapaNecesidades({
         </Marker>
         )
       })}
-      </CapaMarcadores>
 
       {/* Desaparecidos: solo si la capa está activada. Se cargan por zona
           visible y se agrupan en clusters (burbujas con número). */}
