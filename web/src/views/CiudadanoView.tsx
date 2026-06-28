@@ -32,6 +32,7 @@ const ROLES_ACCESO: RolRegistro[] = [
 
 const TIPOS_FILTRO: NecesidadTipo[] = [
   'rescate',
+  'zona_sin_atender',
   'agua_comida',
   'medicinas',
   'refugio',

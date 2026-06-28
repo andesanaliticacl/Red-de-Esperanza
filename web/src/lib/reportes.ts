@@ -8,6 +8,7 @@ export interface NuevoReporte {
   zona?: string | null
   lat?: number | null
   lng?: number | null
+  radio_km?: number | null // solo para zonas (tipo zona_sin_atender)
   origen?: string
   contacto?: string | null // se guarda en tabla privada aparte
 }
@@ -31,6 +32,7 @@ export async function crearNecesidad(r: NuevoReporte) {
       zona: r.zona ?? null,
       lat: r.lat ?? null,
       lng: r.lng ?? null,
+      radio_km: r.radio_km ?? null,
       origen: r.origen ?? 'web',
       estado: 'sin_verificar',
       reportado_por,

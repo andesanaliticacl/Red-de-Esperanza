@@ -5,16 +5,24 @@ import {
   type NecesidadUrgencia,
 } from '../lib/types'
 import { crearNecesidad } from '../lib/reportes'
-import { obtenerUbicacion, type FuenteUbicacion } from '../lib/geo'
+import {
+  obtenerUbicacion,
+  geocodificarDireccion,
+  type FuenteUbicacion,
+} from '../lib/geo'
 
+// Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
+// propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
 const TIPOS: NecesidadTipo[] = [
-  'rescate',
+  'zona_sin_atender',
   'agua_comida',
   'medicinas',
   'refugio',
   'derrumbe',
   'otro',
 ]
+// Radios disponibles para una "zona sin atender" (km). Por defecto 10.
+const RADIOS_ZONA = [5, 10, 20]
 const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
   { v: 'alta', etiqueta: 'Alta', clase: 'btn-rojo' },
   { v: 'media', etiqueta: 'Media', clase: 'btn-amber' },
@@ -43,7 +51,11 @@ export default function ReportarModal({
   const [tipo, setTipo] = useState<NecesidadTipo>('otro')
   const [descripcion, setDescripcion] = useState('')
   const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
-  const [zona, setZona] = useState('') // solo se usa como "dirección" en derrumbe
+  const [zona, setZona] = useState('') // "dirección" en derrumbe y zona sin atender
+  const [radioKm, setRadioKm] = useState(10) // tamaño de la "zona sin atender"
+  // Para derrumbe / zona: la ubicación sale de la DIRECCIÓN escrita; el GPS de
+  // la persona es solo una OPCIÓN ("usar mi ubicación actual") por si no la sabe.
+  const [modoUbic, setModoUbic] = useState<'direccion' | 'gps'>('direccion')
   const [contacto, setContacto] = useState('')
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
     coordInicial ?? null,
@@ -58,7 +70,10 @@ export default function ReportarModal({
   const [errorMsg, setErrorMsg] = useState('')
 
   const esDerrumbe = tipo === 'derrumbe'
+  const esZona = tipo === 'zona_sin_atender'
   const esRescate = tipo === 'rescate'
+  // Tipos cuya ubicación se toma de la DIRECCIÓN escrita (no del GPS automático).
+  const usaDireccion = esDerrumbe || esZona
 
   async function actualizarUbicacion() {
     setGpsEstado('buscando')
@@ -80,7 +95,10 @@ export default function ReportarModal({
 
   function elegirTipo(t: NecesidadTipo) {
     setTipo(t)
-    if (t === 'derrumbe' || t === 'rescate') setUrgencia('alta')
+    if (t === 'derrumbe' || t === 'rescate' || t === 'zona_sin_atender')
+      setUrgencia('alta')
+    // Derrumbe / zona arrancan en modo "dirección" (no GPS automático).
+    setModoUbic('direccion')
     setPaso(2)
   }
 
@@ -88,13 +106,37 @@ export default function ReportarModal({
     setGuardando(true)
     setErrorMsg('')
     try {
+      let lat = coord?.lat ?? null
+      let lng = coord?.lng ?? null
+
+      // Derrumbe / zona en modo DIRECCIÓN: la ubicación sale de la dirección
+      // escrita (no de dónde esté la persona). Solo si eligió "usar mi
+      // ubicación actual" (modo gps) se usa el GPS.
+      if (usaDireccion && modoUbic === 'direccion') {
+        const dir = zona.trim()
+        if (!dir) {
+          throw new Error(
+            'Escribe la dirección, o toca “usar mi ubicación actual”.',
+          )
+        }
+        const g = await geocodificarDireccion(dir)
+        if (!g) {
+          throw new Error(
+            'No encontramos esa dirección. Revísala o usa tu ubicación actual.',
+          )
+        }
+        lat = g.lat
+        lng = g.lng
+      }
+
       await crearNecesidad({
         tipo,
         urgencia,
         descripcion: descripcion.trim() || TIPO_META[tipo].etiqueta,
-        zona: esDerrumbe ? zona.trim() || null : null,
-        lat: coord?.lat ?? null,
-        lng: coord?.lng ?? null,
+        zona: usaDireccion ? zona.trim() || null : null,
+        lat,
+        lng,
+        radio_km: esZona ? radioKm : null,
         contacto: contacto.trim() || null,
         origen: esRescate ? 'sos' : 'web',
       })
@@ -136,6 +178,79 @@ export default function ReportarModal({
           🔄 Actualizar ubicación
         </button>
       </div>
+    </div>
+  )
+
+  function activarGps() {
+    setModoUbic('gps')
+    actualizarUbicacion()
+  }
+
+  // Ubicación para derrumbe / zona: por defecto usa la DIRECCIÓN escrita; el
+  // GPS de la persona es solo una opción para cuando no sabe la dirección.
+  const bloqueUbicacionDireccion = (
+    <div>
+      <p className="font-bold mb-2">
+        Ubicación {esZona ? 'de la zona' : 'del edificio'}
+      </p>
+      {modoUbic === 'direccion' ? (
+        <div className="rounded-xl border bg-gray-50 p-3 space-y-2">
+          {zona.trim() ? (
+            <p className="text-sm text-gray-700">
+              📍 Usaremos la dirección que indicaste:
+              <span className="block font-semibold mt-0.5">{zona.trim()}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-amber-700">
+              No escribiste una dirección. Vuelve atrás para escribirla, o usa
+              tu ubicación actual.
+            </p>
+          )}
+          <button
+            onClick={activarGps}
+            className="btn-gris w-full py-2 px-3 text-sm"
+          >
+            📍 No sé la dirección — usar mi ubicación actual
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-gray-50 p-3 space-y-2">
+          {gpsEstado === 'buscando' ? (
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <span className="inline-block h-4 w-4 rounded-full border-2 border-gray-300 border-t-bandera-azul animate-spin" />
+              Detectando tu ubicación…
+            </p>
+          ) : coord ? (
+            <p className="text-sm text-green-700">
+              ✅ Tu ubicación actual: {coord.lat.toFixed(4)},{' '}
+              {coord.lng.toFixed(4)}
+              {fuente === 'ip' && (
+                <span className="block text-amber-600">Aproximada por red.</span>
+              )}
+            </p>
+          ) : (
+            <p className="text-sm text-bandera-rojo">
+              No pudimos detectar tu ubicación. Activa el GPS e inténtalo de
+              nuevo.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={actualizarUbicacion}
+              disabled={gpsEstado === 'buscando'}
+              className="btn-gris py-2 px-3 text-sm disabled:opacity-60"
+            >
+              🔄 Actualizar
+            </button>
+            <button
+              onClick={() => setModoUbic('direccion')}
+              className="text-sm text-bandera-azul font-semibold px-2"
+            >
+              ↩ Usar la dirección
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -181,7 +296,9 @@ export default function ReportarModal({
     ? 'Pedir rescate'
     : esDerrumbe && paso > 1
       ? 'Edificio derrumbado'
-      : 'Reportar necesidad'
+      : esZona && paso > 1
+        ? 'Zona sin atender'
+        : 'Reportar necesidad'
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -274,9 +391,9 @@ export default function ReportarModal({
             {esDerrumbe ? (
               <>
                 <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-                  🏚️ Reporta un edificio o departamento colapsado. Indica la
-                  dirección; si no la sabes, usaremos tu ubicación GPS como
-                  referencia principal.
+                  🏚️ Reporta un edificio o departamento colapsado. Indica su
+                  dirección; en el siguiente paso, si no la sabes, podrás usar tu
+                  ubicación actual.
                 </div>
                 <div>
                   <p className="font-bold mb-2">Dirección del edificio</p>
@@ -292,6 +409,48 @@ export default function ReportarModal({
                   <textarea
                     className="input min-h-[80px]"
                     placeholder="Ej: 4 pisos, posible gente atrapada en el 2.º"
+                    value={descripcion}
+                    onChange={(e) => setDescripcion(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : esZona ? (
+              <>
+                <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+                  🚩 Marca una <strong>zona</strong> donde aún no ha llegado
+                  ayuda, para que rescatistas y voluntarios sepan dónde ir. Se
+                  verá en el mapa como un círculo, no como un punto.
+                </div>
+                <div>
+                  <p className="font-bold mb-2">Dirección o referencia de la zona</p>
+                  <input
+                    className="input"
+                    placeholder="Sector, urbanización, pueblo, carretera…"
+                    value={zona}
+                    onChange={(e) => setZona(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <p className="font-bold mb-2">Tamaño de la zona</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {RADIOS_ZONA.map((km) => (
+                      <button
+                        key={km}
+                        onClick={() => setRadioKm(km)}
+                        className={`btn-gris py-2.5 ${
+                          radioKm === km ? 'ring-4 ring-bandera-azul/30 font-bold' : 'opacity-80'
+                        }`}
+                      >
+                        {km} km
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="font-bold mb-2">Detalles (opcional)</p>
+                  <textarea
+                    className="input min-h-[80px]"
+                    placeholder="Ej: caseríos incomunicados tras el derrumbe de la vía"
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
                   />
@@ -323,7 +482,7 @@ export default function ReportarModal({
         {/* PASO 3 (no rescate): ubicación + contacto */}
         {paso === 3 && !esRescate && (
           <div className="space-y-4">
-            {bloqueUbicacion}
+            {usaDireccion ? bloqueUbicacionDireccion : bloqueUbicacion}
             {bloqueContacto}
             {errorMsg && <p className="text-bandera-rojo">⚠️ {errorMsg}</p>}
             <div className="flex gap-2">

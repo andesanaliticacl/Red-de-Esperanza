@@ -4,6 +4,7 @@ import {
   MapContainer,
   TileLayer,
   Marker,
+  Circle,
   Popup,
   useMap,
   useMapEvents,
@@ -345,6 +346,26 @@ export default function MapaNecesidades({
         />
       )}
 
+      {/* Zonas sin atender: círculo rojo translúcido que late (~radio_km).
+          Muestra a rescatistas/voluntarios un ÁREA, no un punto. El marcador
+          🚩 del centro lo dibuja el bucle de necesidades de abajo. */}
+      {necesidades
+        .filter((n) => n.tipo === 'zona_sin_atender' && n.lat != null && n.lng != null)
+        .map((n) => (
+          <Circle
+            key={`zona:${n.id}`}
+            center={[n.lat as number, n.lng as number]}
+            radius={(n.radio_km ?? 10) * 1000}
+            pathOptions={{
+              className: 'zona-pulsante',
+              color: '#CC0001',
+              weight: 2,
+              fillColor: '#CC0001',
+              fillOpacity: 0.15,
+            }}
+          />
+        ))}
+
       {/* Todos los marcadores se muestran siempre (sin agrupar). */}
       {necesidades
         .filter((n) => n.lat != null && n.lng != null)
@@ -362,6 +383,11 @@ export default function MapaNecesidades({
                 </div>
                 <div className="text-sm">{n.descripcion}</div>
                 {n.zona && <div className="text-xs text-gray-600">📍 {n.zona}</div>}
+                {n.tipo === 'zona_sin_atender' && (
+                  <div className="text-xs text-bandera-rojo font-semibold">
+                    ⭕ Zona de ~{n.radio_km ?? 10} km a la redonda
+                  </div>
+                )}
                 <div className="text-xs">
                   Urgencia: {URGENCIA_META[n.urgencia].etiqueta}
                 </div>

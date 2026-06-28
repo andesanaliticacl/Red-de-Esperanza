@@ -31,6 +31,32 @@ export function enlaceComoLlegar(lat: number, lng: number): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
 }
 
+/**
+ * Convierte una dirección escrita (calle, urbanización, ciudad…) en coordenadas
+ * usando Nominatim (OpenStreetMap). Se restringe a Venezuela para no caer en
+ * otro país. Devuelve null si no la encuentra. Se llama solo al enviar un
+ * reporte (no en cada tecla), así que respeta el uso razonable del servicio.
+ */
+export async function geocodificarDireccion(
+  texto: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const limpio = texto.trim()
+  if (!limpio) return null
+  const q = encodeURIComponent(`${limpio}, Venezuela`)
+  const url =
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ve&q=${q}`
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    if (Array.isArray(j) && j[0]?.lat && j[0]?.lon) {
+      return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) }
+    }
+  } catch {
+    /* sin conexión o bloqueado: devolvemos null y se usa otro método */
+  }
+  return null
+}
+
 export type FuenteUbicacion = 'gps' | 'ip'
 export interface Ubicacion {
   lat: number

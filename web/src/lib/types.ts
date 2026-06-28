@@ -6,6 +6,7 @@ export type NecesidadTipo =
   | 'medicinas'
   | 'refugio'
   | 'derrumbe'
+  | 'zona_sin_atender'
   | 'otro'
   | 'acopio'
 
@@ -40,6 +41,8 @@ export interface Necesidad {
   zona: string | null
   lat: number | null
   lng: number | null
+  /** Radio en km cuando el reporte es una ZONA (tipo zona_sin_atender). */
+  radio_km: number | null
   origen: string | null
   reportado_por: string | null
   asignado_a: string | null
@@ -172,6 +175,7 @@ export const TIPO_META: Record<
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
   derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
+  zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
 }

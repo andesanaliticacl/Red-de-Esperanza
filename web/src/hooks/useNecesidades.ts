@@ -5,7 +5,7 @@ import type { Necesidad, CentroAcopio } from '../lib/types'
 // Solo las columnas que usan las vistas (no traemos texto_crudo, verificada_por,
 // actualizado_en ni nada sensible). Reduce muchísimo el tráfico. (Fase 2)
 const COLS_NECESIDAD =
-  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en'
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en'
 
 // Tope de registros por carga: nadie puede ver decenas de miles. (Fase 4)
 const LIMITE = 500
