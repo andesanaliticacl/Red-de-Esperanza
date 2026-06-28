@@ -6,10 +6,15 @@ import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
  * problema de marcadores invisibles con Vite). El color sale del tipo.
  * (Verificación pausada: ya no se distingue 'sin verificar' con borde punteado.)
  */
+// Tamaño uniforme para CUALQUIER marcador que esté FUERA de Venezuela: todos
+// quedan pequeños e iguales (la emergencia es dentro del país).
+export const TAM_FUERA = 30
+
 export function iconoNecesidad(
   tipo: NecesidadTipo,
   estado: NecesidadEstado,
   resaltada = false,
+  fuera = false,
 ): L.DivIcon {
   const { color, emoji } = TIPO_META[tipo]
   // El marcador NO desaparece al ser atendido: cambia de aspecto.
@@ -35,10 +40,10 @@ export function iconoNecesidad(
   const esAcopio = tipo === 'acopio'
   // Las NECESIDADES que crea el usuario (comida, medicina, refugio, derrumbe,
   // zona…) se ven grandes (54px) para sobresalir sobre los desaparecidos (24px).
-  // Los CENTROS DE ACOPIO van más pequeños (36px), igual que los hospitales,
-  // para no competir con las necesidades. Resaltada: la mayor, con halo que late.
-  const tam = resaltada ? 60 : esAcopio ? 36 : 54
-  const fuente = resaltada ? 28 : esAcopio ? 18 : 26
+  // Los CENTROS DE ACOPIO van más pequeños (36px), igual que los hospitales.
+  // FUERA de Venezuela, cualquier marcador va pequeño y uniforme (TAM_FUERA).
+  const tam = fuera ? TAM_FUERA : resaltada ? 60 : esAcopio ? 36 : 54
+  const fuente = fuera ? 15 : resaltada ? 28 : esAcopio ? 18 : 26
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe
@@ -105,28 +110,34 @@ function iconoCaja(tam: number): L.DivIcon {
   })
 }
 
-export const iconoAcopio: L.DivIcon = iconoCaja(36) // fuera de Venezuela
-export const iconoAcopioVE: L.DivIcon = iconoCaja(48) // dentro de Venezuela
+export const iconoAcopio: L.DivIcon = iconoCaja(36) // dentro de Venezuela
+export const iconoAcopioFuera: L.DivIcon = iconoCaja(TAM_FUERA) // fuera (pequeño)
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
 // del centro de acopio (caja verde).
-export const iconoHospital: L.DivIcon = L.divIcon({
-  className: '',
-  html: `
-    <div style="
-      width:36px; height:36px; border-radius:50% 50% 50% 0;
-      transform: rotate(-45deg);
-      background:#CC0001; border:2px solid white;
-      box-shadow:0 2px 5px rgba(0,0,0,0.4);
-      display:flex; align-items:center; justify-content:center;">
-      <svg width="17" height="17" viewBox="0 0 24 24" style="transform: rotate(45deg);">
-        <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" fill="white"/>
-      </svg>
-    </div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-  popupAnchor: [0, -32],
-})
+function iconoCruz(tam: number): L.DivIcon {
+  const svg = Math.round(tam * 0.47)
+  return L.divIcon({
+    className: '',
+    html: `
+      <div style="
+        width:${tam}px; height:${tam}px; border-radius:50% 50% 50% 0;
+        transform: rotate(-45deg);
+        background:#CC0001; border:2px solid white;
+        box-shadow:0 2px 5px rgba(0,0,0,0.4);
+        display:flex; align-items:center; justify-content:center;">
+        <svg width="${svg}" height="${svg}" viewBox="0 0 24 24" style="transform: rotate(45deg);">
+          <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" fill="white"/>
+        </svg>
+      </div>`,
+    iconSize: [tam, tam],
+    iconAnchor: [tam / 2, tam],
+    popupAnchor: [0, -tam + 4],
+  })
+}
+
+export const iconoHospital: L.DivIcon = iconoCruz(36) // dentro de Venezuela
+export const iconoHospitalFuera: L.DivIcon = iconoCruz(TAM_FUERA) // fuera (pequeño)
 
 /**
  * Marcador de "mi ubicación".

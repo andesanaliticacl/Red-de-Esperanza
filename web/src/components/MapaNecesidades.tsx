@@ -16,8 +16,9 @@ import {
   iconoDesaparecido,
   iconoNecesidad,
   iconoAcopio,
-  iconoAcopioVE,
+  iconoAcopioFuera,
   iconoHospital,
+  iconoHospitalFuera,
   iconoUsuario,
 } from '../lib/iconos'
 import IconoRuta from './IconoRuta'
@@ -91,7 +92,12 @@ function AjustarABusqueda({ puntos }: { puntos: [number, number][] }) {
   }, [clave])
   return null
 }
-import { CENTRO_VENEZUELA, ZOOM_INICIAL, enlaceComoLlegar } from '../lib/geo'
+import {
+  CENTRO_VENEZUELA,
+  ZOOM_INICIAL,
+  enlaceComoLlegar,
+  dentroDelRecuadroVE,
+} from '../lib/geo'
 import {
   TIPO_META,
   URGENCIA_META,
@@ -383,7 +389,12 @@ export default function MapaNecesidades({
           <Marker
             key={n.id}
             position={posiciones.get(n.id) ?? [n.lat as number, n.lng as number]}
-            icon={iconoNecesidad(n.tipo, n.estado, n.id === resaltadaId)}
+            icon={iconoNecesidad(
+              n.tipo,
+              n.estado,
+              n.id === resaltadaId,
+              !dentroDelRecuadroVE(n.lat as number, n.lng as number),
+            )}
             pane="primerPlano"
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}
           >
@@ -442,12 +453,14 @@ export default function MapaNecesidades({
 
       {acopios.map((a) => {
         const esHospital = (a.descripcion ?? '').toLowerCase().includes('hospital')
-        // Acopios dentro de Venezuela: más grandes. Fuera: pequeños.
-        const enVenezuela = (a.pais ?? '').trim().toLowerCase() === 'venezuela'
+        // Fuera de Venezuela: pequeño y uniforme. Dentro: tamaño normal.
+        const fuera = !dentroDelRecuadroVE(a.lat, a.lng)
         const iconoCentro = esHospital
-          ? iconoHospital
-          : enVenezuela
-            ? iconoAcopioVE
+          ? fuera
+            ? iconoHospitalFuera
+            : iconoHospital
+          : fuera
+            ? iconoAcopioFuera
             : iconoAcopio
         return (
         <Marker
