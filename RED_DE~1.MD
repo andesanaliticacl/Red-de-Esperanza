@@ -39,15 +39,49 @@
 >   carga. Botón **"🧭 Cómo llegar"** que abre Google Maps con ruta y tiempo.
 > - **UI responsiva:** botones de tamaño contenido en escritorio; leyenda visible.
 >
+> ### 🆕 Mejoras posteriores (terremoto de Venezuela)
+> - **Geocodificación con Google Maps interna:** la app resuelve una dirección con
+>   número de casa/apto vía Google Maps y trae las coordenadas al mapa OSM (la base
+>   sigue siendo OpenStreetMap). Respaldo con Nominatim/OSM por variantes de la
+>   dirección. Variable `VITE_GOOGLE_MAPS_KEY` (clave de navegador, restringida por
+>   dominio). Funciona en **cualquier país**.
+> - **Reportes en una sola pantalla** con un único botón "Enviar reporte" (sin
+>   pasos). Ubicación por dirección escrita, "Mi ubicación" (GPS, resaltado), pin
+>   arrastrable o coordenadas pegadas.
+> - **Solo se aceptan necesidades dentro de Venezuela** (rechazo con aviso si las
+>   coordenadas caen fuera). Aviso claro si la dirección no es válida.
+> - **Nuevo tipo "zona sin atender":** círculo rojo translúcido titilante,
+>   proporcional al tamaño (1/3/5 km de diámetro, `radio_km`), con banderita 🚩.
+>   Reemplazó el tile de "rescate" del menú de reportar (el SOS ya tiene su botón).
+> - **Edificio derrumbado:** usa la dirección escrita, no toma el GPS automático.
+> - **Centros de acopio** ubicados por dirección escrita (GPS opcional), con
+>   selector país→región→ciudad. El **país** de los centros scrapeados se deduce del
+>   texto/coordenadas (no del "Venezuela" por defecto del scraper), así aparecen en
+>   el filtro por país (España, EE.UU., Argentina, Chile…; Texas → EE.UU.).
+> - **Jerarquía y tamaño de íconos:** necesidades grandes y al frente; hospitales y
+>   acopios más pequeños y debajo; desaparecidos al fondo. Íconos **fuera de
+>   Venezuela** unificados a 40 px.
+> - **Filtros** por tipo ampliados (todas las necesidades + acopios + hospitales) y
+>   por urgencia.
+> - **Personas desaparecidas** por scraper (`scraper/`, Python + Playwright, GitHub
+>   Actions, upsert sin duplicar, `scraper_runs`). Ocultas al entrar; se muestran con
+>   🔍. Se esparcen en disco cuando comparten punto. Ubicación **aproximada**.
+> - **Contador de visitantes** anónimo en el panel admin (tabla `visitas`, país por
+>   IP, una fila por dispositivo) — migración 23.
+> - Tutorial "¿Cómo funciona?" actualizado (zonas, banderas, aviso de desaparecidos
+>   aproximados) y botón más visual.
+>
 > ### 📦 Estructura actual
 > ```
 > red-de-esperanza/
 > ├── web/        → PWA (todo el frontend)
-> ├── supabase/   → schema.sql + 02_analitica_y_emergencias.sql
+> ├── scraper/    → scraper de desaparecidos (Python + Playwright)
+> ├── supabase/   → schema.sql + migraciones 02→23
 > └── README.md
 > ```
-> El stack real es: React + Vite + TS · Tailwind · Leaflet/OSM · Supabase
-> (Postgres + Auth + Realtime) · Vercel. **Sin** Telegram, **sin** Gemini,
+> El stack real es: React + Vite + TS · Tailwind · Leaflet/OSM (+ Google Maps solo
+> para geocodificar/rutas) · Supabase (Postgres + Auth + Realtime) · Python +
+> Playwright (scraper) · GitHub Actions · Vercel. **Sin** Telegram, **sin** Gemini,
 > **sin** Render.
 
 **Objetivo:** una herramienta de emergencia (web + móvil) donde la gente reporta necesidades por un bot de Telegram o por la web, una IA las estructura, **voluntarios verificadores las confirman**, y aparecen en un mapa colaborativo público en tiempo casi real.
