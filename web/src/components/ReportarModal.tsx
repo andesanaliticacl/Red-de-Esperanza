@@ -208,7 +208,7 @@ export default function ReportarModal({
           )}
           <button
             onClick={activarGps}
-            className="btn-gris w-full py-2 px-3 text-sm"
+            className="btn-amber w-full text-sm py-2.5"
           >
             📍 No sé la dirección — usar mi ubicación actual
           </button>

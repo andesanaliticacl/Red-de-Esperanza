@@ -41,6 +41,26 @@ export function enlaceComoLlegar(lat: number, lng: number): string {
  * zonas), pero acepta un país/código distinto: los centros de acopio pueden
  * estar en cualquier país.
  */
+async function _buscarNominatim(
+  q: string,
+  codigo: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const restriccion = codigo ? `&countrycodes=${codigo}` : ''
+  const url =
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1${restriccion}` +
+    `&q=${encodeURIComponent(q)}`
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    if (Array.isArray(j) && j[0]?.lat && j[0]?.lon) {
+      return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) }
+    }
+  } catch {
+    /* sin conexión o bloqueado */
+  }
+  return null
+}
+
 export async function geocodificarDireccion(
   texto: string,
   opciones: { pais?: string; cc?: string } = {},
@@ -49,18 +69,30 @@ export async function geocodificarDireccion(
   if (!limpio) return null
   const pais = (opciones.pais ?? 'Venezuela').trim()
   const codigo = (opciones.cc ?? 've').toLowerCase()
-  const q = encodeURIComponent(pais ? `${limpio}, ${pais}` : limpio)
-  const restriccion = codigo ? `&countrycodes=${codigo}` : ''
-  const url =
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1${restriccion}&q=${q}`
-  try {
-    const r = await fetch(url, { headers: { Accept: 'application/json' } })
-    const j = await r.json()
-    if (Array.isArray(j) && j[0]?.lat && j[0]?.lon) {
-      return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) }
-    }
-  } catch {
-    /* sin conexión o bloqueado: devolvemos null y se usa otro método */
+
+  // OpenStreetMap no tiene todos los números de casa de Venezuela, así que una
+  // dirección REAL puede no aparecer tal cual. Probamos variantes de lo más
+  // específico a lo más general para no rechazar direcciones válidas: con el
+  // texto completo, sin el número de casa, y soltando segmentos (de la calle
+  // hacia la ciudad/estado). Así "Catia La Mar 1162, La Guaira" cae al menos en
+  // Catia La Mar. (NO caemos al centro del país: una dirección inventada sí
+  // debe fallar para mostrar el aviso.)
+  const intentos: string[] = []
+  const add = (s: string) => {
+    const t = s.replace(/\s*,\s*/g, ', ').replace(/^,\s*|\s*,$/g, '').trim()
+    if (t && !intentos.includes(t)) intentos.push(t)
+  }
+  const conPais = (s: string) => (pais ? `${s}, ${pais}` : s)
+
+  add(conPais(limpio))
+  const sinNumero = limpio.replace(/\b\d{1,6}\b/g, '').replace(/\s{2,}/g, ' ').trim()
+  if (sinNumero && sinNumero !== limpio) add(conPais(sinNumero))
+  const partes = limpio.split(',').map((s) => s.trim()).filter(Boolean)
+  for (let i = 1; i < partes.length; i++) add(conPais(partes.slice(i).join(', ')))
+
+  for (const q of intentos) {
+    const r = await _buscarNominatim(q, codigo)
+    if (r) return r
   }
   return null
 }
