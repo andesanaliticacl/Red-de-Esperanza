@@ -30,6 +30,8 @@ const ROLES_ACCESO: RolRegistro[] = [
   'centro_acopio',
 ]
 
+// Opciones del filtro por tipo. Incluye las necesidades, los centros de acopio
+// y un valor especial 'hospital' (los acopios cuya descripción dice "hospital").
 const TIPOS_FILTRO: NecesidadTipo[] = [
   'rescate',
   'zona_sin_atender',
@@ -38,7 +40,10 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
   'refugio',
   'derrumbe',
   'otro',
+  'acopio',
 ]
+// Filtro de tipo: necesidad, 'todos', o 'hospital' (subtipo de acopio).
+type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
 
@@ -112,7 +117,7 @@ export default function CiudadanoView() {
       )
   }
 
-  const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
+  const [tipoFiltro, setTipoFiltro] = useState<FiltroTipo>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
@@ -169,15 +174,20 @@ export default function CiudadanoView() {
     setAbrirTutorial(false)
   }
 
+  // Al filtrar por centros (acopio/hospital) no se muestran necesidades.
+  const filtrandoCentros = tipoFiltro === 'acopio' || tipoFiltro === 'hospital'
+
   // Ambos filtros se combinan (tipo Y urgencia).
   const filtradas = useMemo(
     () =>
-      necesidades.filter((n) => {
-        if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
-        if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
-        return true
-      }),
-    [necesidades, tipoFiltro, urgFiltro],
+      filtrandoCentros
+        ? []
+        : necesidades.filter((n) => {
+            if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
+            if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
+            return true
+          }),
+    [necesidades, tipoFiltro, urgFiltro, filtrandoCentros],
   )
 
   // Los desaparecidos NO se muestran al entrar a la página: quedan ocultos hasta
@@ -186,8 +196,19 @@ export default function CiudadanoView() {
   const verDesap = verDesapManual ?? false
   const desapConCoords = totalDesap ?? 0
 
-  // Los acopios solo se ven sin filtro de tipo (para mostrar solo lo del filtro).
-  const acopiosVisibles = tipoFiltro === 'todos' ? acopios : []
+  // Centros visibles según el filtro:
+  //  · 'todos'    → todos los centros (acopios + hospitales)
+  //  · 'acopio'   → solo centros de acopio (no hospitales)
+  //  · 'hospital' → solo hospitales
+  //  · necesidad  → ninguno (se muestra solo esa necesidad)
+  const acopiosVisibles = useMemo(() => {
+    const esHosp = (a: (typeof acopios)[number]) =>
+      (a.descripcion ?? '').toLowerCase().includes('hospital')
+    if (tipoFiltro === 'todos') return acopios
+    if (tipoFiltro === 'acopio') return acopios.filter((a) => !esHosp(a))
+    if (tipoFiltro === 'hospital') return acopios.filter((a) => esHosp(a))
+    return []
+  }, [acopios, tipoFiltro])
   const hayFiltro = tipoFiltro !== 'todos' || urgFiltro !== 'todas'
 
   return (
@@ -315,9 +336,7 @@ export default function CiudadanoView() {
                 <select
                   className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
                   value={tipoFiltro}
-                  onChange={(e) =>
-                    setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
-                  }
+                  onChange={(e) => setTipoFiltro(e.target.value as FiltroTipo)}
                 >
                   <option value="todos">🗂️ Todo tipo de ayuda</option>
                   {TIPOS_FILTRO.map((t) => (
@@ -325,6 +344,7 @@ export default function CiudadanoView() {
                       {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
                     </option>
                   ))}
+                  <option value="hospital">🏥 Hospital</option>
                 </select>
                 <select
                   className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"

@@ -16,6 +16,7 @@ import {
   iconoDesaparecido,
   iconoNecesidad,
   iconoAcopio,
+  iconoAcopioVE,
   iconoHospital,
   iconoUsuario,
 } from '../lib/iconos'
@@ -441,11 +442,18 @@ export default function MapaNecesidades({
 
       {acopios.map((a) => {
         const esHospital = (a.descripcion ?? '').toLowerCase().includes('hospital')
+        // Acopios dentro de Venezuela: más grandes. Fuera: pequeños.
+        const enVenezuela = (a.pais ?? '').trim().toLowerCase() === 'venezuela'
+        const iconoCentro = esHospital
+          ? iconoHospital
+          : enVenezuela
+            ? iconoAcopioVE
+            : iconoAcopio
         return (
         <Marker
           key={a.id}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
-          icon={esHospital ? iconoHospital : iconoAcopio}
+          icon={iconoCentro}
           pane="acopios"
         >
           <Popup>

@@ -82,7 +82,31 @@ export function iconoNecesidad(
   })
 }
 
-export const iconoAcopio: L.DivIcon = iconoNecesidad('acopio', 'verificada')
+// Caja de centro de acopio (gota verde con 📦). El tamaño cambia según el país:
+// los de DENTRO de Venezuela se ven más grandes (son los relevantes para la
+// emergencia); los de FUERA (donaciones desde la diáspora) van más pequeños.
+function iconoCaja(tam: number): L.DivIcon {
+  const fuente = Math.round(tam * 0.46)
+  return L.divIcon({
+    className: 'marcador-necesidad',
+    html: `
+      <div style="position:relative;width:${tam}px;height:${tam}px;">
+        <div style="
+          background:#16A34A;width:${tam}px;height:${tam}px;
+          border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+          border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);
+          display:flex;align-items:center;justify-content:center;">
+          <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">📦</span>
+        </div>
+      </div>`,
+    iconSize: [tam, tam],
+    iconAnchor: [tam / 2, tam],
+    popupAnchor: [0, -tam + 2],
+  })
+}
+
+export const iconoAcopio: L.DivIcon = iconoCaja(36) // fuera de Venezuela
+export const iconoAcopioVE: L.DivIcon = iconoCaja(48) // dentro de Venezuela
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
 // del centro de acopio (caja verde).
