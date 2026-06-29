@@ -27,12 +27,24 @@ export default function AdminView() {
   // Filtro de usuarios por nombre, correo o teléfono.
   const [busqUsuario, setBusqUsuario] = useState('')
 
+  // Supabase (PostgREST) corta cada consulta a 1000 filas por defecto, así que
+  // con más de mil usuarios la lista se quedaba en "1000 de 1000". Pedimos por
+  // páginas de 1000 con .range() hasta traerlos todos.
   async function cargarPerfiles() {
-    const { data, error } = await supabase
-      .from('perfiles')
-      .select('*')
-      .order('creado_en', { ascending: true })
-    if (!error) setPerfiles((data ?? []) as Perfil[])
+    const TAM = 1000
+    const todos: Perfil[] = []
+    for (let desde = 0; ; desde += TAM) {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('*')
+        .order('creado_en', { ascending: true })
+        .range(desde, desde + TAM - 1)
+      if (error) break
+      const lote = (data ?? []) as Perfil[]
+      todos.push(...lote)
+      if (lote.length < TAM) break
+    }
+    setPerfiles(todos)
   }
 
   async function cargarVisitas() {
