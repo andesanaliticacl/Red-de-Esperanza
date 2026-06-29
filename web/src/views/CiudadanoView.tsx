@@ -18,6 +18,7 @@ import {
   TIPO_META,
   ROL_META,
   type Necesidad,
+  type CentroAcopio,
   type NecesidadTipo,
   type NecesidadUrgencia,
   type RolRegistro,
@@ -47,6 +48,178 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
+const COLS_DESAP_HOSPITAL =
+  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en'
+
+function textoBusquedaHospital(hospital: CentroAcopio) {
+  return hospital.nombre
+    .replace(/\s+/g, ' ')
+    .replace(/\([^)]*\)/g, '')
+    .trim()
+}
+
+function PersonaHospitalItem({
+  persona,
+  onVer,
+}: {
+  persona: Desaparecido
+  onVer: (persona: Desaparecido) => void
+}) {
+  return (
+    <li>
+      <button
+        onClick={() => onVer(persona)}
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50"
+      >
+        {persona.foto_url ? (
+          <img
+            src={persona.foto_url}
+            alt={persona.nombre}
+            loading="lazy"
+            className="h-12 w-12 rounded-full object-cover border border-gray-200 shrink-0"
+            onError={(e) => {
+              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        ) : (
+          <span className="h-12 w-12 rounded-full bg-gray-100 grid place-items-center shrink-0 text-lg">
+            {persona.estado === 'encontrado' ? 'OK' : '?'}
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-gray-900 truncate">
+            {persona.nombre}
+          </span>
+          <span className="block text-xs text-gray-500 truncate">
+            {[
+              persona.estado === 'encontrado' ? 'Encontrado/a' : 'Por localizar',
+              persona.edad ? `${persona.edad} años` : null,
+              persona.ultima_ubicacion,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          {persona.contacto_familiar && (
+            <span className="block text-xs font-semibold text-bandera-azul truncate">
+              {persona.contacto_familiar}
+            </span>
+          )}
+        </span>
+        <span className="text-xs font-bold text-bandera-azul shrink-0">Ver</span>
+      </button>
+    </li>
+  )
+}
+
+function PersonasHospitalModal({
+  hospital,
+  personas,
+  cargando,
+  criterio,
+  onCerrar,
+  onVerPersona,
+}: {
+  hospital: CentroAcopio
+  personas: Desaparecido[]
+  cargando: boolean
+  criterio: 'ubicacion' | 'cercania' | null
+  onCerrar: () => void
+  onVerPersona: (persona: Desaparecido) => void
+}) {
+  const [busqueda, setBusqueda] = useState('')
+  const termino = busqueda.trim().toLowerCase()
+  const personasFiltradas = termino
+    ? personas.filter((persona) =>
+        persona.nombre.toLowerCase().includes(termino),
+      )
+    : personas
+
+  return (
+    <div
+      className="fixed inset-0 z-[3000] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="personas-hospital-titulo"
+      onClick={onCerrar}
+    >
+      <div
+        className="w-full max-w-lg max-h-[86vh] bg-white rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
+          <div className="min-w-0 flex-1">
+            <h2
+              id="personas-hospital-titulo"
+              className="font-bold text-gray-900 leading-tight"
+            >
+              Personas en este hospital
+            </h2>
+            <p className="text-sm font-semibold text-bandera-rojo truncate">
+              {hospital.nombre}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {[hospital.ciudad, hospital.estado, hospital.pais]
+                .filter(Boolean)
+                .join(', ')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCerrar}
+            className="h-9 w-9 rounded-full grid place-items-center text-gray-500 hover:bg-gray-100 hover:text-gray-800 text-xl leading-none"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+          <p className="text-xs text-gray-600">
+            {criterio === 'ubicacion'
+              ? 'Coincidencias por ubicación registrada.'
+              : criterio === 'cercania'
+                ? 'Coincidencias por cercanía al marcador del hospital.'
+                : 'Se buscan coincidencias en el registro de desaparecidos.'}
+          </p>
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar persona por nombre..."
+            className="mt-2 w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-sm"
+            autoFocus
+          />
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto">
+          {cargando ? (
+            <p className="text-sm text-gray-500 p-6 text-center">
+              Buscando personas asociadas...
+            </p>
+          ) : personas.length === 0 ? (
+            <p className="text-sm text-gray-500 p-6 text-center">
+              No hay personas asociadas a este hospital con los datos actuales.
+            </p>
+          ) : personasFiltradas.length === 0 ? (
+            <p className="text-sm text-gray-500 p-6 text-center">
+              No hay personas que coincidan con "{busqueda.trim()}".
+            </p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {personasFiltradas.map((persona) => (
+                <PersonaHospitalItem
+                  key={persona.id}
+                  persona={persona}
+                  onVer={onVerPersona}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function CiudadanoView() {
   const { perfil, session, rol } = useAuth()
@@ -136,6 +309,15 @@ export default function CiudadanoView() {
   // al tocar a una persona se vuela el mapa hasta su punto.
   const [resultadosDesap, setResultadosDesap] = useState<Desaparecido[]>([])
   const [listaDesapVisible, setListaDesapVisible] = useState(false)
+  const [hospitalSeleccionado, setHospitalSeleccionado] =
+    useState<CentroAcopio | null>(null)
+  const [modalPersonasHospitalAbierto, setModalPersonasHospitalAbierto] =
+    useState(false)
+  const [personasHospital, setPersonasHospital] = useState<Desaparecido[]>([])
+  const [cargandoPersonasHospital, setCargandoPersonasHospital] = useState(false)
+  const [criterioPersonasHospital, setCriterioPersonasHospital] = useState<
+    'ubicacion' | 'cercania' | null
+  >(null)
   const [irACoordenada, setIrACoordenada] = useState<[number, number] | null>(
     null,
   )
@@ -160,6 +342,15 @@ export default function CiudadanoView() {
       /* ignorar */
     }
   }, [chatAbierto])
+
+  useEffect(() => {
+    if (!modalPersonasHospitalAbierto) return
+    const cerrarConEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModalPersonasHospitalAbierto(false)
+    }
+    window.addEventListener('keydown', cerrarConEscape)
+    return () => window.removeEventListener('keydown', cerrarConEscape)
+  }, [modalPersonasHospitalAbierto])
 
   // Contactar a quien reportó: si hay sesión abre el chat; si no, va al login.
   function contactar(n: Necesidad) {
@@ -251,7 +442,7 @@ export default function CiudadanoView() {
   //  · 'hospital' → solo hospitales
   //  · necesidad  → ninguno (se muestra solo esa necesidad)
   const acopiosVisibles = useMemo(() => {
-    const esHosp = (a: (typeof acopios)[number]) =>
+    const esHosp = (a: CentroAcopio) =>
       (a.descripcion ?? '').toLowerCase().includes('hospital')
     if (tipoFiltro === 'todos') return acopios
     if (tipoFiltro === 'acopio') return acopios.filter((a) => !esHosp(a))
@@ -259,6 +450,61 @@ export default function CiudadanoView() {
     return []
   }, [acopios, tipoFiltro])
   const hayFiltro = tipoFiltro !== 'todos' || urgFiltro !== 'todas'
+
+  useEffect(() => {
+    if (!modalPersonasHospitalAbierto || !hospitalSeleccionado) {
+      setPersonasHospital([])
+      setCargandoPersonasHospital(false)
+      setCriterioPersonasHospital(null)
+      return
+    }
+
+    let cancel = false
+    const hospital = hospitalSeleccionado
+    const termino = textoBusquedaHospital(hospital)
+
+    async function cargarPersonasHospital() {
+      setCargandoPersonasHospital(true)
+      setCriterioPersonasHospital(null)
+
+      let personas: Desaparecido[] = []
+      let criterio: 'ubicacion' | 'cercania' | null = null
+      if (termino.length >= 3) {
+        const { data } = await supabase
+          .from('desaparecidos')
+          .select(COLS_DESAP_HOSPITAL)
+          .ilike('ultima_ubicacion', `%${termino}%`)
+          .limit(80)
+        personas = (data ?? []) as Desaparecido[]
+        if (personas.length > 0) criterio = 'ubicacion'
+      }
+
+      if (personas.length === 0) {
+        const margen = 0.015
+        const { data } = await supabase
+          .from('desaparecidos')
+          .select(COLS_DESAP_HOSPITAL)
+          .gte('lat', hospital.lat - margen)
+          .lte('lat', hospital.lat + margen)
+          .gte('lng', hospital.lng - margen)
+          .lte('lng', hospital.lng + margen)
+          .limit(80)
+        personas = (data ?? []) as Desaparecido[]
+        if (personas.length > 0) criterio = 'cercania'
+      }
+
+      if (!cancel) {
+        setPersonasHospital(personas)
+        setCriterioPersonasHospital(criterio)
+        setCargandoPersonasHospital(false)
+      }
+    }
+
+    void cargarPersonasHospital()
+    return () => {
+      cancel = true
+    }
+  }, [hospitalSeleccionado, modalPersonasHospitalAbierto])
 
   return (
     <div className="relative h-full w-full md:flex">
@@ -294,6 +540,11 @@ export default function CiudadanoView() {
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
             irACoordenada={irACoordenada}
+            onHospitalSeleccionado={(hospital) => {
+              setTipoFiltro('hospital')
+              setHospitalSeleccionado(hospital)
+              setModalPersonasHospitalAbierto(true)
+            }}
           />
           {/* (desaparecidos se cargan por zona dentro del mapa) */}
         </div>
@@ -517,6 +768,20 @@ export default function CiudadanoView() {
           </div>
         </div>
       </div>
+
+      {modalPersonasHospitalAbierto && hospitalSeleccionado && (
+        <PersonasHospitalModal
+          hospital={hospitalSeleccionado}
+          personas={personasHospital}
+          cargando={cargandoPersonasHospital}
+          criterio={criterioPersonasHospital}
+          onCerrar={() => setModalPersonasHospitalAbierto(false)}
+          onVerPersona={(persona) => {
+            irAPersona(persona)
+            setModalPersonasHospitalAbierto(false)
+          }}
+        />
+      )}
 
       {abrirReporte && (
         <ReportarModal

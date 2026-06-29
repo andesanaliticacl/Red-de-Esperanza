@@ -283,6 +283,7 @@ export default function MapaNecesidades({
   verDesaparecidos = false,
   busquedaDesap = '',
   irACoordenada = null,
+  onHospitalSeleccionado,
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
@@ -295,6 +296,8 @@ export default function MapaNecesidades({
   /** Si se pasa, el mapa vuela a esta coordenada (al tocar a una persona del
    *  listado de búsqueda de desaparecidos). */
   irACoordenada?: [number, number] | null
+  /** Permite abrir un panel con personas asociadas a un hospital. */
+  onHospitalSeleccionado?: (hospital: CentroAcopio) => void
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
   onMensaje?: (n: Necesidad) => void
   /**
@@ -621,6 +624,14 @@ export default function MapaNecesidades({
             >
               <IconoRuta className="mr-1" /> Cómo llegar
             </a>
+            {esHospital && onHospitalSeleccionado && (
+              <button
+                onClick={() => onHospitalSeleccionado(a)}
+                className="inline-flex items-center mt-1 ml-1 bg-bandera-rojo !text-white font-semibold px-3 py-1.5 rounded-lg"
+              >
+                Ver personas en este hospital
+              </button>
+            )}
             {/* La fuente solo se muestra en los importados por scraping
                 (tienen id_fuente); los creados en la app no la llevan. */}
             {a.id_fuente && (
