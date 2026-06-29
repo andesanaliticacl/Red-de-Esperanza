@@ -70,6 +70,10 @@ export function iconoNecesidad(
           ? 18
           : 26) * escalaEmoji,
   )
+  // En móvil quitamos la SOMBRA del pin: es de lo más caro de repintar al mover
+  // el mapa. Sin ella el teléfono dibuja cada marcador mucho más rápido (mismo
+  // color, forma y emoji). En escritorio se mantiene la sombra.
+  const sombra = compacto ? '' : 'box-shadow:0 2px 6px rgba(0,0,0,.4);'
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe
@@ -100,7 +104,7 @@ export function iconoNecesidad(
           width:${tam}px;height:${tam}px;border-radius:50% 50% 50% 0;
           transform:rotate(-45deg);
           border:${borde};
-          box-shadow:0 2px 6px rgba(0,0,0,.4);
+          ${sombra}
           opacity:${opacidad};
           display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
@@ -118,8 +122,9 @@ export function iconoNecesidad(
 // Caja de centro de acopio (gota verde con 📦). El tamaño cambia según el país:
 // los de DENTRO de Venezuela se ven más grandes (son los relevantes para la
 // emergencia); los de FUERA (donaciones desde la diáspora) van más pequeños.
-function iconoCaja(tam: number): L.DivIcon {
+function iconoCaja(tam: number, sinSombra = false): L.DivIcon {
   const fuente = Math.round(tam * 0.46)
+  const sombra = sinSombra ? '' : 'box-shadow:0 2px 6px rgba(0,0,0,.4);'
   return L.divIcon({
     className: 'marcador-necesidad',
     html: `
@@ -127,7 +132,7 @@ function iconoCaja(tam: number): L.DivIcon {
         <div style="
           background:#16A34A;width:${tam}px;height:${tam}px;
           border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-          border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);
+          border:3px solid #fff;${sombra}
           display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">📦</span>
         </div>
@@ -139,13 +144,14 @@ function iconoCaja(tam: number): L.DivIcon {
 }
 
 export const iconoAcopio: L.DivIcon = iconoCaja(36) // dentro de Venezuela
-export const iconoAcopioCompacto: L.DivIcon = iconoCaja(30) // móvil (un poco menor)
+export const iconoAcopioCompacto: L.DivIcon = iconoCaja(30, true) // móvil (menor, sin sombra)
 export const iconoAcopioFuera: L.DivIcon = iconoCaja(TAM_FUERA) // fuera (pequeño)
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
 // del centro de acopio (caja verde).
-function iconoCruz(tam: number): L.DivIcon {
+function iconoCruz(tam: number, sinSombra = false): L.DivIcon {
   const svg = Math.round(tam * 0.47)
+  const sombra = sinSombra ? '' : 'box-shadow:0 2px 5px rgba(0,0,0,0.4);'
   return L.divIcon({
     className: '',
     html: `
@@ -153,7 +159,7 @@ function iconoCruz(tam: number): L.DivIcon {
         width:${tam}px; height:${tam}px; border-radius:50% 50% 50% 0;
         transform: rotate(-45deg);
         background:#CC0001; border:2px solid white;
-        box-shadow:0 2px 5px rgba(0,0,0,0.4);
+        ${sombra}
         display:flex; align-items:center; justify-content:center;">
         <svg width="${svg}" height="${svg}" viewBox="0 0 24 24" style="transform: rotate(45deg);">
           <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" fill="white"/>
@@ -166,7 +172,7 @@ function iconoCruz(tam: number): L.DivIcon {
 }
 
 export const iconoHospital: L.DivIcon = iconoCruz(36) // dentro de Venezuela
-export const iconoHospitalCompacto: L.DivIcon = iconoCruz(30) // móvil (un poco menor)
+export const iconoHospitalCompacto: L.DivIcon = iconoCruz(30, true) // móvil (menor, sin sombra)
 export const iconoHospitalFuera: L.DivIcon = iconoCruz(TAM_FUERA) // fuera (pequeño)
 
 /**
