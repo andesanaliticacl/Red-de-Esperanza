@@ -24,6 +24,8 @@ export default function AdminView() {
   ])
   const [perfiles, setPerfiles] = useState<Perfil[]>([])
   const [visitas, setVisitas] = useState<{ pais: string | null }[]>([])
+  // Filtro de usuarios por nombre, correo o teléfono.
+  const [busqUsuario, setBusqUsuario] = useState('')
 
   async function cargarPerfiles() {
     const { data, error } = await supabase
@@ -53,6 +55,17 @@ export default function AdminView() {
     }
     return [...m.entries()].sort((a, b) => b[1] - a[1])
   }, [visitas])
+
+  // Usuarios filtrados por nombre / correo / teléfono.
+  const perfilesFiltrados = useMemo(() => {
+    const q = busqUsuario.trim().toLowerCase()
+    if (!q) return perfiles
+    return perfiles.filter((p) =>
+      [p.nombre, p.email, p.telefono]
+        .filter(Boolean)
+        .some((campo) => (campo as string).toLowerCase().includes(q)),
+    )
+  }, [perfiles, busqUsuario])
 
   const stats = useMemo(() => {
     const c = (estado: string) =>
@@ -126,7 +139,19 @@ export default function AdminView() {
 
       {/* Gestión de usuarios */}
       <section>
-        <h2 className="font-bold text-lg mb-2">Usuarios y roles</h2>
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+          <h2 className="font-bold text-lg">Usuarios y roles</h2>
+          <span className="text-sm text-gray-400">
+            {perfilesFiltrados.length} de {perfiles.length}
+          </span>
+        </div>
+        <input
+          type="search"
+          value={busqUsuario}
+          onChange={(e) => setBusqUsuario(e.target.value)}
+          placeholder="🔎 Buscar por nombre, correo o teléfono…"
+          className="input mb-2"
+        />
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-left">
             <thead className="bg-gray-50 text-sm text-gray-500">
@@ -136,10 +161,18 @@ export default function AdminView() {
               </tr>
             </thead>
             <tbody>
-              {perfiles.map((p) => (
+              {perfilesFiltrados.map((p) => (
                 <tr key={p.id} className="border-t">
                   <td className="p-3">
                     <div className="font-medium">{p.nombre ?? '(sin nombre)'}</div>
+                    {p.email && (
+                      <div className="text-xs text-gray-500 break-all">
+                        ✉️ {p.email}
+                      </div>
+                    )}
+                    {p.telefono && (
+                      <div className="text-xs text-gray-500">📞 {p.telefono}</div>
+                    )}
                     {p.zona && (
                       <div className="text-xs text-gray-500">📍 {p.zona}</div>
                     )}

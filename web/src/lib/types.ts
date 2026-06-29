@@ -137,6 +137,7 @@ export interface CentroAcopio {
 export interface Perfil {
   id: string
   nombre: string | null
+  email: string | null
   rol: RolUsuario
   tipo_documento: TipoDocumento | null
   documento: string | null

@@ -13,7 +13,7 @@ import {
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
-import { CODIGOS_PAIS, armarTelefono, digitosLocales } from '../lib/codigosPais'
+import EntradaTelefono from './EntradaTelefono'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
 // propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
@@ -58,9 +58,8 @@ export default function ReportarModal({
   const [zona, setZona] = useState('') // dirección / referencia del lugar
   const [tamZonaKm, setTamZonaKm] = useState(3) // diámetro aprox. de la zona
   // Teléfono OBLIGATORIO con código de país (para que el botón de WhatsApp
-  // abra el chat). Por defecto Venezuela (+58), el país de la emergencia.
-  const [codigoPais, setCodigoPais] = useState('58')
-  const [numeroTel, setNumeroTel] = useState('')
+  // abra el chat). Se guarda completo, p. ej. "+58 4121234567".
+  const [contacto, setContacto] = useState('')
   // Punto fijado (el pin). coordAuto = ubicación detectada del usuario, que se
   // usa como punto por defecto en las necesidades comunes (no en derrumbe/zona,
   // que están donde está el edificio/zona, no donde está quien reporta).
@@ -151,12 +150,11 @@ export default function ReportarModal({
     setErrorMsg('')
     try {
       // El teléfono es OBLIGATORIO: sin él, nadie puede contactar a la persona.
-      if (digitosLocales(numeroTel) < 7) {
+      if (contacto.replace(/\D/g, '').length < 8) {
         throw new Error(
           'Escribe un número de teléfono válido (con su código de país) para que puedan contactarte.',
         )
       }
-      const contacto = armarTelefono(codigoPais, numeroTel)
 
       let lat = coord?.lat ?? null
       let lng = coord?.lng ?? null
@@ -284,32 +282,7 @@ export default function ReportarModal({
         y escribe tu número. Es <strong>privado</strong>: solo lo ve quien te
         ayuda, nunca aparece en el mapa público.
       </p>
-      <div className="flex gap-2">
-        <select
-          className="input w-auto"
-          value={codigoPais}
-          onChange={(e) => setCodigoPais(e.target.value)}
-          aria-label="Código de país"
-        >
-          {CODIGOS_PAIS.map((p) => (
-            <option key={p.cc} value={p.cc}>
-              {p.bandera} {p.nombre} +{p.cc}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input flex-1"
-          placeholder="Tu número (ej. 4122016429)"
-          inputMode="tel"
-          value={numeroTel}
-          onChange={(e) => setNumeroTel(e.target.value)}
-        />
-      </div>
-      {digitosLocales(numeroTel) >= 7 && (
-        <p className="text-xs text-green-700 mt-1.5">
-          ✅ Se guardará como: {armarTelefono(codigoPais, numeroTel)}
-        </p>
-      )}
+      <EntradaTelefono valor={contacto} onChange={setContacto} requerido />
     </div>
   )
 

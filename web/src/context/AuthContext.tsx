@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const completo = {
       id: user.id,
       nombre,
+      email: user.email || null,
       rol,
       tipo_documento: m.tipo_documento || null,
       documento: m.documento || null,
