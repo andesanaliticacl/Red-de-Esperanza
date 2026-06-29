@@ -240,6 +240,7 @@ export default function CiudadanoView() {
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
             onAsignarme={puedeAtender ? asignarme : undefined}
+            puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}

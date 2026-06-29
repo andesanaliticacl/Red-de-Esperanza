@@ -56,6 +56,25 @@ export default function VoluntarioView() {
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [aRetirar, setARetirar] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
+  // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
+  // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
+  const [contactos, setContactos] = useState<Map<string, string>>(new Map())
+  useEffect(() => {
+    supabase
+      .from('contactos_necesidad')
+      .select('necesidad_id, contacto')
+      .then(({ data }) => {
+        if (!data) return
+        setContactos(
+          new Map(
+            (data as { necesidad_id: string; contacto: string }[]).map((c) => [
+              c.necesidad_id,
+              c.contacto,
+            ]),
+          ),
+        )
+      })
+  }, [necesidades])
   const [verAviso, setVerAviso] = useState(() => {
     try {
       return localStorage.getItem('esperanza.avisoSeguridad') !== '1'
@@ -284,6 +303,7 @@ export default function VoluntarioView() {
             }
             void asignarme(n)
           }}
+          puedeVerContacto
           ajustarVista
         />
       </div>
@@ -299,6 +319,7 @@ export default function VoluntarioView() {
               <Fila
                 key={n.id}
                 n={n}
+                contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion="atender"
                 onAccion={() => atender(n)}
@@ -321,6 +342,7 @@ export default function VoluntarioView() {
               <Fila
                 key={n.id}
                 n={n}
+                contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion={null}
                 atendidaPor={quienAtiende(n)}
@@ -346,6 +368,7 @@ export default function VoluntarioView() {
               <Fila
                 key={n.id}
                 n={n}
+                contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion="asignar"
                 onAccion={() => asignarme(n)}
@@ -382,6 +405,7 @@ export default function VoluntarioView() {
 
 function Fila({
   n,
+  contacto,
   trabajando,
   accion,
   onAccion,
@@ -390,6 +414,7 @@ function Fila({
   atendidaPor,
 }: {
   n: Necesidad
+  contacto?: string | null
   trabajando: boolean
   accion: 'asignar' | 'atender' | null
   onAccion?: () => void
@@ -420,6 +445,28 @@ function Fila({
         {atendidaPor && (
           <div className="text-xs font-semibold text-bandera-azul mt-0.5">
             🤝 Atiende: {atendidaPor}
+          </div>
+        )}
+        {/* Teléfono de quien reportó: para que el personal pueda comunicarse. */}
+        {contacto && (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-bold text-bandera-azul break-all">
+              📞 {contacto}
+            </span>
+            <a
+              href={`tel:${contacto.replace(/[^\d+]/g, '')}`}
+              className="text-xs bg-bandera-azul !text-white font-semibold px-2 py-0.5 rounded-lg no-underline"
+            >
+              Llamar
+            </a>
+            <a
+              href={`https://wa.me/${contacto.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs bg-green-600 !text-white font-semibold px-2 py-0.5 rounded-lg no-underline"
+            >
+              WhatsApp
+            </a>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
+import { supabase } from '../lib/supabase'
 import {
   MapContainer,
   TileLayer,
@@ -284,6 +285,7 @@ export default function MapaNecesidades({
   miFoto,
   onMensaje,
   onAsignarme,
+  puedeVerContacto = false,
   resaltadaId,
   ajustarVista = false,
   verDesaparecidos = false,
@@ -305,6 +307,13 @@ export default function MapaNecesidades({
    * (esto avisa a quien la creó que alguien ya va en camino).
    */
   onAsignarme?: (n: Necesidad) => void
+  /**
+   * Si es true (personal que atiende: voluntario/rescatista/admin), el popup de
+   * cada necesidad muestra el TELÉFONO de quien la reportó, para poder llamarlo
+   * o escribirle por WhatsApp. El contacto vive en la tabla privada
+   * `contactos_necesidad` (la RLS solo deja leerlo al personal interno).
+   */
+  puedeVerContacto?: boolean
   /** Id de una necesidad a resaltar (icono grande con halo) y centrar. */
   resaltadaId?: string
   /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
@@ -337,6 +346,20 @@ export default function MapaNecesidades({
   // Antes se montaban a la vez los popups de TODOS los marcadores (cientos de
   // subárboles de React con botones/imágenes), lo que ralentizaba la entrada.
   const [abierto, setAbierto] = useState<string | null>(null)
+
+  // Teléfono de quien reportó cada necesidad (solo para el personal que atiende).
+  // Se carga al abrir el popup. undefined = aún no consultado; null = no dejó
+  // teléfono; string = el contacto. Así el rescatista puede llamar/escribir.
+  const [contactos, setContactos] = useState<Record<string, string | null>>({})
+  async function cargarContacto(id: string) {
+    if (!puedeVerContacto || id in contactos) return
+    const { data } = await supabase
+      .from('contactos_necesidad')
+      .select('contacto')
+      .eq('necesidad_id', id)
+      .maybeSingle()
+    setContactos((c) => ({ ...c, [id]: data?.contacto ?? null }))
+  }
 
   // ¿Estamos en un teléfono? En móvil: íconos un poco más pequeños y, sobre
   // todo, AGRUPAMOS necesidades y acopios en burbujas con número (clustering)
@@ -462,7 +485,10 @@ export default function MapaNecesidades({
             pane="primerPlano"
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}
             eventHandlers={{
-              popupopen: () => setAbierto(n.id),
+              popupopen: () => {
+                setAbierto(n.id)
+                void cargarContacto(n.id)
+              },
               popupclose: () => setAbierto((p) => (p === n.id ? null : p)),
             }}
           >
@@ -485,6 +511,44 @@ export default function MapaNecesidades({
                 {(n.estado === 'en_proceso' || n.estado === 'resuelta') && (
                   <div className="text-xs font-semibold">
                     {n.estado === 'en_proceso' ? '🔵 En proceso' : '✅ Resuelta'}
+                  </div>
+                )}
+                {/* Teléfono de quien reportó: solo para el personal que atiende
+                    (voluntario/rescatista/admin), para poder comunicarse. */}
+                {puedeVerContacto && (
+                  <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-2 py-1.5">
+                    {contactos[n.id] === undefined ? (
+                      <span className="text-gray-500">📞 Cargando teléfono…</span>
+                    ) : contactos[n.id] ? (
+                      <div>
+                        <div className="font-semibold text-bandera-azul">
+                          📞 Contacto de quien reportó:
+                        </div>
+                        <div className="font-bold text-sm break-all">
+                          {contactos[n.id]}
+                        </div>
+                        <div className="flex gap-1.5 mt-1">
+                          <a
+                            href={`tel:${(contactos[n.id] as string).replace(/[^\d+]/g, '')}`}
+                            className="inline-flex items-center bg-bandera-azul !text-white font-semibold px-2.5 py-1 rounded-lg no-underline"
+                          >
+                            📞 Llamar
+                          </a>
+                          <a
+                            href={`https://wa.me/${(contactos[n.id] as string).replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center bg-green-600 !text-white font-semibold px-2.5 py-1 rounded-lg no-underline"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">
+                        📞 No dejó teléfono de contacto
+                      </span>
+                    )}
                   </div>
                 )}
                 <div className="flex flex-wrap gap-1.5 mt-1">
