@@ -293,7 +293,7 @@ export default function ReportarModal({
         >
           {CODIGOS_PAIS.map((p) => (
             <option key={p.cc} value={p.cc}>
-              {p.bandera} +{p.cc}
+              {p.bandera} {p.nombre} +{p.cc}
             </option>
           ))}
         </select>

@@ -107,21 +107,6 @@ function RastreadorVista({
   return null
 }
 
-/** Ajusta el mapa a los resultados de la búsqueda de desaparecidos. */
-function AjustarABusqueda({ puntos }: { puntos: [number, number][] }) {
-  const map = useMap()
-  const clave = puntos.map((p) => p.join(',')).join('|')
-  useEffect(() => {
-    if (puntos.length === 0) return
-    if (puntos.length === 1) {
-      map.flyTo(puntos[0], 13, { duration: 0.6 })
-      return
-    }
-    map.fitBounds(L.latLngBounds(puntos), { padding: [60, 60], maxZoom: 13 })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave])
-  return null
-}
 import {
   CENTRO_VENEZUELA,
   ZOOM_INICIAL,
@@ -294,6 +279,7 @@ export default function MapaNecesidades({
   ajustarVista = false,
   verDesaparecidos = false,
   busquedaDesap = '',
+  irACoordenada = null,
 }: {
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
@@ -303,6 +289,9 @@ export default function MapaNecesidades({
   verDesaparecidos?: boolean
   /** Texto de búsqueda por nombre de desaparecido. */
   busquedaDesap?: string
+  /** Si se pasa, el mapa vuela a esta coordenada (al tocar a una persona del
+   *  listado de búsqueda de desaparecidos). */
+  irACoordenada?: [number, number] | null
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
   onMensaje?: (n: Necesidad) => void
   /**
@@ -419,14 +408,6 @@ export default function MapaNecesidades({
       ),
     [desapVisibles],
   )
-  const q = busquedaDesap.trim().toLowerCase()
-  // Si hay búsqueda activa, ajustamos el mapa a los resultados.
-  const puntosBusqueda: [number, number][] =
-    verDesap && q
-      ? desapVisibles
-          .filter((d) => d.lat != null && d.lng != null)
-          .map((d) => posDesap.get(d.id) ?? [d.lat as number, d.lng as number])
-      : []
 
   return (
     <MapContainer
@@ -654,7 +635,9 @@ export default function MapaNecesidades({
       {/* Desaparecidos: solo si la capa está activada. Se cargan por zona
           visible y se agrupan en clusters (burbujas con número). */}
       <RastreadorZona activo={verDesap} onZona={setZona} />
-      {verDesap && <AjustarABusqueda puntos={puntosBusqueda} />}
+      {/* Ya no volamos automáticamente a TODOS los resultados de la búsqueda:
+          ahora se muestra un listado y solo volamos al tocar a una persona. */}
+      <CentrarEn posicion={irACoordenada} />
       {verDesap && (
       <MarkerClusterGroup
         chunkedLoading

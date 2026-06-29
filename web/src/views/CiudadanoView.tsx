@@ -10,6 +10,7 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
+import type { Desaparecido } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -127,6 +128,13 @@ export default function CiudadanoView() {
   // la activa con el botón 🔍 Desaparecidos. null = aún no ha tocado (oculta).
   const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
   const [busqDesap, setBusqDesap] = useState('')
+  // Resultados de la búsqueda de desaparecidos: se muestran como LISTA y solo
+  // al tocar a una persona se vuela el mapa hasta su punto.
+  const [resultadosDesap, setResultadosDesap] = useState<Desaparecido[]>([])
+  const [listaDesapVisible, setListaDesapVisible] = useState(false)
+  const [irACoordenada, setIrACoordenada] = useState<[number, number] | null>(
+    null,
+  )
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
   const [chatNec, setChatNec] = useState<Necesidad | null>(null)
@@ -153,6 +161,43 @@ export default function CiudadanoView() {
   function contactar(n: Necesidad) {
     if (session) setChatNec(n)
     else navigate('/login')
+  }
+
+  // Búsqueda de desaparecidos por nombre → LISTA (con debounce). Solo al tocar a
+  // una persona se vuela el mapa hasta su punto.
+  useEffect(() => {
+    const term = busqDesap.trim()
+    if (term.length < 2) {
+      setResultadosDesap([])
+      return
+    }
+    let cancel = false
+    const t = window.setTimeout(async () => {
+      const { data } = await supabase
+        .from('desaparecidos')
+        .select(
+          'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en',
+        )
+        .ilike('nombre', `%${term}%`)
+        .not('lat', 'is', null)
+        .limit(50)
+      if (!cancel) {
+        setResultadosDesap((data ?? []) as Desaparecido[])
+        setListaDesapVisible(true)
+      }
+    }, 300)
+    return () => {
+      cancel = true
+      window.clearTimeout(t)
+    }
+  }, [busqDesap])
+
+  // Tocar a una persona del listado: vuela el mapa a su punto y cierra la lista.
+  function irAPersona(d: Desaparecido) {
+    if (d.lat != null && d.lng != null) {
+      setIrACoordenada([d.lat, d.lng])
+      setListaDesapVisible(false)
+    }
   }
   // El tutorial se muestra automáticamente la primera vez que se abre la app.
   const [abrirTutorial, setAbrirTutorial] = useState(false)
@@ -244,6 +289,7 @@ export default function CiudadanoView() {
             resaltadaId={resaltadaId}
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
+            irACoordenada={irACoordenada}
           />
           {/* (desaparecidos se cargan por zona dentro del mapa) */}
         </div>
@@ -383,10 +429,68 @@ export default function CiudadanoView() {
               <input
                 type="search"
                 value={busqDesap}
-                onChange={(e) => setBusqDesap(e.target.value)}
+                onChange={(e) => {
+                  setBusqDesap(e.target.value)
+                  setListaDesapVisible(true)
+                }}
                 placeholder="Buscar desaparecido por nombre…"
                 className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm"
               />
+              {/* Listado de coincidencias: se elige una persona ANTES de ir al
+                  mapa. Al tocarla, el mapa vuela hasta su punto. */}
+              {listaDesapVisible && busqDesap.trim().length >= 2 && (
+                <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-gray-100">
+                  {resultadosDesap.length === 0 ? (
+                    <p className="text-xs text-gray-500 p-3 text-center">
+                      Sin coincidencias por ese nombre.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100">
+                      {resultadosDesap.map((d) => (
+                        <li key={d.id}>
+                          <button
+                            onClick={() => irAPersona(d)}
+                            className="w-full flex items-center gap-2 p-2 text-left hover:bg-gray-50"
+                          >
+                            {d.foto_url ? (
+                              <img
+                                src={d.foto_url}
+                                alt={d.nombre}
+                                loading="lazy"
+                                className="h-10 w-10 rounded-full object-cover border border-gray-200 shrink-0"
+                                onError={(e) => {
+                                  ;(e.currentTarget as HTMLImageElement).style.display =
+                                    'none'
+                                }}
+                              />
+                            ) : (
+                              <span className="h-10 w-10 rounded-full bg-gray-100 grid place-items-center shrink-0">
+                                {d.estado === 'encontrado' ? '✅' : '🔍'}
+                              </span>
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-gray-800 truncate">
+                                {d.nombre}
+                              </span>
+                              <span className="block text-xs text-gray-500 truncate">
+                                {[
+                                  d.edad ? `${d.edad} años` : null,
+                                  d.ultima_ubicacion,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ') || 'Ver en el mapa'}
+                              </span>
+                            </span>
+                            <span className="text-bandera-azul text-sm shrink-0">
+                              📍
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
