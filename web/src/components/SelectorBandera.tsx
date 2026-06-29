@@ -33,6 +33,7 @@ export default function SelectorBandera({
   const [abierto, setAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{
     left: number
     width: number
@@ -63,15 +64,22 @@ export default function SelectorBandera({
     if (abierto) calcularPos()
   }, [abierto])
 
-  // Cerrar (y recalcular) si la pantalla se mueve mientras está abierto.
+  // Cerrar si la pantalla se mueve detrás del menú (el panel es fijo y se
+  // "despegaría" del botón). PERO no cuando el scroll ocurre DENTRO de la lista:
+  // ahí dejamos desplazar para elegir país.
   useEffect(() => {
     if (!abierto) return
-    const cerrar = () => setAbierto(false)
-    window.addEventListener('scroll', cerrar, true)
-    window.addEventListener('resize', cerrar)
+    const alScroll = (e: Event) => {
+      const t = e.target as Node | null
+      if (panelRef.current && t && panelRef.current.contains(t)) return
+      setAbierto(false)
+    }
+    const alResize = () => setAbierto(false)
+    window.addEventListener('scroll', alScroll, true)
+    window.addEventListener('resize', alResize)
     return () => {
-      window.removeEventListener('scroll', cerrar, true)
-      window.removeEventListener('resize', cerrar)
+      window.removeEventListener('scroll', alScroll, true)
+      window.removeEventListener('resize', alResize)
     }
   }, [abierto])
 
@@ -115,6 +123,7 @@ export default function SelectorBandera({
             onClick={() => setAbierto(false)}
           />
           <div
+            ref={panelRef}
             className="fixed z-[2500] bg-white border rounded-xl shadow-xl flex flex-col overflow-hidden"
             style={{
               left: pos.left,
