@@ -146,7 +146,9 @@ import {
 function separarSolapados(
   items: { id: string; lat: number; lng: number }[],
 ): Map<string, [number, number]> {
-  const RADIO = 0.00012 // ≈ 13 m: suficiente para distinguirlos sin "mentir"
+  // Radio base de separación (~31 m). Si hay muchos en el mismo punto, el
+  // círculo crece para que NO se peguen y se pueda tocar cada uno.
+  const RADIO = 0.00028
   const grupos = new Map<string, { id: string; lat: number; lng: number }[]>()
   for (const it of items) {
     // Redondeamos a ~5 decimales (≈ 1 m) para agrupar los que coinciden.
@@ -163,14 +165,16 @@ function separarSolapados(
       posiciones.set(it.id, [it.lat, it.lng])
       continue
     }
-    // Varios en el mismo punto → los repartimos en círculo.
+    // Varios en el mismo punto → los repartimos en círculo. El radio crece con
+    // la cantidad para que, aunque sean muchos, quede aire entre cada pin.
     const n = grupo.length
+    const radio = RADIO * Math.max(1, Math.sqrt(n) / 1.3)
     grupo.forEach((it, i) => {
       const angulo = (2 * Math.PI * i) / n
       // Corregimos la longitud por la latitud para que el círculo se vea redondo.
       const cosLat = Math.cos((it.lat * Math.PI) / 180) || 1
-      const lat = it.lat + RADIO * Math.cos(angulo)
-      const lng = it.lng + (RADIO * Math.sin(angulo)) / cosLat
+      const lat = it.lat + radio * Math.cos(angulo)
+      const lng = it.lng + (radio * Math.sin(angulo)) / cosLat
       posiciones.set(it.id, [lat, lng])
     })
   }
