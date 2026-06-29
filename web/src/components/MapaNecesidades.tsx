@@ -613,6 +613,40 @@ export default function MapaNecesidades({
               {[a.ciudad, a.pais].filter(Boolean).join(', ')}
             </div>
             {a.descripcion && <div className="text-sm">{a.descripcion}</div>}
+            {/* Contacto: solo si el centro tiene un número cargado. Permite
+                llamar o escribir por WhatsApp directamente. */}
+            {a.contacto && a.contacto.replace(/\D/g, '').length >= 8 && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                <a
+                  href={`tel:${a.contacto.replace(/[^\d+]/g, '')}`}
+                  className="inline-flex items-center bg-green-600 !text-white font-semibold px-3 py-1.5 rounded-lg no-underline text-sm"
+                >
+                  📞 Llamar
+                </a>
+                <a
+                  href={`https://wa.me/${a.contacto.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center bg-emerald-500 !text-white font-semibold px-3 py-1.5 rounded-lg no-underline text-sm"
+                >
+                  💬 WhatsApp
+                </a>
+              </div>
+            )}
+            {a.red_social && (
+              <a
+                href={
+                  /^https?:\/\//.test(a.red_social)
+                    ? a.red_social
+                    : `https://${a.red_social}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs text-bandera-azul mt-1 break-all"
+              >
+                🔗 {a.red_social}
+              </a>
+            )}
             <a
               href={enlaceComoLlegar(a.lat, a.lng)}
               target="_blank"
