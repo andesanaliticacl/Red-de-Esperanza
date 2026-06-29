@@ -24,6 +24,7 @@ export type RolUsuario =
   | 'voluntario'
   | 'rescatista'
   | 'centro_acopio'
+  | 'acopio_admin'
   | 'verificador'
   | 'admin'
 
@@ -123,6 +124,8 @@ export interface CentroAcopio {
   ciudad: string | null
   direccion: string | null
   contacto: string | null
+  /** Red social o enlace del centro (Instagram, web…). Opcional. */
+  red_social: string | null
   lat: number
   lng: number
   creado_por: string | null
@@ -152,6 +155,7 @@ export const ROL_META: Record<RolUsuario, { etiqueta: string; emoji: string }> =
   voluntario: { etiqueta: 'Voluntario', emoji: '🤝' },
   rescatista: { etiqueta: 'Rescatista', emoji: '🚑' },
   centro_acopio: { etiqueta: 'Centro de acopio', emoji: '📦' },
+  acopio_admin: { etiqueta: 'Admin de centros de acopio', emoji: '🗂️' },
   verificador: { etiqueta: 'Verificador', emoji: '✅' },
   admin: { etiqueta: 'Administrador', emoji: '🛡️' },
 }

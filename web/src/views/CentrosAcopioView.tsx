@@ -47,11 +47,16 @@ import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 export default function CentrosAcopioView() {
   const { perfil, rol } = useAuth()
   const puedeRegistrar = rol === 'centro_acopio' || rol === 'admin'
+  // El admin y el "acopio_admin" pueden editar CUALQUIER centro (agregarle
+  // teléfono, red social, corregir dirección…), no solo el que crearon.
+  const puedeEditarTodo = rol === 'acopio_admin' || rol === 'admin'
 
   const [centros, setCentros] = useState<CentroAcopio[]>([])
   const [cargando, setCargando] = useState(true)
   const [yo, setYo] = useState<{ lat: number; lng: number } | null>(null)
   const [abrirForm, setAbrirForm] = useState(false)
+  // Centro que se está editando (null = ninguno).
+  const [editando, setEditando] = useState<CentroAcopio | null>(null)
 
   // Filtros
   const [fPais, setFPais] = useState('')
@@ -192,7 +197,20 @@ export default function CentrosAcopioView() {
         )}
       </div>
 
-      {abrirForm && puedeRegistrar && (
+      {/* Editar un centro existente (admin / acopio_admin / dueño). */}
+      {editando && (
+        <FormCentro
+          creadoPor={perfil?.id ?? null}
+          centro={editando}
+          onCancelar={() => setEditando(null)}
+          onCreado={() => {
+            setEditando(null)
+            cargar()
+          }}
+        />
+      )}
+
+      {abrirForm && puedeRegistrar && !editando && (
         <FormCentro
           creadoPor={perfil?.id ?? null}
           onCreado={() => {
@@ -325,7 +343,32 @@ export default function CentrosAcopioView() {
                       💬 Contactar
                     </a>
                   )}
-                  {(c.creado_por === perfil?.id || rol === 'admin') && (
+                  {c.red_social && (
+                    <a
+                      href={
+                        c.red_social.startsWith('http')
+                          ? c.red_social
+                          : `https://${c.red_social}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 px-3 text-sm whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-azul text-bandera-azul no-underline text-center"
+                    >
+                      🔗 Red social
+                    </a>
+                  )}
+                  {(puedeEditarTodo || c.creado_por === perfil?.id) && (
+                    <button
+                      onClick={() => {
+                        setEditando(c)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className="py-2 px-3 text-sm whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-azul text-bandera-azul"
+                    >
+                      ✏️ Editar
+                    </button>
+                  )}
+                  {(c.creado_por === perfil?.id || puedeEditarTodo) && (
                     <button
                       onClick={() => borrarCentro(c)}
                       className="py-2 px-3 text-sm whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-rojo text-bandera-rojo"
@@ -345,20 +388,30 @@ export default function CentrosAcopioView() {
 
 function FormCentro({
   creadoPor,
+  centro,
   onCreado,
+  onCancelar,
 }: {
   creadoPor: string | null
+  /** Si se pasa, el formulario EDITA ese centro en vez de crear uno nuevo. */
+  centro?: CentroAcopio
   onCreado: () => void
+  onCancelar?: () => void
 }) {
-  const [nombre, setNombre] = useState('')
-  const [pais, setPais] = useState('Venezuela')
-  const [region, setRegion] = useState('') // estado / región / provincia…
-  const [ciudad, setCiudad] = useState('')
-  const [ciudadOtra, setCiudadOtra] = useState(false) // escribir ciudad a mano
-  const [direccion, setDireccion] = useState('')
-  const [contacto, setContacto] = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
+  const editar = Boolean(centro)
+  const [nombre, setNombre] = useState(centro?.nombre ?? '')
+  const [pais, setPais] = useState(centro?.pais ?? 'Venezuela')
+  const [region, setRegion] = useState(centro?.estado ?? '') // estado / región…
+  const [ciudad, setCiudad] = useState(centro?.ciudad ?? '')
+  // Al editar dejamos escribir la ciudad libremente (ya viene rellena).
+  const [ciudadOtra, setCiudadOtra] = useState(Boolean(centro?.ciudad))
+  const [direccion, setDireccion] = useState(centro?.direccion ?? '')
+  const [contacto, setContacto] = useState(centro?.contacto ?? '')
+  const [redSocial, setRedSocial] = useState(centro?.red_social ?? '')
+  const [descripcion, setDescripcion] = useState(centro?.descripcion ?? '')
+  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
+    centro ? { lat: centro.lat, lng: centro.lng } : null,
+  )
   const [coordsTexto, setCoordsTexto] = useState('')
   const [gps, setGps] = useState<'idle' | 'buscando' | 'error'>('idle')
   const [geoEstado, setGeoEstado] = useState<'idle' | 'buscando'>('idle')
@@ -438,18 +491,26 @@ function FormCentro({
     }
 
     setEstado('guardando')
-    const { error } = await supabase.from('centros_acopio').insert({
+    const datos = {
       nombre: nombre.trim(),
       pais: pais.trim() || 'Venezuela',
       estado: region.trim() || null,
       ciudad: ciudad.trim() || null,
       direccion: direccion.trim() || null,
       contacto: contacto.trim() || null,
+      red_social: redSocial.trim() || null,
       descripcion: descripcion.trim() || null,
       lat: pt.lat,
       lng: pt.lng,
-      creado_por: creadoPor,
-    })
+    }
+    const { error } = editar
+      ? await supabase
+          .from('centros_acopio')
+          .update(datos)
+          .eq('id', centro!.id)
+      : await supabase
+          .from('centros_acopio')
+          .insert({ ...datos, creado_por: creadoPor })
     if (error) {
       setErrorMsg(error.message)
       setEstado('idle')
@@ -465,8 +526,15 @@ function FormCentro({
   const ciudadesSugeridas = ciudadesDeZona(isoPais, region)
 
   return (
-    <form onSubmit={guardar} className="card space-y-3 border-2 border-green-200">
-      <h3 className="font-bold">Registrar centro de acopio</h3>
+    <form
+      onSubmit={guardar}
+      className={`card space-y-3 border-2 ${
+        editar ? 'border-bandera-azul' : 'border-green-200'
+      }`}
+    >
+      <h3 className="font-bold">
+        {editar ? `✏️ Editar: ${centro!.nombre}` : 'Registrar centro de acopio'}
+      </h3>
       <input
         className="input"
         placeholder="Nombre del centro"
@@ -568,9 +636,16 @@ function FormCentro({
         </p>
         <EntradaTelefono valor={contacto} onChange={setContacto} />
         <p className="text-xs text-gray-500 mt-1">
-          Para que la gente pueda escribirte y coordinar la ayuda.
+          Para que la gente pueda escribirte y coordinar la ayuda. Aparece como
+          botón "💬 Contactar" en el centro.
         </p>
       </div>
+      <input
+        className="input"
+        placeholder="Red social o enlace (Instagram, web…) — opcional"
+        value={redSocial}
+        onChange={(e) => setRedSocial(e.target.value)}
+      />
       {/* Ubicación: buscar dirección (Google/OSM) y AJUSTAR el pin al punto exacto. */}
       <div
         className={`rounded-xl border-2 p-3 ${
@@ -650,13 +725,28 @@ function FormCentro({
           ⚠️ {errorMsg}
         </div>
       )}
-      <button
-        type="submit"
-        disabled={estado === 'guardando'}
-        className="btn-verde w-full disabled:opacity-60"
-      >
-        {estado === 'guardando' ? 'Guardando…' : 'Guardar centro'}
-      </button>
+      <div className="flex gap-2">
+        {onCancelar && (
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="btn-gris flex-1"
+          >
+            Cancelar
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={estado === 'guardando'}
+          className={`${editar ? 'btn-azul' : 'btn-verde'} flex-1 disabled:opacity-60`}
+        >
+          {estado === 'guardando'
+            ? 'Guardando…'
+            : editar
+              ? 'Guardar cambios'
+              : 'Guardar centro'}
+        </button>
+      </div>
     </form>
   )
 }

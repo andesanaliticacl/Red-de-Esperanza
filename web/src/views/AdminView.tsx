@@ -11,6 +11,7 @@ const ROLES: RolUsuario[] = [
   'voluntario',
   'rescatista',
   'centro_acopio',
+  'acopio_admin',
   'admin',
 ]
 
