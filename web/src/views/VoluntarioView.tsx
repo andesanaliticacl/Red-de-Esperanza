@@ -75,6 +75,25 @@ export default function VoluntarioView() {
         )
       })
   }, [necesidades])
+  // Las Emergencias SOS se pueden plegar para que no estorben a quien no quiere
+  // verlas. Recordamos la preferencia entre visitas.
+  const [sosAbierto, setSosAbierto] = useState(() => {
+    try {
+      return localStorage.getItem('esperanza.sosPlegado') !== '1'
+    } catch {
+      return true
+    }
+  })
+  function alternarSos() {
+    setSosAbierto((v) => {
+      try {
+        localStorage.setItem('esperanza.sosPlegado', v ? '1' : '0')
+      } catch {
+        /* ignorar */
+      }
+      return !v
+    })
+  }
   const [verAviso, setVerAviso] = useState(() => {
     try {
       return localStorage.getItem('esperanza.avisoSeguridad') !== '1'
@@ -202,15 +221,26 @@ export default function VoluntarioView() {
       {/* Emergencias SOS entrantes (sin verificar) — visibles al instante */}
       {sos.length > 0 && (
         <section className="rounded-2xl border-2 border-bandera-rojo bg-red-50 p-3 space-y-2">
-          <h2 className="font-extrabold text-bandera-rojo flex items-center gap-2">
-            🆘 Emergencias SOS entrantes ({sos.length})
-            <span className="text-xs font-normal text-red-700">
-              {esRescatista
-                ? 'atiende según prioridad'
-                : 'solo rescatistas las atienden'}
+          <button
+            onClick={alternarSos}
+            className="w-full flex items-center gap-2 text-left"
+            aria-expanded={sosAbierto}
+          >
+            <span className="text-bandera-rojo">{sosAbierto ? '▼' : '▶'}</span>
+            <h2 className="font-extrabold text-bandera-rojo flex items-center gap-2 flex-1">
+              🆘 Emergencias SOS entrantes ({sos.length})
+              <span className="text-xs font-normal text-red-700">
+                {esRescatista
+                  ? 'atiende según prioridad'
+                  : 'solo rescatistas las atienden'}
+              </span>
+            </h2>
+            <span className="text-xs font-semibold text-red-700">
+              {sosAbierto ? 'Ocultar' : 'Mostrar'}
             </span>
-          </h2>
-          {sos.map((n) => (
+          </button>
+          {sosAbierto &&
+            sos.map((n) => (
             <div
               key={n.id}
               className="bg-white rounded-xl p-3 flex items-center gap-3 shadow-sm"

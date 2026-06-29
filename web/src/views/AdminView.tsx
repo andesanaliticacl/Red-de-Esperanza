@@ -2,7 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useNecesidades } from '../hooks/useNecesidades'
-import type { Perfil, RolUsuario } from '../lib/types'
+import { ROL_META, type Perfil, type RolUsuario } from '../lib/types'
+
+// Color de la tarjeta de conteo por rol.
+const COLOR_ROL: Record<RolUsuario, string> = {
+  ciudadano: '#475569',
+  voluntario: '#002FA7',
+  rescatista: '#CC0001',
+  centro_acopio: '#16A34A',
+  acopio_admin: '#0891B2',
+  verificador: '#7C3AED',
+  admin: '#CF9B00',
+}
 
 // PAUSADO: 'verificador' se mantiene fuera de la lista mientras la verificación
 // está oculta. Para reactivarla, vuelve a añadirlo aquí.
@@ -79,6 +90,14 @@ export default function AdminView() {
     )
   }, [perfiles, busqUsuario])
 
+  // Conteo de usuarios registrados por rol (todos los perfiles cargados).
+  const conteoRoles = useMemo(() => {
+    return ROLES.map((rol) => ({
+      rol,
+      n: perfiles.filter((p) => p.rol === rol).length,
+    }))
+  }, [perfiles])
+
   const stats = useMemo(() => {
     const c = (estado: string) =>
       necesidades.filter((n) => n.estado === estado).length
@@ -114,6 +133,23 @@ export default function AdminView() {
         <Tarjeta n={stats.en_proceso} etiqueta="En proceso" color="#002FA7" />
         <Tarjeta n={stats.resuelta} etiqueta="Resueltas" color="#0891B2" />
         <Tarjeta n={stats.voluntarios} etiqueta="Equipo activo" color="#CF9B00" />
+      </section>
+
+      {/* Usuarios registrados por rol */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">
+          Usuarios registrados ({perfiles.length})
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {conteoRoles.map(({ rol, n }) => (
+            <Tarjeta
+              key={rol}
+              n={n}
+              etiqueta={`${ROL_META[rol].emoji} ${ROL_META[rol].etiqueta}`}
+              color={COLOR_ROL[rol]}
+            />
+          ))}
+        </div>
       </section>
 
       {/* Visitantes (personas que han usado la página) */}

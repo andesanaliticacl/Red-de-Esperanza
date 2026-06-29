@@ -27,6 +27,20 @@ export default function MisReportesView() {
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   const [borrando, setBorrando] = useState<string | null>(null)
+  // Teléfono de quien atiende cada caso (id necesidad → teléfono | null).
+  // Se obtiene con una función segura: solo el reportante del caso lo recibe.
+  const [telAtiende, setTelAtiende] = useState<Map<string, string | null>>(
+    new Map(),
+  )
+
+  async function cargarTelefonoAtiende(necesidadId: string) {
+    const { data } = await supabase.rpc('telefono_de_quien_atiende', {
+      p_necesidad_id: necesidadId,
+    })
+    setTelAtiende((prev) =>
+      new Map(prev).set(necesidadId, (data as string | null) ?? null),
+    )
+  }
 
   async function borrar(n: Necesidad) {
     if (
@@ -56,6 +70,10 @@ export default function MisReportesView() {
         setLista(filas)
         setCargando(false)
         nombresPublicos(filas.map((n) => n.asignado_a)).then(setNombres)
+        // Cargamos el teléfono de quien atiende los casos ya asignados.
+        for (const n of filas) {
+          if (n.asignado_a) void cargarTelefonoAtiende(n.id)
+        }
       })
   }, [perfil?.id])
 
@@ -85,6 +103,7 @@ export default function MisReportesView() {
               nombresPublicos([fila.asignado_a]).then((m) =>
                 setNombres((prevN) => new Map([...prevN, ...m])),
               )
+              void cargarTelefonoAtiende(fila.id)
             }
             return prev.map((n) => (n.id === fila.id ? { ...n, ...fila } : n))
           })
@@ -132,8 +151,32 @@ export default function MisReportesView() {
                 </span>
                 {n.asignado_a &&
                   (n.estado === 'en_proceso' || n.estado === 'resuelta') && (
-                    <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-lg">
-                      🤝 Atiende: {nombres.get(n.asignado_a)?.nombre ?? 'Voluntario'}
+                    <div className="mt-1 space-y-1">
+                      <div className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-lg">
+                        🤝 Atiende:{' '}
+                        {nombres.get(n.asignado_a)?.nombre ?? 'Voluntario'}
+                      </div>
+                      {telAtiende.get(n.id) && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-gray-600">
+                            📞 {telAtiende.get(n.id)}
+                          </span>
+                          <a
+                            href={`tel:${(telAtiende.get(n.id) as string).replace(/[^\d+]/g, '')}`}
+                            className="inline-flex items-center bg-bandera-azul !text-white font-semibold px-2.5 py-1 rounded-lg no-underline text-xs"
+                          >
+                            Llamar
+                          </a>
+                          <a
+                            href={`https://wa.me/${(telAtiende.get(n.id) as string).replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center bg-green-600 !text-white font-semibold px-2.5 py-1 rounded-lg no-underline text-xs"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
               </div>

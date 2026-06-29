@@ -78,7 +78,9 @@ export function useNecesidades(
   async function cargarAcopios() {
     const ac = await supabase
       .from('centros_acopio')
-      .select('id, nombre, descripcion, pais, estado, ciudad, direccion, lat, lng, id_fuente')
+      .select(
+        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, id_fuente',
+      )
     if (!ac.error) setAcopios((ac.data ?? []) as unknown as CentroAcopio[])
   }
 
