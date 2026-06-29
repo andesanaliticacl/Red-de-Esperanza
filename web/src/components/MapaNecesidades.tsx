@@ -95,7 +95,7 @@ function RastreadorVista({
   const map = useMap()
   // En móvil usamos menos margen (menos marcadores fuera de pantalla = más
   // ligero). En escritorio, más margen para que al mover no parpadeen.
-  const margen = esMovil ? 0.25 : 0.6
+  const margen = esMovil ? 0.12 : 0.6
   useMapEvents({
     moveend: () => onBounds(map.getBounds().pad(margen)),
     zoomend: () => onBounds(map.getBounds().pad(margen)),

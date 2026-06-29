@@ -36,6 +36,10 @@ export function useNecesidades(
   // Ref para tener siempre el callback más reciente sin recrear la suscripción.
   const onNuevaRef = useRef(onNueva)
   onNuevaRef.current = onNueva
+  // Firma de la última lista de necesidades: si el sondeo trae lo mismo, NO
+  // actualizamos el estado (evita redibujar todo el mapa cada 30 s sin motivo,
+  // que era el "tirón" en el teléfono conforme crecen los datos).
+  const firmaRef = useRef('')
 
   // ¿Una fila entra en el filtro de estados activo?
   function pasaFiltro(n: { estado: Necesidad['estado'] }): boolean {
@@ -43,6 +47,13 @@ export function useNecesidades(
     return filtroEstados.includes(n.estado)
   }
 
+  function firmaDe(lista: Necesidad[]): string {
+    return lista
+      .map((n) => `${n.id}:${n.estado}:${n.asignado_a ?? ''}:${n.lat ?? ''}:${n.lng ?? ''}`)
+      .join('|')
+  }
+
+  // Solo las necesidades (lo que cambia seguido). Si nada cambió, no toca estado.
   async function cargar() {
     let q = supabase
       .from('necesidades')
@@ -50,25 +61,33 @@ export function useNecesidades(
       .order('creado_en', { ascending: false })
       .limit(LIMITE)
     if (filtroEstados && filtroEstados.length) q = q.in('estado', filtroEstados)
-
-    const [nec, ac] = await Promise.all([
-      q,
-      supabase
-        .from('centros_acopio')
-        .select('id, nombre, descripcion, pais, estado, ciudad, direccion, lat, lng, id_fuente'),
-    ])
-
+    const nec = await q
     if (nec.error) setError(nec.error.message)
-    else setNecesidades((nec.data ?? []) as unknown as Necesidad[])
-    if (!ac.error) setAcopios((ac.data ?? []) as unknown as CentroAcopio[])
+    else {
+      const lista = (nec.data ?? []) as unknown as Necesidad[]
+      const firma = firmaDe(lista)
+      if (firma !== firmaRef.current) {
+        firmaRef.current = firma
+        setNecesidades(lista)
+      }
+    }
     setCargando(false)
+  }
+
+  // Los centros de acopio casi no cambian: se cargan UNA vez (no en cada sondeo).
+  async function cargarAcopios() {
+    const ac = await supabase
+      .from('centros_acopio')
+      .select('id, nombre, descripcion, pais, estado, ciudad, direccion, lat, lng, id_fuente')
+    if (!ac.error) setAcopios((ac.data ?? []) as unknown as CentroAcopio[])
   }
 
   useEffect(() => {
     cargar()
+    cargarAcopios()
 
     // Anónimos (sin sesión): NADA de websocket. Refrescan por sondeo cada 30 s.
-    // Evita abrir miles de conexiones realtime simultáneas.
+    // Evita abrir miles de conexiones realtime simultáneas. (Solo necesidades.)
     if (!tiempoReal) {
       const id = window.setInterval(cargar, 30000)
       return () => window.clearInterval(id)
