@@ -88,8 +88,12 @@ export function useNecesidades(
 
     // Anónimos (sin sesión): NADA de websocket. Refrescan por sondeo cada 30 s.
     // Evita abrir miles de conexiones realtime simultáneas. (Solo necesidades.)
+    // Si la pestaña está oculta (en segundo plano), NO sondea: ahorra peticiones
+    // y batería en el teléfono.
     if (!tiempoReal) {
-      const id = window.setInterval(cargar, 30000)
+      const id = window.setInterval(() => {
+        if (!document.hidden) cargar()
+      }, 30000)
       return () => window.clearInterval(id)
     }
 

@@ -472,6 +472,15 @@ function FormCentro({
     e.preventDefault()
     setErrorMsg('')
 
+    // El número de contacto es OBLIGATORIO: es el que verá la gente para
+    // coordinar la ayuda (botón "Contactar").
+    if (contacto.replace(/\D/g, '').length < 8) {
+      setErrorMsg(
+        'El número de contacto es obligatorio (con su código de país).',
+      )
+      return
+    }
+
     let pt = coord
     // Si aún no hay punto pero sí dirección, intentamos geocodificar al guardar.
     if (!pt) {
@@ -632,12 +641,13 @@ function FormCentro({
       />
       <div>
         <p className="text-sm font-semibold mb-1">
-          Contacto del encargado (WhatsApp)
+          Contacto del encargado (WhatsApp){' '}
+          <span className="text-bandera-rojo">*</span>
         </p>
-        <EntradaTelefono valor={contacto} onChange={setContacto} />
+        <EntradaTelefono valor={contacto} onChange={setContacto} requerido />
         <p className="text-xs text-gray-500 mt-1">
-          Para que la gente pueda escribirte y coordinar la ayuda. Aparece como
-          botón "💬 Contactar" en el centro.
+          <strong>Obligatorio.</strong> Es el número que verá la gente para
+          coordinar la ayuda (botón "💬 Contactar").
         </p>
       </div>
       <input

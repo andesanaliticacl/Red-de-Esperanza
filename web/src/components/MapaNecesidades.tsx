@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import {
@@ -10,7 +10,10 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
+// El agrupador (clustering) solo lo usan los desaparecidos, que están OCULTOS al
+// entrar. Lo cargamos bajo demanda para aligerar el paquete inicial (clave en
+// el teléfono): no se descarga hasta que se activa la capa de desaparecidos.
+const MarkerClusterGroup = lazy(() => import('react-leaflet-cluster'))
 import { useDesaparecidosMapa, type ZonaMapa } from '../hooks/useDesaparecidos'
 import {
   iconoDesaparecido,
@@ -639,6 +642,7 @@ export default function MapaNecesidades({
           ahora se muestra un listado y solo volamos al tocar a una persona. */}
       <CentrarEn posicion={irACoordenada} />
       {verDesap && (
+      <Suspense fallback={null}>
       <MarkerClusterGroup
         chunkedLoading
         maxClusterRadius={60}
@@ -715,6 +719,7 @@ export default function MapaNecesidades({
           </Marker>
         ))}
       </MarkerClusterGroup>
+      </Suspense>
       )}
 
       {/* Mi ubicación: marcador con mi foto. */}

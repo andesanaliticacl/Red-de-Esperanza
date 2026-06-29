@@ -33,9 +33,14 @@ function Cargando() {
 }
 
 export default function App() {
-  // Cuenta de visitantes (anónima, para el panel de administración).
+  // Cuenta de visitantes (anónima, para el panel de administración). Se difiere
+  // a cuando el navegador esté libre, para no competir con la carga del mapa.
   useEffect(() => {
-    void registrarVisita()
+    const idle =
+      (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
+        .requestIdleCallback
+    if (idle) idle(() => void registrarVisita())
+    else window.setTimeout(() => void registrarVisita(), 3000)
   }, [])
 
   return (

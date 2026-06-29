@@ -57,19 +57,23 @@ export default function CiudadanoView() {
     // por sondeo → no abren websocket → escala a miles a la vez.
     !!session,
   )
-  // Total de desaparecidos para el contador del botón (consulta barata).
+  // Total de desaparecidos para el contador del botón. Se difiere (no es
+  // crítico para la primera pintada) para no competir con la carga del mapa.
   const [totalDesap, setTotalDesap] = useState<number | null>(null)
   useEffect(() => {
     let cancel = false
-    supabase
-      .from('desaparecidos')
-      .select('id', { count: 'exact', head: true })
-      .not('lat', 'is', null)
-      .then(({ count }) => {
-        if (!cancel) setTotalDesap(count ?? null)
-      })
+    const consultar = () =>
+      supabase
+        .from('desaparecidos')
+        .select('id', { count: 'exact', head: true })
+        .not('lat', 'is', null)
+        .then(({ count }) => {
+          if (!cancel) setTotalDesap(count ?? null)
+        })
+    const t = window.setTimeout(consultar, 2500)
     return () => {
       cancel = true
+      window.clearTimeout(t)
     }
   }, [])
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
