@@ -28,6 +28,19 @@ import {
 } from '../lib/iconos'
 import IconoRuta from './IconoRuta'
 
+/** Fecha legible en español (p. ej. "27 jun 2026, 3:14 p. m."). */
+function formatearFecha(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleString('es-VE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 /** Ajusta el zoom/centro para que se vean todos los puntos dados. */
 function AjustarVista({ puntos }: { puntos: [number, number][] }) {
   const map = useMap()
@@ -496,6 +509,11 @@ export default function MapaNecesidades({
                 <div className="text-xs">
                   Urgencia: {URGENCIA_META[n.urgencia].etiqueta}
                 </div>
+                {n.creado_en && (
+                  <div className="text-[11px] text-gray-400">
+                    🕒 {formatearFecha(n.creado_en)}
+                  </div>
+                )}
                 {(n.estado === 'en_proceso' || n.estado === 'resuelta') && (
                   <div className="text-xs font-semibold">
                     {n.estado === 'en_proceso' ? '🔵 En proceso' : '✅ Resuelta'}
