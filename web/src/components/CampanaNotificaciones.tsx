@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useNotificaciones, type Aviso } from '../context/NotificacionesContext'
+import { useAuth } from '../context/AuthContext'
+import {
+  pushSoportado,
+  permisoPush,
+  yaSuscrito,
+  activarPush,
+  desactivarPush,
+} from '../lib/push'
 
 /**
  * Campana de notificaciones de la barra superior. Muestra el número de avisos
@@ -13,8 +21,48 @@ import { useNotificaciones, type Aviso } from '../context/NotificacionesContext'
 export default function CampanaNotificaciones({ claro = false }: { claro?: boolean }) {
   const { historial, noLeidas, marcarTodasLeidas, marcarLeida, limpiar } =
     useNotificaciones()
+  const { perfil } = useAuth()
   const navigate = useNavigate()
   const [abierto, setAbierto] = useState(false)
+
+  // Estado de las notificaciones push (las que llegan con la app cerrada).
+  const soporta = pushSoportado()
+  const [suscrito, setSuscrito] = useState(false)
+  const [trabajando, setTrabajando] = useState(false)
+  const [avisoPush, setAvisoPush] = useState('')
+
+  useEffect(() => {
+    if (abierto && soporta) void yaSuscrito().then(setSuscrito)
+  }, [abierto, soporta])
+
+  async function alternarPush() {
+    if (!perfil?.id) return
+    setTrabajando(true)
+    setAvisoPush('')
+    try {
+      if (suscrito) {
+        await desactivarPush()
+        setSuscrito(false)
+      } else {
+        const r = await activarPush(perfil.id)
+        if (r.ok) {
+          setSuscrito(true)
+        } else if (r.motivo === 'denegado') {
+          setAvisoPush(
+            'Bloqueaste los avisos. Actívalos en los permisos del navegador.',
+          )
+        } else if (r.motivo === 'no-soportado') {
+          setAvisoPush(
+            'En iPhone, primero instala la página (Compartir → Agregar a inicio).',
+          )
+        } else {
+          setAvisoPush('No se pudo activar: ' + (r.motivo ?? 'error'))
+        }
+      }
+    } finally {
+      setTrabajando(false)
+    }
+  }
 
   function cerrar() {
     setAbierto(false)
@@ -64,6 +112,46 @@ export default function CampanaNotificaciones({ claro = false }: { claro?: boole
                   </button>
                 )}
               </div>
+
+              {/* Activar/desactivar avisos que llegan con la app cerrada. */}
+              {perfil?.id && (
+                <div className="p-3 border-b bg-blue-50/50">
+                  {soporta ? (
+                    <>
+                      <button
+                        onClick={alternarPush}
+                        disabled={trabajando}
+                        className={`w-full text-sm font-bold py-2 rounded-lg disabled:opacity-60 ${
+                          suscrito
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-bandera-azul text-white'
+                        }`}
+                      >
+                        {trabajando
+                          ? '…'
+                          : suscrito
+                            ? '🔔 Avisos activados — tocar para desactivar'
+                            : '🔔 Activar avisos en este dispositivo'}
+                      </button>
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        Recibe alertas aunque tengas la página cerrada.
+                        {permisoPush() === 'denied' &&
+                          ' (Están bloqueados en el navegador.)'}
+                      </p>
+                      {avisoPush && (
+                        <p className="text-[11px] text-bandera-rojo mt-1 font-semibold">
+                          {avisoPush}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-gray-500">
+                      📱 Para recibir avisos con la app cerrada en iPhone, primero
+                      instálala (Compartir → “Agregar a inicio”).
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="max-h-[60vh] overflow-y-auto">
                 {historial.length === 0 ? (

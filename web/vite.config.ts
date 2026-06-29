@@ -25,6 +25,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Importa el manejador de notificaciones push dentro del SW generado,
+        // para recibir avisos con la app cerrada / en segundo plano.
+        importScripts: ['push-sw.js'],
         // Cachea la app shell y los tiles base del mapa para abrir con señal débil.
         runtimeCaching: [
           {
