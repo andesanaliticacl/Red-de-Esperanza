@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import Bandera from './Bandera'
 
 export interface OpcionBandera {
@@ -64,24 +64,10 @@ export default function SelectorBandera({
     if (abierto) calcularPos()
   }, [abierto])
 
-  // Cerrar si la pantalla se mueve detrás del menú (el panel es fijo y se
-  // "despegaría" del botón). PERO no cuando el scroll ocurre DENTRO de la lista:
-  // ahí dejamos desplazar para elegir país.
-  useEffect(() => {
-    if (!abierto) return
-    const alScroll = (e: Event) => {
-      const t = e.target as Node | null
-      if (panelRef.current && t && panelRef.current.contains(t)) return
-      setAbierto(false)
-    }
-    const alResize = () => setAbierto(false)
-    window.addEventListener('scroll', alScroll, true)
-    window.addEventListener('resize', alResize)
-    return () => {
-      window.removeEventListener('scroll', alScroll, true)
-      window.removeEventListener('resize', alResize)
-    }
-  }, [abierto])
+  // No cerramos por scroll ni por resize: en móvil, el scroll con inercia y el
+  // teclado (que dispara "resize") cerraban el menú sin querer. El fondo
+  // (backdrop) ya bloquea el desplazamiento de atrás; el menú solo se cierra al
+  // tocar fuera o al elegir un país.
 
   const q = busqueda.trim().toLowerCase()
   const filtradas = q
@@ -135,7 +121,6 @@ export default function SelectorBandera({
           >
             <div className="p-2 border-b">
               <input
-                autoFocus
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar país…"
