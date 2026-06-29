@@ -13,6 +13,7 @@ import {
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
+import { CODIGOS_PAIS, armarTelefono, digitosLocales } from '../lib/codigosPais'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
 // propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
@@ -56,7 +57,10 @@ export default function ReportarModal({
   const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
   const [zona, setZona] = useState('') // dirección / referencia del lugar
   const [tamZonaKm, setTamZonaKm] = useState(3) // diámetro aprox. de la zona
-  const [contacto, setContacto] = useState('')
+  // Teléfono OBLIGATORIO con código de país (para que el botón de WhatsApp
+  // abra el chat). Por defecto Venezuela (+58), el país de la emergencia.
+  const [codigoPais, setCodigoPais] = useState('58')
+  const [numeroTel, setNumeroTel] = useState('')
   // Punto fijado (el pin). coordAuto = ubicación detectada del usuario, que se
   // usa como punto por defecto en las necesidades comunes (no en derrumbe/zona,
   // que están donde está el edificio/zona, no donde está quien reporta).
@@ -146,6 +150,14 @@ export default function ReportarModal({
     setGuardando(true)
     setErrorMsg('')
     try {
+      // El teléfono es OBLIGATORIO: sin él, nadie puede contactar a la persona.
+      if (digitosLocales(numeroTel) < 7) {
+        throw new Error(
+          'Escribe un número de teléfono válido (con su código de país) para que puedan contactarte.',
+        )
+      }
+      const contacto = armarTelefono(codigoPais, numeroTel)
+
       let lat = coord?.lat ?? null
       let lng = coord?.lng ?? null
 
@@ -178,7 +190,7 @@ export default function ReportarModal({
         lat,
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
-        contacto: contacto.trim() || null,
+        contacto,
         origen: 'web',
       })
       onCreado()
@@ -264,19 +276,40 @@ export default function ReportarModal({
   const bloqueContacto = (
     <div>
       <p className="font-bold mb-1">
-        Contacto <span className="text-bandera-rojo">(ideal)</span>
+        Teléfono de contacto <span className="text-bandera-rojo">*</span>
       </p>
-      <p className="text-xs text-gray-500 mb-2">
-        Déjalo para que quien tome tu caso pueda comunicarse contigo. Es
-        privado: solo lo ve quien te ayuda.
+      <p className="text-xs text-gray-600 mb-2">
+        📱 <strong>Obligatorio.</strong> Es la forma de que un rescatista o
+        voluntario te llame o te escriba por WhatsApp. Elige el código de tu país
+        y escribe tu número. Es <strong>privado</strong>: solo lo ve quien te
+        ayuda, nunca aparece en el mapa público.
       </p>
-      <input
-        className="input"
-        placeholder="Teléfono o WhatsApp"
-        inputMode="tel"
-        value={contacto}
-        onChange={(e) => setContacto(e.target.value)}
-      />
+      <div className="flex gap-2">
+        <select
+          className="input w-auto"
+          value={codigoPais}
+          onChange={(e) => setCodigoPais(e.target.value)}
+          aria-label="Código de país"
+        >
+          {CODIGOS_PAIS.map((p) => (
+            <option key={p.cc} value={p.cc}>
+              {p.bandera} +{p.cc}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input flex-1"
+          placeholder="Tu número (ej. 4122016429)"
+          inputMode="tel"
+          value={numeroTel}
+          onChange={(e) => setNumeroTel(e.target.value)}
+        />
+      </div>
+      {digitosLocales(numeroTel) >= 7 && (
+        <p className="text-xs text-green-700 mt-1.5">
+          ✅ Se guardará como: {armarTelefono(codigoPais, numeroTel)}
+        </p>
+      )}
     </div>
   )
 

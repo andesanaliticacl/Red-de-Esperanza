@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { crearNecesidad } from '../lib/reportes'
 import { obtenerUbicacion, type FuenteUbicacion } from '../lib/geo'
+import { CODIGOS_PAIS, armarTelefono, digitosLocales } from '../lib/codigosPais'
 
 // Número único de emergencias de Venezuela (VEN 911, nacional desde 2013).
 const NUMERO_EMERGENCIA = '911'
@@ -15,6 +16,9 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
   const [paso, setPaso] = useState<'inicio' | 'listo' | 'enviado'>('inicio')
   const [texto, setTexto] = useState('')
   const [personas, setPersonas] = useState('')
+  // Teléfono OBLIGATORIO con código de país, para que te puedan contactar.
+  const [codigoPais, setCodigoPais] = useState('58')
+  const [numeroTel, setNumeroTel] = useState('')
   const [gps, setGps] = useState<'idle' | 'buscando' | 'error'>('idle')
   const [enviando, setEnviando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -33,6 +37,11 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
   }
 
   async function enviarSOS() {
+    // El teléfono es OBLIGATORIO: sin él, los rescatistas no pueden ubicarte.
+    if (digitosLocales(numeroTel) < 7) {
+      setErrorMsg('Escribe tu número de teléfono (con código de país) para que puedan contactarte.')
+      return
+    }
     setEnviando(true)
     setErrorMsg('')
     const detalle = [
@@ -48,6 +57,7 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
         descripcion: detalle || 'SOS — Necesito rescate',
         lat: coord?.lat ?? null,
         lng: coord?.lng ?? null,
+        contacto: armarTelefono(codigoPais, numeroTel),
         origen: 'sos',
       })
       setPaso('enviado')
@@ -56,6 +66,38 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
       setEnviando(false)
     }
   }
+
+  // Campo de teléfono obligatorio (con código de país). Se reutiliza en el
+  // flujo normal y en el respaldo cuando falla el GPS.
+  const campoTelefono = (
+    <div className="w-full mb-4 text-left">
+      <p className="text-sm font-bold mb-1">📱 Tu teléfono (obligatorio)</p>
+      <p className="text-xs text-white/80 mb-2">
+        Para que un rescatista te llame o te escriba por WhatsApp. Es privado.
+      </p>
+      <div className="flex gap-2">
+        <select
+          className="input text-black w-auto"
+          value={codigoPais}
+          onChange={(e) => setCodigoPais(e.target.value)}
+          aria-label="Código de país"
+        >
+          {CODIGOS_PAIS.map((p) => (
+            <option key={p.cc} value={p.cc}>
+              {p.bandera} +{p.cc}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input text-black flex-1"
+          placeholder="Tu número (ej. 4122016429)"
+          inputMode="tel"
+          value={numeroTel}
+          onChange={(e) => setNumeroTel(e.target.value)}
+        />
+      </div>
+    </div>
+  )
 
   return (
     <div className="fixed inset-0 z-[2000] bg-bandera-rojo/95 text-white flex flex-col p-6">
@@ -133,12 +175,13 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
                   onChange={(e) => setTexto(e.target.value)}
                 />
                 <input
-                  className="input text-black mb-5"
+                  className="input text-black mb-4"
                   placeholder="¿A cuántas personas afecta? (opcional)"
                   inputMode="numeric"
                   value={personas}
                   onChange={(e) => setPersonas(e.target.value)}
                 />
+                {campoTelefono}
                 <button
                   onClick={enviarSOS}
                   disabled={enviando}
@@ -161,6 +204,7 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
                 >
                   🔄 Reintentar ubicación
                 </button>
+                {campoTelefono}
                 <button
                   onClick={enviarSOS}
                   disabled={enviando}
