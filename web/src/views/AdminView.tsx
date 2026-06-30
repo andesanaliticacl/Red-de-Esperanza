@@ -252,6 +252,26 @@ export default function AdminView() {
         </div>
       </section>
 
+      {/* Notas de cierre del equipo */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">Notas de cierre</h2>
+        <Link
+          to="/notas-cierre"
+          className="card flex items-center gap-3 no-underline"
+        >
+          <span className="text-2xl">📝</span>
+          <div className="flex-1">
+            <div className="font-semibold text-bandera-azul">
+              Ver todas las notas de cierre
+            </div>
+            <div className="text-sm text-gray-600">
+              Los comentarios que el equipo deja al cerrar cada caso.
+            </div>
+          </div>
+          <span className="text-bandera-azul">→</span>
+        </Link>
+      </section>
+
       {/* Monitoreo de todas las conversaciones */}
       <section>
         <h2 className="font-bold text-lg mb-2">Conversaciones</h2>

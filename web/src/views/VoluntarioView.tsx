@@ -63,10 +63,6 @@ export default function VoluntarioView() {
     [necesidades],
   )
 
-  // Los líderes de voluntarios (y admin) pueden dejar un comentario al cerrar
-  // un caso. El resto del equipo cierra directo, como hasta ahora.
-  const esLider = rol === 'lider_voluntarios' || rol === 'admin'
-
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [zonaFiltro, setZonaFiltro] = useState('')
   const [trabajando, setTrabajando] = useState<string | null>(null)
@@ -177,26 +173,11 @@ export default function VoluntarioView() {
     setTrabajando(null)
   }
 
-  async function atender(n: Necesidad) {
-    setTrabajando(n.id)
-    const { error } = await supabase
-      .from('necesidades')
-      .update({ estado: 'resuelta' })
-      .eq('id', n.id)
-    if (error) alert('Error: ' + error.message)
-    await recargar()
-    setTrabajando(null)
-  }
-
-  // Pulsar "Atendida": el líder pasa por el diálogo (para comentar el cierre);
-  // el resto del equipo cierra directo.
+  // Pulsar "Atendida": abre el diálogo de cierre para que cualquiera del equipo
+  // (voluntario, rescatista, líder o admin) pueda dejar un comentario opcional.
   function iniciarCierre(n: Necesidad) {
-    if (esLider) {
-      setNotaCierre('')
-      setACerrar(n)
-    } else {
-      void atender(n)
-    }
+    setNotaCierre('')
+    setACerrar(n)
   }
 
   // Cierra el caso (resuelta) y, si el líder escribió una nota, la guarda en la

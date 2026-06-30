@@ -20,13 +20,17 @@ create index if not exists idx_notas_cierre_necesidad on notas_cierre (necesidad
 
 alter table notas_cierre enable row level security;
 
--- Crear: SOLO líder de voluntarios y admin (son quienes cierran con nota).
+-- Crear: cualquier personal que atiende casos (voluntario, rescatista, líder y
+-- admin) puede dejar una nota al cerrar el caso que tiene asignado.
 drop policy if exists "crear nota cierre" on notas_cierre;
 create policy "crear nota cierre" on notas_cierre for insert with check (
-  public.tiene_rol(array['lider_voluntarios','admin']::rol_usuario[])
+  public.tiene_rol(
+    array['voluntario','rescatista','lider_voluntarios','verificador','admin']::rol_usuario[]
+  )
 );
 
--- Leer: personal interno (para que el equipo y el admin vean las notas).
+-- Leer: personal interno (para que el equipo, los líderes y el admin vean
+-- TODAS las notas de cierre, no solo las propias).
 drop policy if exists "leer nota cierre" on notas_cierre;
 create policy "leer nota cierre" on notas_cierre for select using (
   public.tiene_rol(
