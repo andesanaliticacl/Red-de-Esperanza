@@ -655,7 +655,10 @@ export default function CiudadanoView() {
         </div>
 
         {/* Encabezado + filtros */}
-        <div className="absolute top-0 left-0 right-0 z-[1000] p-3 pointer-events-none">
+        <div
+          className="absolute top-0 left-0 right-0 z-[1000] p-3 pointer-events-none"
+          data-map-overlay="top"
+        >
           <div className="flex items-center gap-2 mb-2 pointer-events-auto">
             <span className="bg-bandera-azul text-white font-extrabold px-3 py-2 rounded-xl shadow">
               🕊️ Esperanza
@@ -856,7 +859,10 @@ export default function CiudadanoView() {
         </div>
 
         {/* Botones flotantes: SOS + Reportar */}
-        <div className="absolute bottom-4 left-0 right-0 z-[1000] px-4 pointer-events-none">
+        <div
+          className="absolute bottom-4 left-0 right-0 z-[1000] px-4 pointer-events-none"
+          data-map-overlay="bottom"
+        >
           <div className="mx-auto w-full max-w-md flex flex-col gap-2 pointer-events-auto">
             <button
               onClick={() => setAbrirSos(true)}

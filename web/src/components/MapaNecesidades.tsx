@@ -91,6 +91,98 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
   return null
 }
 
+function CentrarPopupAbierto() {
+  const map = useMap()
+
+  useEffect(() => {
+    function calcularAreaLibre() {
+      const margen = 16
+      const contenedor = map.getContainer()
+      const rectMapa = contenedor.getBoundingClientRect()
+      const tamanoMapa = map.getSize()
+      let arriba = margen
+      let abajo = tamanoMapa.y - margen
+
+      document.querySelectorAll<HTMLElement>('[data-map-overlay]').forEach((el) => {
+        const rect = el.getBoundingClientRect()
+        const solapaHorizontal = rect.right > rectMapa.left && rect.left < rectMapa.right
+        const solapaVertical = rect.bottom > rectMapa.top && rect.top < rectMapa.bottom
+        if (!solapaHorizontal || !solapaVertical) return
+
+        if (el.dataset.mapOverlay === 'top') {
+          arriba = Math.max(arriba, rect.bottom - rectMapa.top + margen)
+        }
+
+        if (el.dataset.mapOverlay === 'bottom') {
+          abajo = Math.min(abajo, rect.top - rectMapa.top - margen)
+        }
+      })
+
+      if (abajo - arriba < 220) {
+        arriba = margen
+        abajo = tamanoMapa.y - margen
+      }
+
+      return { arriba, abajo, centroY: arriba + (abajo - arriba) / 2 }
+    }
+
+    function centrarPopup(e: L.PopupEvent) {
+      const latLng = e.popup.getLatLng()
+      if (!latLng) return
+
+      window.setTimeout(() => {
+        const popupEl = e.popup.getElement()
+        if (!popupEl) return
+
+        const areaLibre = calcularAreaLibre()
+        const altoDisponible = Math.max(180, areaLibre.abajo - areaLibre.arriba)
+        const contenido = popupEl.querySelector<HTMLElement>('.leaflet-popup-content')
+        const contenedor = popupEl.querySelector<HTMLElement>(
+          '.leaflet-popup-content-wrapper',
+        )
+
+        if (contenido) {
+          contenido.style.maxHeight = `${Math.max(150, altoDisponible - 48)}px`
+          contenido.style.overflowY = 'auto'
+        }
+
+        if (contenedor) {
+          contenedor.style.maxHeight = `${altoDisponible}px`
+        }
+
+        const rectMapa = map.getContainer().getBoundingClientRect()
+        const rectPopup = popupEl.getBoundingClientRect()
+        const puntoAncla = map.latLngToContainerPoint(latLng)
+        const centroPopup = L.point(
+          rectPopup.left - rectMapa.left + rectPopup.width / 2,
+          rectPopup.top - rectMapa.top + rectPopup.height / 2,
+        )
+        const distanciaAnclaCentro = centroPopup.subtract(puntoAncla)
+        const puntoAnclaDeseado = L.point(
+          map.getSize().x / 2 - distanciaAnclaCentro.x,
+          areaLibre.centroY - distanciaAnclaCentro.y,
+        )
+        const puntoCentroMapa = map
+          .getSize()
+          .divideBy(2)
+          .add(puntoAncla.subtract(puntoAnclaDeseado))
+
+        map.panTo(map.containerPointToLatLng(puntoCentroMapa), {
+          animate: true,
+          duration: 0.35,
+        })
+      }, 50)
+    }
+
+    map.on('popupopen', centrarPopup)
+    return () => {
+      map.off('popupopen', centrarPopup)
+    }
+  }, [map])
+
+  return null
+}
+
 function abrirPopupResaltado(marker: L.Marker | null, activo: boolean) {
   if (!marker || !activo) return
   window.setTimeout(() => marker.openPopup(), 350)
@@ -629,6 +721,7 @@ export default function MapaNecesidades({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <CentrarPopupAbierto />
 
       {ajustarVista && <AjustarVista puntos={puntos} />}
 
