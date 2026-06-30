@@ -42,6 +42,28 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
 const COLS_NECESIDAD =
   'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en'
 
+// Fecha de creación legible (día, mes y hora) — para estimar la prioridad.
+function fechaCorta(iso: string): string {
+  return new Date(iso).toLocaleString('es-VE', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// Cuánto tiempo lleva reportada (hace X). Cuanto más vieja, más espera lleva.
+function hace(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(ms / 60000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const d = Math.floor(h / 24)
+  return `hace ${d} d`
+}
+
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
   const { notificar } = useNotificaciones()
@@ -381,11 +403,10 @@ export default function VoluntarioView() {
                   className="text-sm font-semibold"
                 />
                 <div className="text-xs text-gray-500">
-                  {n.zona ? `📍 ${n.zona} · ` : ''}
-                  {new Date(n.creado_en).toLocaleTimeString('es-VE', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {n.zona ? `📍 ${n.zona}` : ''}
+                </div>
+                <div className="text-xs font-semibold text-bandera-rojo">
+                  🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
                 </div>
                 <Link
                   to={`/?necesidad=${n.id}`}
@@ -689,6 +710,11 @@ function Fila({
         </div>
         <TextoExpandible texto={n.descripcion} className="text-sm text-gray-700" />
         {n.zona && <div className="text-xs text-gray-500">📍 {n.zona}</div>}
+        {/* Momento en que se reportó: ayuda a estimar prioridad (lo más viejo
+            lleva más esperando). */}
+        <div className="text-xs font-semibold text-gray-600 mt-0.5">
+          🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
+        </div>
         {atendidaPor && (
           <div className="text-xs font-semibold text-bandera-azul mt-0.5">
             🤝 Atiende: {atendidaPor}
