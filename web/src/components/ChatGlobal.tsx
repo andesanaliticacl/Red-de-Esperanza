@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { listarChat, enviarChat, suscribirChat } from '../lib/chatGlobal'
+import {
+  listarChat,
+  enviarChat,
+  suscribirChat,
+  telefonosDeChat,
+} from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
 import EntradaTelefono from './EntradaTelefono'
 import {
@@ -63,7 +68,10 @@ function EtiquetaRol({
  * Sin cuenta, pide un apodo y el estado (se recuerdan en el dispositivo).
  */
 export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
-  const { perfil } = useAuth()
+  const { perfil, rol } = useAuth()
+  // Solo los líderes de voluntarios (y admin) pueden ver el teléfono de los
+  // invitados para contactarlos. El resto del chat no lo ve (la RLS lo impide).
+  const esLiderOAdmin = rol === 'lider_voluntarios' || rol === 'admin'
   const guardada = leerIdentidad()
   // Si la persona ya inició sesión, su nombre es automático (el de su perfil) y
   // solo puede elegir/rotar su estado. Sin cuenta, sí pide un apodo.
@@ -86,7 +94,23 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Rol de cada autor (id → rol), para mostrar la etiqueta de color junto al
   // nombre. Se resuelve con la vista pública perfiles_publicos.
   const [roles, setRoles] = useState<Map<string, RolUsuario>>(new Map())
+  // Teléfonos por mensaje (id → teléfono). Solo se llenan para líderes/admin.
+  const [telefonos, setTelefonos] = useState<Map<string, string>>(new Map())
   const finRef = useRef<HTMLDivElement>(null)
+
+  // Trae los teléfonos (privados) de los mensajes dados. Solo para líderes/admin.
+  async function asegurarTelefonos(ids: string[]) {
+    if (!esLiderOAdmin) return
+    const faltan = ids.filter((id) => !telefonos.has(id))
+    if (faltan.length === 0) return
+    const mapa = await telefonosDeChat(faltan)
+    if (mapa.size === 0) return
+    setTelefonos((prev) => {
+      const m = new Map(prev)
+      for (const [k, v] of mapa) m.set(k, v)
+      return m
+    })
+  }
 
   // Busca los roles que falten para los autores recibidos y los agrega al mapa.
   async function asegurarRoles(autores: (string | null)[]) {
@@ -115,6 +139,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         if (!activo) return
         setMensajes(m)
         void asegurarRoles(m.map((x) => x.autor))
+        void asegurarTelefonos(m.map((x) => x.id))
       })
       .catch((e) => setErrorMsg((e as Error).message))
       .finally(() => activo && setCargando(false))
@@ -124,6 +149,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         prev.some((x) => x.id === m.id) ? prev : [...prev, m],
       )
       void asegurarRoles([m.autor])
+      void asegurarTelefonos([m.id])
     })
     return () => {
       activo = false
@@ -241,8 +267,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                   Teléfono de contacto
                 </p>
                 <p className="text-xs text-gray-500 mb-1">
-                  📱 Para que la gente del chat pueda contactarte. Elige el código
-                  de tu país y escribe tu número.
+                  📱 <strong>Obligatorio.</strong> Privado: solo un{' '}
+                  <strong>líder de voluntarios</strong> lo verá para contactarte;
+                  no aparece para el resto del chat.
                 </p>
                 <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
               </div>
@@ -312,17 +339,25 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                         </div>
                       )}
                       <div className="break-words">{m.cuerpo}</div>
-                      {/* Teléfono del invitado: botones para contactarlo. */}
-                      {!mio && m.telefono && (
-                        <div className="mt-1 flex items-center gap-1.5">
+                      {/* Teléfono del invitado: SOLO los líderes/admin lo ven
+                          (el mapa solo se llena para ellos) para contactarlo. */}
+                      {!mio && telefonos.get(m.id) && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-bold text-bandera-azul break-all">
+                            📞 {telefonos.get(m.id)}
+                          </span>
                           <a
-                            href={`tel:${m.telefono.replace(/[^\d+]/g, '')}`}
+                            href={`tel:${telefonos
+                              .get(m.id)!
+                              .replace(/[^\d+]/g, '')}`}
                             className="text-[11px] bg-bandera-azul !text-white font-semibold px-1.5 py-0.5 rounded no-underline"
                           >
-                            📞 Llamar
+                            Llamar
                           </a>
                           <a
-                            href={`https://wa.me/${m.telefono.replace(/\D/g, '')}`}
+                            href={`https://wa.me/${telefonos
+                              .get(m.id)!
+                              .replace(/\D/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[11px] bg-green-600 !text-white font-semibold px-1.5 py-0.5 rounded no-underline"

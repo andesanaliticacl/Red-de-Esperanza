@@ -70,8 +70,6 @@ export interface MensajeGlobal {
   nombre: string
   cuerpo: string
   autor: string | null
-  /** Teléfono del invitado (registro express), para poder contactarlo. */
-  telefono?: string | null
   creado_en: string
 }
 
