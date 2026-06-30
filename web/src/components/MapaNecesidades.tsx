@@ -564,6 +564,7 @@ export default function MapaNecesidades({
   verDesaparecidos = false,
   busquedaDesap = '',
   irACoordenada = null,
+  desaparecidoResaltadoId,
   onHospitalSeleccionado,
 }: {
   necesidades: Necesidad[]
@@ -577,6 +578,7 @@ export default function MapaNecesidades({
   /** Si se pasa, el mapa vuela a esta coordenada (al tocar a una persona del
    *  listado de búsqueda de desaparecidos). */
   irACoordenada?: [number, number] | null
+  desaparecidoResaltadoId?: string | null
   /** Permite abrir un panel con personas asociadas a un hospital. */
   onHospitalSeleccionado?: (hospital: CentroAcopio) => void
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
@@ -1047,9 +1049,12 @@ export default function MapaNecesidades({
         .map((d) => (
           <Marker
             key={d.id}
+            ref={(marker) =>
+              abrirPopupResaltado(marker, d.id === desaparecidoResaltadoId)
+            }
             position={posDesap.get(d.id) ?? [d.lat as number, d.lng as number]}
             icon={iconoDesaparecido(d.estado === 'encontrado')}
-            zIndexOffset={-500}
+            zIndexOffset={d.id === desaparecidoResaltadoId ? 2000 : -500}
             eventHandlers={{
               popupopen: () => setAbierto(d.id),
               popupclose: () => setAbierto((p) => (p === d.id ? null : p)),
@@ -1095,7 +1100,7 @@ export default function MapaNecesidades({
                   href="https://desaparecidosterremotovenezuela.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-center text-xs font-semibold text-white bg-bandera-azul rounded-lg py-1.5 mt-1 no-underline"
+                  className="block text-center text-xs font-semibold !text-white bg-bandera-azul rounded-lg py-1.5 mt-1 no-underline"
                 >
                   🔗 Ver en la fuente
                 </a>
