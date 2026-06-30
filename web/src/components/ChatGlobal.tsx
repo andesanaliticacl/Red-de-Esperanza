@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { listarChat, enviarChat, suscribirChat } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
+import EntradaTelefono from './EntradaTelefono'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -72,7 +73,11 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     : ''
   const [nombre, setNombre] = useState(guardada?.nombre ?? '')
   const [estado, setEstado] = useState(guardada?.estado ?? perfil?.estado ?? '')
+  // Teléfono del invitado (registro express), para poder contactarlo.
+  const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
+  // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
+  const telefonoValido = telefono.replace(/\D/g, '').length >= 8
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
@@ -134,8 +139,14 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   function entrar(e: React.FormEvent) {
     e.preventDefault()
     const nom = esLogueado ? nombreEfectivo : nombre.trim()
+    // Sin sesión: nombre + estado + teléfono (para poder contactar).
     if (!nom || !estado.trim()) return
-    guardarIdentidad({ nombre: nom, estado: estado.trim() })
+    if (!esLogueado && !telefonoValido) return
+    guardarIdentidad({
+      nombre: nom,
+      estado: estado.trim(),
+      telefono: esLogueado ? undefined : telefono.trim(),
+    })
     setMensajes([])
     setListo(true)
   }
@@ -151,6 +162,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         ciudad: estado,
         nombre: esLogueado ? nombreEfectivo : nombre,
         cuerpo,
+        // Solo el invitado adjunta teléfono; el usuario con cuenta no expone el
+        // suyo en el chat comunitario.
+        telefono: esLogueado ? null : telefono,
       })
     } catch (err) {
       setErrorMsg((err as Error).message)
@@ -211,16 +225,28 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           ) : (
-            <label className="block text-sm font-semibold">
-              Nombre de la persona
-              <input
-                className="input mt-1"
-                placeholder="Tu nombre o apodo"
-                maxLength={40}
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
-            </label>
+            <>
+              <label className="block text-sm font-semibold">
+                Nombre de la persona
+                <input
+                  className="input mt-1"
+                  placeholder="Tu nombre o apodo"
+                  maxLength={40}
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                />
+              </label>
+              <div>
+                <p className="text-sm font-semibold mb-1">
+                  Teléfono de contacto
+                </p>
+                <p className="text-xs text-gray-500 mb-1">
+                  📱 Para que la gente del chat pueda contactarte. Elige el código
+                  de tu país y escribe tu número.
+                </p>
+                <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
+              </div>
+            </>
           )}
           <label className="block text-sm font-semibold">
             Estado
@@ -239,7 +265,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           </label>
           <button
             type="submit"
-            disabled={(!esLogueado && !nombre.trim()) || !estado.trim()}
+            disabled={
+              !estado.trim() ||
+              (!esLogueado && (!nombre.trim() || !telefonoValido))
+            }
             className="btn-azul w-full disabled:opacity-50"
           >
             Entrar al chat
@@ -283,6 +312,25 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                         </div>
                       )}
                       <div className="break-words">{m.cuerpo}</div>
+                      {/* Teléfono del invitado: botones para contactarlo. */}
+                      {!mio && m.telefono && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <a
+                            href={`tel:${m.telefono.replace(/[^\d+]/g, '')}`}
+                            className="text-[11px] bg-bandera-azul !text-white font-semibold px-1.5 py-0.5 rounded no-underline"
+                          >
+                            📞 Llamar
+                          </a>
+                          <a
+                            href={`https://wa.me/${m.telefono.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] bg-green-600 !text-white font-semibold px-1.5 py-0.5 rounded no-underline"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      )}
                       <div
                         className={`text-[10px] mt-0.5 ${
                           mio ? 'text-white/70' : 'text-gray-400'

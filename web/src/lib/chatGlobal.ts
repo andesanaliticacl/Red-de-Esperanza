@@ -14,7 +14,7 @@ export async function listarChat(
   const hace3dias = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from('chat_global')
-    .select('id, ciudad, nombre, cuerpo, autor, creado_en')
+    .select('id, ciudad, nombre, cuerpo, autor, telefono, creado_en')
     .eq('ciudad', normalizarCiudad(ciudad))
     .gte('creado_en', hace3dias)
     .order('creado_en', { ascending: false })
@@ -28,12 +28,14 @@ export async function enviarChat(args: {
   ciudad: string
   nombre: string
   cuerpo: string
+  telefono?: string | null
 }): Promise<void> {
   const { data: auth } = await supabase.auth.getUser()
   const { error } = await supabase.from('chat_global').insert({
     ciudad: normalizarCiudad(args.ciudad),
     nombre: args.nombre.trim().slice(0, 40),
     cuerpo: args.cuerpo.trim().slice(0, 500),
+    telefono: args.telefono?.trim().slice(0, 30) || null,
     autor: auth?.user?.id ?? null,
   })
   if (error) throw error
