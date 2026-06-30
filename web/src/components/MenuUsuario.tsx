@@ -23,6 +23,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
   const esStaff =
     rol === 'voluntario' ||
     rol === 'rescatista' ||
+    rol === 'lider_voluntarios' ||
     rol === 'verificador' ||
     rol === 'admin'
 

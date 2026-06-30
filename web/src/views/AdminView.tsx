@@ -11,6 +11,7 @@ const COLOR_ROL: Record<RolUsuario, string> = {
   rescatista: '#CC0001',
   centro_acopio: '#16A34A',
   acopio_admin: '#0891B2',
+  lider_voluntarios: '#B45309',
   verificador: '#7C3AED',
   admin: '#CF9B00',
 }
@@ -23,6 +24,7 @@ const ROLES: RolUsuario[] = [
   'rescatista',
   'centro_acopio',
   'acopio_admin',
+  'lider_voluntarios',
   'admin',
 ]
 
@@ -107,7 +109,10 @@ export default function AdminView() {
       en_proceso: c('en_proceso'),
       resuelta: c('resuelta'),
       voluntarios: perfiles.filter(
-        (p) => p.rol === 'voluntario' || p.rol === 'rescatista',
+        (p) =>
+          p.rol === 'voluntario' ||
+          p.rol === 'rescatista' ||
+          p.rol === 'lider_voluntarios',
       ).length,
     }
   }, [necesidades, perfiles])

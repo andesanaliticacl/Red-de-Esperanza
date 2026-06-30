@@ -21,6 +21,7 @@ export default function HistorialView() {
   const esStaff =
     rol === 'voluntario' ||
     rol === 'rescatista' ||
+    rol === 'lider_voluntarios' ||
     rol === 'verificador' ||
     rol === 'admin'
 

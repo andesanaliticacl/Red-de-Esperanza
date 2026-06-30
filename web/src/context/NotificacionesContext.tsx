@@ -150,7 +150,9 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
   }, [perfil?.id, notificar])
 
   const esEquipoCampo =
-    perfil?.rol === 'voluntario' || perfil?.rol === 'rescatista'
+    perfil?.rol === 'voluntario' ||
+    perfil?.rol === 'rescatista' ||
+    perfil?.rol === 'lider_voluntarios'
 
   function alAccion(accion: AccionAviso, id: string) {
     marcarLeida(id)

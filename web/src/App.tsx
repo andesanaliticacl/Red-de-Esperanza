@@ -103,7 +103,13 @@ export default function App() {
               path="/voluntario"
               element={
                 <ProtectedRoute
-                  roles={['voluntario', 'rescatista', 'verificador', 'admin']}
+                  roles={[
+                    'voluntario',
+                    'rescatista',
+                    'lider_voluntarios',
+                    'verificador',
+                    'admin',
+                  ]}
                 >
                   <VoluntarioView />
                 </ProtectedRoute>

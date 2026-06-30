@@ -29,7 +29,8 @@ const TIPOS: NecesidadTipo[] = [
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
   const { notificar } = useNotificaciones()
-  const esRescatista = rol === 'rescatista' || rol === 'admin'
+  const esRescatista =
+    rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
   // El aviso sonoro de "nueva necesidad / SOS" lo da el proveedor global de

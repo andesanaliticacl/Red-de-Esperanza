@@ -46,10 +46,17 @@ import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 
 export default function CentrosAcopioView() {
   const { perfil, rol } = useAuth()
-  const puedeRegistrar = rol === 'centro_acopio' || rol === 'admin'
-  // El admin y el "acopio_admin" pueden editar CUALQUIER centro (agregarle
-  // teléfono, red social, corregir dirección…), no solo el que crearon.
-  const puedeEditarTodo = rol === 'acopio_admin' || rol === 'admin'
+  const puedeRegistrar =
+    rol === 'centro_acopio' ||
+    rol === 'lider_voluntarios' ||
+    rol === 'admin'
+  // El admin, el "acopio_admin" y el "líder de voluntarios" pueden editar
+  // CUALQUIER centro (agregarle teléfono, red social, corregir dirección…),
+  // no solo el que crearon.
+  const puedeEditarTodo =
+    rol === 'acopio_admin' ||
+    rol === 'lider_voluntarios' ||
+    rol === 'admin'
 
   const [centros, setCentros] = useState<CentroAcopio[]>([])
   const [cargando, setCargando] = useState(true)
