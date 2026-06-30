@@ -26,6 +26,16 @@ const TIPOS: NecesidadTipo[] = [
   'otro',
 ]
 
+// Tipos del resumen consolidado (el SOS/rescate se cuenta aparte por prioridad).
+const RESUMEN_TIPOS: NecesidadTipo[] = [
+  'derrumbe',
+  'zona_sin_atender',
+  'agua_comida',
+  'medicinas',
+  'refugio',
+  'otro',
+]
+
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
   const { notificar } = useNotificaciones()
@@ -194,11 +204,47 @@ export default function VoluntarioView() {
       !(n.tipo === 'rescate' || n.origen === 'sos'),
   )
 
+  // Resumen consolidado por tipo (sobre todas las solicitudes activas cargadas).
+  // El SOS va aparte (rescate u origen 'sos'), por ser la máxima prioridad.
+  const totalSos = useMemo(
+    () =>
+      necesidades.filter((n) => n.tipo === 'rescate' || n.origen === 'sos')
+        .length,
+    [necesidades],
+  )
+  const conteoTipos = useMemo(
+    () =>
+      RESUMEN_TIPOS.map((t) => ({
+        tipo: t,
+        n: necesidades.filter((x) => x.tipo === t).length,
+      })).filter((c) => c.n > 0),
+    [necesidades],
+  )
+
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-extrabold text-bandera-azul">
         Necesidades reportadas
       </h1>
+
+      {/* Resumen consolidado: total de solicitudes por tipo */}
+      <section className="card">
+        <h2 className="font-bold text-sm text-gray-600 mb-2">
+          Resumen por tipo de solicitud
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <ResumenTipo emoji="🆘" etiqueta="SOS" n={totalSos} color="#CC0001" />
+          {conteoTipos.map((c) => (
+            <ResumenTipo
+              key={c.tipo}
+              emoji={TIPO_META[c.tipo].emoji}
+              etiqueta={TIPO_META[c.tipo].etiqueta}
+              n={c.n}
+              color={TIPO_META[c.tipo].color}
+            />
+          ))}
+        </div>
+      </section>
 
       {/* Aviso de seguridad (sutil, se puede cerrar) */}
       {verAviso && (
@@ -241,11 +287,14 @@ export default function VoluntarioView() {
             </span>
           </button>
           {sosAbierto &&
-            sos.map((n) => (
+            sos.map((n, i) => (
             <div
               key={n.id}
               className="bg-white rounded-xl p-3 flex items-center gap-3 shadow-sm"
             >
+              <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bandera-rojo text-white text-xs font-bold">
+                {i + 1}
+              </span>
               <div className="text-2xl animate-pulse">🆘</div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate">
@@ -346,10 +395,11 @@ export default function VoluntarioView() {
             🙋 Me asigné ({mias.length})
           </h2>
           <div className="space-y-3">
-            {mias.map((n) => (
+            {mias.map((n, i) => (
               <Fila
                 key={n.id}
                 n={n}
+                numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion="atender"
@@ -369,10 +419,11 @@ export default function VoluntarioView() {
             👥 En curso por otros ({deOtros.length})
           </h2>
           <div className="space-y-3">
-            {deOtros.map((n) => (
+            {deOtros.map((n, i) => (
               <Fila
                 key={n.id}
                 n={n}
+                numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion={null}
@@ -395,10 +446,11 @@ export default function VoluntarioView() {
           </div>
         ) : (
           <div className="space-y-3">
-            {abiertas.map((n) => (
+            {abiertas.map((n, i) => (
               <Fila
                 key={n.id}
                 n={n}
+                numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion="asignar"
@@ -434,8 +486,34 @@ export default function VoluntarioView() {
   )
 }
 
+/** Tarjetita del resumen: emoji + total de un tipo de solicitud. */
+function ResumenTipo({
+  emoji,
+  etiqueta,
+  n,
+  color,
+}: {
+  emoji: string
+  etiqueta: string
+  n: number
+  color: string
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-2.5 py-1.5">
+      <span className="text-xl">{emoji}</span>
+      <div className="min-w-0">
+        <div className="text-lg font-extrabold leading-none" style={{ color }}>
+          {n}
+        </div>
+        <div className="text-[11px] text-gray-600 truncate">{etiqueta}</div>
+      </div>
+    </div>
+  )
+}
+
 function Fila({
   n,
+  numero,
   contacto,
   trabajando,
   accion,
@@ -445,6 +523,7 @@ function Fila({
   atendidaPor,
 }: {
   n: Necesidad
+  numero?: number
   contacto?: string | null
   trabajando: boolean
   accion: 'asignar' | 'atender' | null
@@ -455,6 +534,11 @@ function Fila({
 }) {
   return (
     <div className="card flex items-center gap-3">
+      {numero != null && (
+        <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bandera-azul text-white text-xs font-bold">
+          {numero}
+        </span>
+      )}
       <div className="text-3xl">{TIPO_META[n.tipo].emoji}</div>
       <div className="flex-1 min-w-0">
         <div className="font-bold">
