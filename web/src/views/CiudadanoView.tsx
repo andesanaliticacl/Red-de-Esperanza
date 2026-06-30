@@ -11,10 +11,6 @@ import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
-import {
-  PERSONAS_HOSPITALES,
-  type PersonaHospitalExcel,
-} from '../data/personasHospitales'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -52,6 +48,39 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
+const COLS_PERSONAS_HOSPITAL =
+  'id, cedula, nombre, apellido, edad, es_menor, estatus, locacion, hospital_normalizado, ultima_ubicacion, condicion, ultima_actualizacion, contacto'
+
+interface PersonaHospitalDB {
+  id: string
+  cedula: string | null
+  nombre: string | null
+  apellido: string | null
+  edad: number | string | null
+  es_menor: boolean | null
+  estatus: string | null
+  locacion: string | null
+  hospital_normalizado: string | null
+  ultima_ubicacion: string | null
+  condicion: string | null
+  ultima_actualizacion: string | null
+  contacto: string | null
+}
+
+interface PersonaHospital {
+  id: string
+  cedula: string | null
+  nombre: string
+  apellido: string
+  edad: number | string | null
+  esMenor: boolean
+  estatus: string
+  locacion: string
+  ultimaUbicacion: string | null
+  condicion: string | null
+  ultimaActualizacion: string | null
+  contacto: string | null
+}
 
 function normalizarTexto(valor: string | null | undefined) {
   return (valor ?? '')
@@ -83,6 +112,29 @@ const PALABRAS_GENERICAS_HOSPITAL = new Set([
   'y',
 ])
 
+const HOSPITALES_CANONICOS = [
+  {
+    clave: 'jose maria vargas',
+    alias: ['jose maria vargas', 'jose maria', 'vargas'],
+  },
+  {
+    clave: 'perez carreno',
+    alias: ['perez carreno', 'perez carreño'],
+  },
+  {
+    clave: 'domingo luciani',
+    alias: ['domingo luciani'],
+  },
+  {
+    clave: 'periferico catia',
+    alias: ['periferico catia', 'periferico de catia'],
+  },
+  {
+    clave: 'carlos arvelo',
+    alias: ['carlos arvelo', 'militar carlos arvelo'],
+  },
+]
+
 function claveHospital(valor: string | null | undefined) {
   return normalizarTexto(valor)
     .split(' ')
@@ -90,62 +142,105 @@ function claveHospital(valor: string | null | undefined) {
     .join(' ')
 }
 
-function locacionCoincideConHospital(
-  persona: PersonaHospitalExcel,
-  hospital: CentroAcopio,
-) {
-  const locacion = claveHospital(persona.locacion)
-  const nombreHospital = claveHospital(hospital.nombre)
+function claveHospitalConsulta(valor: string | null | undefined) {
+  const clave = claveHospital(valor)
+  const tokens = new Set(clave.split(' '))
 
-  if (!locacion || !nombreHospital) return false
-  if (locacion === nombreHospital) return true
+  for (const hospital of HOSPITALES_CANONICOS) {
+    for (const alias of hospital.alias) {
+      const aliasNormalizado = claveHospital(alias)
+      const aliasTokens = aliasNormalizado.split(' ')
+      const coincidencias = aliasTokens.filter((token) => tokens.has(token))
+      if (
+        clave.includes(aliasNormalizado) ||
+        aliasNormalizado.includes(clave) ||
+        coincidencias.length >= Math.min(2, aliasTokens.length)
+      ) {
+        return hospital.clave
+      }
+    }
+  }
 
-  const tokensLocacion = new Set(locacion.split(' '))
-  const tokensHospital = nombreHospital.split(' ')
-  const coincidencias = tokensHospital.filter((token) => tokensLocacion.has(token))
-
-  return (
-    coincidencias.length >= Math.min(2, tokensHospital.length) &&
-    coincidencias.join(' ').length >= 5
-  )
+  return clave
 }
 
-function PersonaHospitalItem({ persona }: { persona: PersonaHospitalExcel }) {
+function adaptarPersonaHospital(persona: PersonaHospitalDB): PersonaHospital {
+  return {
+    id: persona.id,
+    cedula: persona.cedula,
+    nombre: persona.nombre ?? '',
+    apellido: persona.apellido ?? '',
+    edad: persona.edad,
+    esMenor: persona.es_menor ?? false,
+    estatus: persona.estatus ?? 'HOSPITAL',
+    locacion: persona.locacion ?? '',
+    ultimaUbicacion: persona.ultima_ubicacion,
+    condicion: persona.condicion,
+    ultimaActualizacion: persona.ultima_actualizacion,
+    contacto: persona.contacto,
+  }
+}
+
+function esMenorDeEdad(edad: PersonaHospital['edad']) {
+  if (edad == null || edad === '') return false
+  const edadNumerica =
+    typeof edad === 'number' ? edad : Number(String(edad).replace(/[^\d.]/g, ''))
+
+  return Number.isFinite(edadNumerica) && edadNumerica < 18
+}
+
+function PersonaHospitalItem({ persona }: { persona: PersonaHospital }) {
   const nombreCompleto = [persona.nombre, persona.apellido].filter(Boolean).join(' ')
+  const menorDeEdad = persona.esMenor || esMenorDeEdad(persona.edad)
+  const edadVisible = !menorDeEdad && persona.edad ? `${persona.edad} años` : null
+  const detallesPrincipales = [edadVisible, persona.locacion].filter(Boolean)
 
   return (
     <li>
-      <div className="w-full flex items-center gap-3 p-3 text-left">
+      <div className="w-full flex items-start gap-3 p-3 text-left">
         <span className="h-12 w-12 rounded-full bg-red-50 text-bandera-rojo grid place-items-center shrink-0 text-lg font-bold">
           H
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-gray-900 truncate">
-            {nombreCompleto || 'Sin nombre'}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm font-semibold text-gray-900">
+              {nombreCompleto || 'Sin nombre'}
+            </span>
+            {!menorDeEdad && persona.cedula && (
+              <span className="text-xs font-bold text-bandera-azul">
+                C.I. {persona.cedula}
+              </span>
+            )}
           </span>
-          <span className="block text-xs text-gray-500 truncate">
-            {[
-              persona.edad ? `${persona.edad} años` : null,
-              persona.locacion,
-              persona.ultimaUbicacion,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
-          {persona.condicion && (
-            <span className="block text-xs text-gray-600 truncate">
-              {persona.condicion}
+          {detallesPrincipales.length > 0 && (
+            <span className="block text-xs text-gray-500 mt-0.5">
+              {detallesPrincipales.join(' · ')}
             </span>
           )}
-          {persona.contacto && (
-            <span className="block text-xs font-semibold text-bandera-azul truncate">
-              {persona.contacto}
+          {persona.condicion && (
+            <span className="block text-xs text-gray-700 mt-1">
+              {persona.condicion}
             </span>
           )}
         </span>
       </div>
     </li>
   )
+}
+
+function personaCoincideConBusqueda(persona: PersonaHospital, busqueda: string) {
+  const termino = busqueda.trim().toLowerCase()
+  if (!termino) return true
+
+  const soloNumeros = /^\d+$/.test(termino)
+  if (soloNumeros) {
+    return (persona.cedula ?? '').replace(/\D/g, '').includes(termino)
+  }
+
+  return [persona.nombre, persona.apellido]
+    .join(' ')
+    .toLowerCase()
+    .includes(termino)
 }
 
 function PersonasHospitalModal({
@@ -155,17 +250,14 @@ function PersonasHospitalModal({
   onCerrar,
 }: {
   hospital: CentroAcopio
-  personas: PersonaHospitalExcel[]
+  personas: PersonaHospital[]
   cargando: boolean
   onCerrar: () => void
 }) {
   const [busqueda, setBusqueda] = useState('')
-  const termino = busqueda.trim().toLowerCase()
-  const personasFiltradas = termino
-    ? personas.filter((persona) =>
-        [persona.nombre, persona.apellido].join(' ').toLowerCase().includes(termino),
-      )
-    : personas
+  const personasFiltradas = personas.filter((persona) =>
+    personaCoincideConBusqueda(persona, busqueda),
+  )
 
   return (
     <div
@@ -208,7 +300,7 @@ function PersonasHospitalModal({
 
         <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
           <p className="text-xs text-gray-600">
-            Se muestran solo registros del Excel con estatus HOSPITAL y locación asociada a este hospital.
+            Se muestran solo registros activos en la base con estatus HOSPITAL asociados a este hospital.
           </p>
           <input
             type="search"
@@ -347,7 +439,7 @@ export default function CiudadanoView() {
     useState<CentroAcopio | null>(null)
   const [modalPersonasHospitalAbierto, setModalPersonasHospitalAbierto] =
     useState(false)
-  const [personasHospital, setPersonasHospital] = useState<PersonaHospitalExcel[]>([])
+  const [personasHospital, setPersonasHospital] = useState<PersonaHospital[]>([])
   const [cargandoPersonasHospital, setCargandoPersonasHospital] = useState(false)
   const [irACoordenada, setIrACoordenada] = useState<[number, number] | null>(
     null,
@@ -489,14 +581,37 @@ export default function CiudadanoView() {
       return
     }
 
+    let cancel = false
     const hospital = hospitalSeleccionado
-    setCargandoPersonasHospital(true)
-    setPersonasHospital(
-      PERSONAS_HOSPITALES.filter((persona) =>
-        locacionCoincideConHospital(persona, hospital),
-      ),
-    )
-    setCargandoPersonasHospital(false)
+    const hospitalNormalizado = claveHospitalConsulta(hospital.nombre)
+
+    async function cargarPersonasHospital() {
+      setCargandoPersonasHospital(true)
+
+      const { data, error } = await supabase
+        .from('personas_hospitalizadas_publicas')
+        .select(COLS_PERSONAS_HOSPITAL)
+        .eq('estatus', 'HOSPITAL')
+        .eq('hospital_normalizado', hospitalNormalizado)
+        .order('nombre', { ascending: true })
+        .limit(300)
+
+      if (cancel) return
+
+      if (error) {
+        console.error('Error cargando personas hospitalizadas', error)
+        setPersonasHospital([])
+      } else {
+        setPersonasHospital(((data ?? []) as PersonaHospitalDB[]).map(adaptarPersonaHospital))
+      }
+
+      setCargandoPersonasHospital(false)
+    }
+
+    void cargarPersonasHospital()
+    return () => {
+      cancel = true
+    }
   }, [hospitalSeleccionado, modalPersonasHospitalAbierto])
 
   return (
