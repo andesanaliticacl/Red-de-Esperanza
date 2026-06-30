@@ -23,6 +23,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
   const esStaff =
     rol === 'voluntario' ||
     rol === 'rescatista' ||
+    rol === 'lider_voluntarios' ||
     rol === 'verificador' ||
     rol === 'admin'
 
@@ -127,16 +128,27 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                 />
               )}
               <ItemLink to="/acopios" emoji="📦" texto="Centros de acopio" onClick={cerrar} />
-              <button
-                onClick={() => {
-                  cerrar()
-                  setChat(true)
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left"
-              >
-                <span className="text-lg">💬</span>
-                <span className="font-medium">Chat en vivo</span>
-              </button>
+              {/* El admin NO usa el chat en vivo: en su lugar monitorea TODAS
+                  las conversaciones (solo lectura). El resto sí ve el chat. */}
+              {rol === 'admin' ? (
+                <ItemLink
+                  to="/panel-x7k2/conversaciones"
+                  emoji="💬"
+                  texto="Todas las conversaciones"
+                  onClick={cerrar}
+                />
+              ) : (
+                <button
+                  onClick={() => {
+                    cerrar()
+                    setChat(true)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left"
+                >
+                  <span className="text-lg">💬</span>
+                  <span className="font-medium">Chat en vivo</span>
+                </button>
+              )}
               {rol === 'admin' && (
                 <ItemLink to="/panel-x7k2" emoji="🛡️" texto="Administración" onClick={cerrar} />
               )}

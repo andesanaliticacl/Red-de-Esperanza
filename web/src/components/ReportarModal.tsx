@@ -189,6 +189,7 @@ export default function ReportarModal({
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
         contacto,
+        contactoObligatorio: true,
         origen: 'web',
       })
       onCreado()

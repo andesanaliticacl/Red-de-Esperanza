@@ -22,6 +22,9 @@ const MisConversacionesView = lazy(
   () => import('./views/MisConversacionesView'),
 )
 const AdminView = lazy(() => import('./views/AdminView'))
+const AdminConversacionesView = lazy(
+  () => import('./views/AdminConversacionesView'),
+)
 const ScrapingAdminView = lazy(() => import('./views/ScrapingAdminView'))
 
 function Cargando() {
@@ -103,7 +106,13 @@ export default function App() {
               path="/voluntario"
               element={
                 <ProtectedRoute
-                  roles={['voluntario', 'rescatista', 'verificador', 'admin']}
+                  roles={[
+                    'voluntario',
+                    'rescatista',
+                    'lider_voluntarios',
+                    'verificador',
+                    'admin',
+                  ]}
                 >
                   <VoluntarioView />
                 </ProtectedRoute>
@@ -117,6 +126,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <AdminView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/panel-x7k2/conversaciones"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminConversacionesView />
                 </ProtectedRoute>
               }
             />

@@ -57,6 +57,7 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
         lat: coord?.lat ?? null,
         lng: coord?.lng ?? null,
         contacto,
+        contactoObligatorio: true,
         origen: 'sos',
       })
       setPaso('enviado')

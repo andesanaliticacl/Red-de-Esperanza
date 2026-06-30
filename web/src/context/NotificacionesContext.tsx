@@ -135,7 +135,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
           if (fila.asignado_a && !antes) {
             sonarMensaje()
             notificar(
-              '🚑 ¡Alguien va en camino! Ya están atendiendo tu reporte.',
+              '🚑 ¡Ya están atendiendo tu solicitud!',
               'exito',
               { ruta: '/mis-reportes', etiqueta: 'Ver mi reporte' },
             )
@@ -150,7 +150,9 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
   }, [perfil?.id, notificar])
 
   const esEquipoCampo =
-    perfil?.rol === 'voluntario' || perfil?.rol === 'rescatista'
+    perfil?.rol === 'voluntario' ||
+    perfil?.rol === 'rescatista' ||
+    perfil?.rol === 'lider_voluntarios'
 
   function alAccion(accion: AccionAviso, id: string) {
     marcarLeida(id)

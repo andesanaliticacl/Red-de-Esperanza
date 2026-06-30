@@ -25,6 +25,7 @@ export type RolUsuario =
   | 'rescatista'
   | 'centro_acopio'
   | 'acopio_admin'
+  | 'lider_voluntarios'
   | 'verificador'
   | 'admin'
 
@@ -157,6 +158,7 @@ export const ROL_META: Record<RolUsuario, { etiqueta: string; emoji: string }> =
   rescatista: { etiqueta: 'Rescatista', emoji: '🚑' },
   centro_acopio: { etiqueta: 'Centro de acopio', emoji: '📦' },
   acopio_admin: { etiqueta: 'Admin de centros de acopio', emoji: '🗂️' },
+  lider_voluntarios: { etiqueta: 'Líder de voluntarios', emoji: '⭐' },
   verificador: { etiqueta: 'Verificador', emoji: '✅' },
   admin: { etiqueta: 'Administrador', emoji: '🛡️' },
 }

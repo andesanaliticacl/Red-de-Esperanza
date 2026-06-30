@@ -395,8 +395,12 @@ export default function CiudadanoView() {
   }, [resaltadaAcopioId, resaltadaId, setSearchParams])
   // Voluntario/rescatista/admin pueden tomar una necesidad desde el mapa.
   const puedeAtender =
-    rol === 'voluntario' || rol === 'rescatista' || rol === 'admin'
-  const esRescatista = rol === 'rescatista' || rol === 'admin'
+    rol === 'voluntario' ||
+    rol === 'rescatista' ||
+    rol === 'lider_voluntarios' ||
+    rol === 'admin'
+  const esRescatista =
+    rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
 
   // Tomar una necesidad desde el popup del mapa: la pasa a "en proceso" y le
   // avisa (Realtime) a quien la creó que alguien ya va en camino.

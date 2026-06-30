@@ -86,12 +86,19 @@ export function iconoNecesidad(
 
   // Cuando alguien ya tomó la necesidad, mostramos un cartelito visible debajo
   // del pin para que NADIE pierda el tiempo yendo dos veces al mismo punto.
+  // Centramos con un marco de ancho fijo posicionado en píxel ENTERO
+  // (left:50% + margin-left:-100px) en vez de transform:translateX(-50%): así el
+  // texto no cae en medio píxel y el navegador no lo difumina al re-muestrear.
   const etiquetaEnCamino =
     estado === 'en_proceso'
-      ? `<div style="position:absolute;top:${tam + 1}px;left:50%;transform:translateX(-50%);
-            background:#002FA7;color:#fff;font-size:10px;font-weight:700;line-height:1.2;
-            padding:2px 7px;border-radius:9999px;white-space:nowrap;
-            box-shadow:0 1px 3px rgba(0,0,0,.45);border:1px solid #fff;">🚑 Alguien va en camino</div>`
+      ? `<div style="position:absolute;top:${tam + 1}px;left:50%;margin-left:-100px;
+            width:200px;text-align:center;pointer-events:none;">
+            <span style="display:inline-block;background:#002FA7;color:#fff;
+              font-size:10px;font-weight:700;line-height:1.2;padding:2px 7px;
+              border-radius:9999px;white-space:nowrap;border:1px solid #fff;
+              box-shadow:0 1px 3px rgba(0,0,0,.45);
+              -webkit-font-smoothing:antialiased;">🚑 Atendiendo solicitud</span>
+          </div>`
       : ''
 
   const icono = L.divIcon({

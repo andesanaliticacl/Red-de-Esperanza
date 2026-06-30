@@ -1,8 +1,60 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { listarChat, enviarChat, suscribirChat } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
-import { ESTADOS_VENEZUELA, type MensajeGlobal } from '../lib/types'
+import {
+  ESTADOS_VENEZUELA,
+  ROL_META,
+  type MensajeGlobal,
+  type RolUsuario,
+} from '../lib/types'
+
+// Color distintivo por rol (mismo criterio que el panel de administración),
+// para que de un vistazo se distinga quién es rescatista, voluntario, etc.
+const COLOR_ROL: Record<RolUsuario, string> = {
+  ciudadano: '#475569',
+  voluntario: '#002FA7',
+  rescatista: '#CC0001',
+  centro_acopio: '#16A34A',
+  acopio_admin: '#0891B2',
+  lider_voluntarios: '#B45309',
+  verificador: '#7C3AED',
+  admin: '#CF9B00',
+}
+
+/**
+ * Etiqueta del rol que va junto al nombre en cada mensaje.
+ * - Sin cuenta (autor null) → "Sin iniciar sesión" en gris.
+ * - Con cuenta pero rol aún cargando → no muestra nada (aparece al resolver).
+ * - Con cuenta → pastilla del color del rol.
+ */
+function EtiquetaRol({
+  autor,
+  rol,
+}: {
+  autor: string | null
+  rol?: RolUsuario
+}) {
+  if (!autor) {
+    return (
+      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+        👤 Sin iniciar sesión
+      </span>
+    )
+  }
+  if (!rol) return null
+  const meta = ROL_META[rol]
+  const color = COLOR_ROL[rol]
+  return (
+    <span
+      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+      style={{ color, backgroundColor: `${color}1A` }}
+    >
+      {meta.emoji} {meta.etiqueta}
+    </span>
+  )
+}
 
 /**
  * Chat global comunitario, agrupado por estado de Venezuela. Rellena el alto de
@@ -12,9 +64,13 @@ import { ESTADOS_VENEZUELA, type MensajeGlobal } from '../lib/types'
 export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const { perfil } = useAuth()
   const guardada = leerIdentidad()
-  const [nombre, setNombre] = useState(
-    guardada?.nombre ?? perfil?.nombre?.split(' ')[0] ?? '',
-  )
+  // Si la persona ya inició sesión, su nombre es automático (el de su perfil) y
+  // solo puede elegir/rotar su estado. Sin cuenta, sí pide un apodo.
+  const esLogueado = Boolean(perfil?.id)
+  const nombreEfectivo = esLogueado
+    ? perfil?.nombre?.split(' ')[0] || 'Yo'
+    : ''
+  const [nombre, setNombre] = useState(guardada?.nombre ?? '')
   const [estado, setEstado] = useState(guardada?.estado ?? perfil?.estado ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
 
@@ -22,14 +78,39 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [texto, setTexto] = useState('')
   const [cargando, setCargando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  // Rol de cada autor (id → rol), para mostrar la etiqueta de color junto al
+  // nombre. Se resuelve con la vista pública perfiles_publicos.
+  const [roles, setRoles] = useState<Map<string, RolUsuario>>(new Map())
   const finRef = useRef<HTMLDivElement>(null)
+
+  // Busca los roles que falten para los autores recibidos y los agrega al mapa.
+  async function asegurarRoles(autores: (string | null)[]) {
+    const faltan = [
+      ...new Set(autores.filter((a): a is string => Boolean(a))),
+    ].filter((id) => !roles.has(id))
+    if (faltan.length === 0) return
+    const { data } = await supabase
+      .from('perfiles_publicos')
+      .select('id, rol')
+      .in('id', faltan)
+    if (!data) return
+    setRoles((prev) => {
+      const m = new Map(prev)
+      for (const p of data as { id: string; rol: RolUsuario }[]) m.set(p.id, p.rol)
+      return m
+    })
+  }
 
   useEffect(() => {
     if (!listo || !estado.trim()) return
     let activo = true
     setCargando(true)
     listarChat(estado)
-      .then((m) => activo && setMensajes(m))
+      .then((m) => {
+        if (!activo) return
+        setMensajes(m)
+        void asegurarRoles(m.map((x) => x.autor))
+      })
       .catch((e) => setErrorMsg((e as Error).message))
       .finally(() => activo && setCargando(false))
 
@@ -37,11 +118,13 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       setMensajes((prev) =>
         prev.some((x) => x.id === m.id) ? prev : [...prev, m],
       )
+      void asegurarRoles([m.autor])
     })
     return () => {
       activo = false
       cancelar()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listo, estado])
 
   useEffect(() => {
@@ -50,8 +133,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
 
   function entrar(e: React.FormEvent) {
     e.preventDefault()
-    if (!nombre.trim() || !estado.trim()) return
-    guardarIdentidad({ nombre: nombre.trim(), estado: estado.trim() })
+    const nom = esLogueado ? nombreEfectivo : nombre.trim()
+    if (!nom || !estado.trim()) return
+    guardarIdentidad({ nombre: nom, estado: estado.trim() })
     setMensajes([])
     setListo(true)
   }
@@ -63,7 +147,11 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     setTexto('')
     setErrorMsg('')
     try {
-      await enviarChat({ ciudad: estado, nombre, cuerpo })
+      await enviarChat({
+        ciudad: estado,
+        nombre: esLogueado ? nombreEfectivo : nombre,
+        cuerpo,
+      })
     } catch (err) {
       setErrorMsg((err as Error).message)
       setTexto(cuerpo)
@@ -86,7 +174,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           <button
             onClick={() => setListo(false)}
             className="ml-auto text-base opacity-90 hover:opacity-100"
-            title="Cambiar estado o apodo"
+            title={esLogueado ? 'Cambiar estado' : 'Cambiar estado o apodo'}
             aria-label="Ajustes del chat"
           >
             ⚙️
@@ -107,19 +195,33 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         // Ajustes / identidad (apodo + estado)
         <form onSubmit={entrar} className="p-4 space-y-3 flex-1">
           <p className="text-sm text-gray-600">
-            Conversa con la gente de tu estado. Elige tu nombre y tu estado para
-            entrar al chat comunitario.
+            Conversa con la gente de tu estado.{' '}
+            {esLogueado
+              ? 'Elige tu estado para entrar al chat comunitario.'
+              : 'Elige tu nombre y tu estado para entrar al chat comunitario.'}
           </p>
-          <label className="block text-sm font-semibold">
-            Nombre de la persona
-            <input
-              className="input mt-1"
-              placeholder="Tu nombre o apodo"
-              maxLength={40}
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-            />
-          </label>
+          {esLogueado ? (
+            // Logueado: el nombre es automático (no se vuelve a pedir). Solo
+            // se muestra cómo va a aparecer, con su rol.
+            <div className="rounded-xl bg-gray-50 border p-3">
+              <div className="text-xs text-gray-500">Entrarás como</div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="font-bold">{nombreEfectivo}</span>
+                {perfil?.rol && <EtiquetaRol autor={perfil.id} rol={perfil.rol} />}
+              </div>
+            </div>
+          ) : (
+            <label className="block text-sm font-semibold">
+              Nombre de la persona
+              <input
+                className="input mt-1"
+                placeholder="Tu nombre o apodo"
+                maxLength={40}
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+              />
+            </label>
+          )}
           <label className="block text-sm font-semibold">
             Estado
             <select
@@ -137,7 +239,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           </label>
           <button
             type="submit"
-            disabled={!nombre.trim() || !estado.trim()}
+            disabled={(!esLogueado && !nombre.trim()) || !estado.trim()}
             className="btn-azul w-full disabled:opacity-50"
           >
             Entrar al chat
@@ -170,8 +272,14 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                       }`}
                     >
                       {!mio && (
-                        <div className="text-[11px] font-bold text-bandera-azul">
-                          {m.nombre}
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <span className="text-[11px] font-bold text-bandera-azul">
+                            {m.nombre}
+                          </span>
+                          <EtiquetaRol
+                            autor={m.autor}
+                            rol={m.autor ? roles.get(m.autor) : undefined}
+                          />
                         </div>
                       )}
                       <div className="break-words">{m.cuerpo}</div>

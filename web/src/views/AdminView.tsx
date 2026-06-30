@@ -11,6 +11,7 @@ const COLOR_ROL: Record<RolUsuario, string> = {
   rescatista: '#CC0001',
   centro_acopio: '#16A34A',
   acopio_admin: '#0891B2',
+  lider_voluntarios: '#B45309',
   verificador: '#7C3AED',
   admin: '#CF9B00',
 }
@@ -23,6 +24,7 @@ const ROLES: RolUsuario[] = [
   'rescatista',
   'centro_acopio',
   'acopio_admin',
+  'lider_voluntarios',
   'admin',
 ]
 
@@ -107,7 +109,10 @@ export default function AdminView() {
       en_proceso: c('en_proceso'),
       resuelta: c('resuelta'),
       voluntarios: perfiles.filter(
-        (p) => p.rol === 'voluntario' || p.rol === 'rescatista',
+        (p) =>
+          p.rol === 'voluntario' ||
+          p.rol === 'rescatista' ||
+          p.rol === 'lider_voluntarios',
       ).length,
     }
   }, [necesidades, perfiles])
@@ -245,6 +250,27 @@ export default function AdminView() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* Monitoreo de todas las conversaciones */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">Conversaciones</h2>
+        <Link
+          to="/panel-x7k2/conversaciones"
+          className="card flex items-center gap-3 no-underline"
+        >
+          <span className="text-2xl">💬</span>
+          <div className="flex-1">
+            <div className="font-semibold text-bandera-azul">
+              Monitorear todas las conversaciones
+            </div>
+            <div className="text-sm text-gray-600">
+              Revisa los chats entre quienes reportan y quienes atienden (solo
+              lectura).
+            </div>
+          </div>
+          <span className="text-bandera-azul">→</span>
+        </Link>
       </section>
 
       {/* Scraping de personas desaparecidas */}
