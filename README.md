@@ -18,7 +18,8 @@ Incluye además un registro de **personas desaparecidas**, **centros de acopio**
 red-de-esperanza/
 ├── web/        → PWA (React + Vite + TS) con las vistas por rol
 ├── scraper/    → scraper de personas desaparecidas (Python + Playwright)
-├── supabase/   → esquema SQL (tablas, roles, RLS, analítica, migraciones 02→23)
+├── supabase/   → esquema SQL (tablas, roles, RLS, analítica, migraciones 02→29)
+│   └── functions/enviar-push/ → Edge Function de notificaciones push (Web Push)
 └── README.md
 ```
 
@@ -30,12 +31,15 @@ red-de-esperanza/
 | **Voluntario** | Sí | Ve lo verificado, se asigna y atiende |
 | **Rescatista** | Sí | Atiende rescates/emergencias, ve el feed SOS |
 | **Centro de acopio** | Sí | Gestiona donaciones y suministros |
+| **Admin de centros de acopio** | Sí | Edita/borra cualquier centro de acopio |
+| **Líder de voluntarios** | Sí | Rol combinado: voluntario + rescatista + centro de acopio + admin de acopios; ve y revisa todas las notas de cierre |
 | **Verificador** | Sí | Cola de verificación: confirma/corrige/rechaza |
-| **Administrador** | Sí | Gestiona roles, panel, centros, scraping, visitantes |
+| **Administrador** | Sí | Gestiona roles, panel, centros, scraping, visitantes, conversaciones y notas de cierre |
 
 El registro pide nombre, cédula/pasaporte, país, estado/región y ciudad, y el rol
 elegido (ciudadano/voluntario/rescatista/centro de acopio). Nadie puede
-auto-asignarse verificador ni admin: eso solo lo otorga un admin.
+auto-asignarse verificador, admin, **líder de voluntarios** ni **admin de centros
+de acopio**: esos roles solo los otorga un admin.
 
 ---
 
@@ -112,12 +116,52 @@ auto-asignarse verificador ni admin: eso solo lo otorga un admin.
 ### Panel de administración
 - **Estadísticas** de necesidades (recibidas / en proceso / resueltas) y equipo
   activo.
+- **Conteo de usuarios por rol** (tarjetas con cuántos ciudadanos, voluntarios,
+  rescatistas, centros de acopio, etc.). La lista de usuarios se trae **paginada**
+  (la API corta a 1000 filas; se piden por páginas para contarlos todos).
 - **Gestión de usuarios y roles**.
+- **💬 Todas las conversaciones:** monitoreo (solo lectura) de **todos** los chats
+  entre quien reporta y quien atiende. En el menú, el admin ve esta opción en
+  lugar del "Chat en vivo".
+- **📝 Notas de cierre:** todas las notas que el equipo deja al cerrar casos.
 - **Scraping** de personas desaparecidas (ejecutar y administrar).
 - **Centros de acopio** (gestión unificada, también internacionales).
 - **👥 Visitantes:** contador anónimo de cuántos dispositivos han usado la página
   y **desglose por país** (país aproximado por IP, una fila por dispositivo, máximo
   una escritura por día). Requiere la migración 23.
+
+### Atender solicitudes (voluntario / rescatista / líder)
+- **Emergencias SOS entrantes** plegables (se recuerda la preferencia), con
+  numeración y solo los rescatistas/líderes pueden tomarlas.
+- **Resumen consolidado por tipo** de solicitud (SOS, agua/comida, derrumbes,
+  zonas sin atender, etc.) y numeración de cada solicitud por sección.
+- **"Me asigné"** siempre carga tus casos asignados **aparte del tope de 500**
+  necesidades, para que nunca desaparezcan aunque entren muchos reportes nuevos.
+- **Teléfono de quien reportó** visible para el personal (Llamar / WhatsApp); el
+  número es **obligatorio** al crear un SOS o reporte y se guarda de forma fiable
+  (si no se puede guardar, no se crea la solicitud, para que nadie quede sin
+  forma de contacto).
+- **Ver título completo** (los títulos largos se despliegan) y **Ver en el mapa**
+  (centra y abre esa necesidad en el mapa de inicio).
+- **Cierre con comentario:** al marcar un caso como atendido, cualquiera del
+  equipo puede dejar una **nota de cierre** (opcional). Se guarda en la tabla
+  privada `notas_cierre` (solo el personal la lee) y se ve en el historial y en
+  la vista de notas de cierre. Requiere la migración 29.
+
+### Chat en vivo (comunitario por estado)
+- Cada mensaje muestra el **rol del autor con un color distintivo** (rescatista,
+  voluntario, líder, etc.); quien no tiene sesión aparece como
+  **"Sin iniciar sesión"**.
+- Si ya iniciaste sesión, **no se te vuelve a pedir el nombre** (es el de tu
+  perfil); solo eliges/cambias tu estado.
+
+### Notificaciones
+- **En la app** y por **push** (Web Push), el aviso al asignarse un caso dice
+  **"Atendiendo solicitud" / "Ya están atendiendo tu solicitud"** (antes decía
+  "Alguien va en camino"). El cartelito del mapa bajo el pin también lo refleja.
+- Las **notificaciones push** avisan: nueva necesidad/SOS (a voluntarios y
+  rescatistas), "ya atienden tu solicitud" (a quien reportó) y mensajes nuevos
+  (a los participantes). Ver `supabase/functions/enviar-push/DEPLOY.md`.
 
 ---
 
@@ -153,6 +197,17 @@ auto-asignarse verificador ni admin: eso solo lo otorga un admin.
    | `21_indices_upsert.sql` | Índices para upsert sin duplicados |
    | `22_zona_sin_atender.sql` | Tipo "zona sin atender" + `radio_km` |
    | `23_visitas.sql` | Contador anónimo de visitantes (panel admin) |
+   | `24_acopio_admin.sql` | Rol "admin de centros de acopio" |
+   | `25_perfil_email.sql` | Correo en el perfil (para gestión/contacto) |
+   | `26_push.sql` | Tabla `push_subscriptions` (notificaciones push) |
+   | `27_telefono_asignado.sql` | El reportante ve el teléfono de quien atiende su caso |
+   | `28_lider_voluntarios.sql` | Rol "líder de voluntarios" (combina 4 roles) |
+   | `28_personas_hospitalizadas.sql` | Personas hospitalizadas en el mapa |
+   | `29_notas_cierre.sql` | Notas/comentarios al cerrar un caso (privadas) |
+
+   > Las notificaciones push, además de `26_push.sql`, necesitan desplegar la
+   > Edge Function y crear los webhooks: ver
+   > [`supabase/functions/enviar-push/DEPLOY.md`](supabase/functions/enviar-push/DEPLOY.md).
 
 4. **Authentication → Sign In / Providers → Email**: deja **Email** activado.
    Recomendado: activa **Confirm email** para que cada cuenta se verifique por
@@ -232,5 +287,6 @@ El registro de desaparecidos se alimenta con el scraper en [`scraper/`](scraper/
 ## Stack
 
 React + Vite + TypeScript · Tailwind · Leaflet + OpenStreetMap (+ Google Maps
-solo para geocodificar/rutas) · Supabase (Postgres + Auth + Realtime) ·
-Python + Playwright (scraper) · GitHub Actions · Vercel. Todo con plan gratuito.
+solo para geocodificar/rutas) · Supabase (Postgres + Auth + Realtime + Edge
+Functions + Web Push) · Python + Playwright (scraper) · GitHub Actions · Vercel.
+Todo con plan gratuito.
