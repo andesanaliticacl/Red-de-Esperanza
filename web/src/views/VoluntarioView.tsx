@@ -166,7 +166,7 @@ export default function VoluntarioView() {
     if (error) notificar('No se pudo asignar: ' + error.message, 'alerta')
     else
       notificar(
-        '✅ Te asignaste. Avisamos a la persona que vas en camino.',
+        '✅ Te asignaste. Avisamos a la persona que estás atendiendo su solicitud.',
         'exito',
       )
     await recargar()
