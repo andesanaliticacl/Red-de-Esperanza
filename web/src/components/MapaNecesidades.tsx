@@ -68,6 +68,11 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
   return null
 }
 
+function abrirPopupResaltado(marker: L.Marker | null, activo: boolean) {
+  if (!marker || !activo) return
+  window.setTimeout(() => marker.openPopup(), 350)
+}
+
 /** Informa la zona visible del mapa (para cargar solo los desaparecidos de
  *  esa zona). Emite al activarse y cada vez que el usuario mueve el mapa. */
 function RastreadorZona({
@@ -232,14 +237,154 @@ function esparcirEnDisco(
  *  · "Mi ubicación": centra el mapa donde está el usuario (solo si la tenemos).
  * Ambos son responsivos: el texto se acorta en pantallas pequeñas.
  */
+function ModalCompartir({
+  url,
+  titulo,
+  onCerrar,
+}: {
+  url: string
+  titulo: string
+  onCerrar: () => void
+}) {
+  const texto = 'Red de Esperanza: reporta y coordina necesidades de emergencia.'
+  const encodedUrl = encodeURIComponent(url)
+  const encodedText = encodeURIComponent(`${texto} ${url}`)
+  const opciones = [
+    {
+      etiqueta: 'Copiar',
+      icono: '🔗',
+      color: 'bg-blue-600',
+      accion: async () => {
+        await navigator.clipboard.writeText(url)
+        onCerrar()
+      },
+    },
+    {
+      etiqueta: 'WhatsApp',
+      icono: (
+        <svg
+          viewBox="0 0 32 32"
+          className="h-9 w-9"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M16.02 3.2A12.74 12.74 0 0 0 5.14 22.6L3.6 28.4l5.94-1.55A12.73 12.73 0 1 0 16.02 3.2Zm0 2.28a10.45 10.45 0 0 1 8.88 15.97 10.46 10.46 0 0 1-14.76 3.33l-.42-.25-3.52.92.94-3.43-.27-.44A10.46 10.46 0 0 1 16.02 5.48Zm-4.42 4.8c-.23 0-.6.08-.92.44-.32.35-1.2 1.17-1.2 2.86 0 1.69 1.23 3.32 1.4 3.55.17.23 2.38 3.81 5.88 5.19 2.91 1.15 3.5.92 4.13.86.63-.06 2.04-.83 2.33-1.63.29-.8.29-1.49.2-1.63-.08-.14-.32-.23-.66-.4-.34-.17-2.04-1-2.36-1.12-.32-.12-.55-.17-.78.17-.23.34-.89 1.12-1.1 1.35-.2.23-.4.26-.74.09-.34-.17-1.43-.53-2.73-1.68-1.01-.9-1.69-2.01-1.89-2.35-.2-.34-.02-.52.15-.69.15-.15.34-.4.52-.6.17-.2.23-.34.34-.57.11-.23.06-.43-.03-.6-.09-.17-.78-1.89-1.07-2.59-.28-.67-.57-.58-.78-.59h-.67Z" />
+        </svg>
+      ),
+      color: 'bg-green-600',
+      href: `https://wa.me/?text=${encodedText}`,
+    },
+    {
+      etiqueta: 'Facebook',
+      icono: 'f',
+      color: 'bg-blue-700',
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+    },
+    {
+      etiqueta: 'X',
+      icono: '𝕏',
+      color: 'bg-gray-900',
+      href: `https://twitter.com/intent/tweet?text=${encodedText}`,
+    },
+    {
+      etiqueta: 'Correo',
+      icono: '✉',
+      color: 'bg-amber-500',
+      href: `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodedText}`,
+    },
+  ]
+
+  return (
+    <div
+      className="fixed inset-0 z-[3000] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="compartir-titulo"
+      onClick={onCerrar}
+    >
+      <div
+        className="w-full max-w-lg bg-neutral-900 text-white rounded-2xl shadow-2xl p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 id="compartir-titulo" className="text-lg font-bold">
+            Compartir
+          </h2>
+          <button
+            type="button"
+            onClick={onCerrar}
+            className="h-9 w-9 grid place-items-center rounded-full text-3xl leading-none text-white/80 hover:bg-white/10"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
+          {opciones.map((opcion) =>
+            opcion.href ? (
+              <a
+                key={opcion.etiqueta}
+                href={opcion.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-2 text-center no-underline !text-white"
+              >
+                <span
+                  className={`h-16 w-16 rounded-full ${opcion.color} grid place-items-center text-3xl font-black`}
+                >
+                  {opcion.icono}
+                </span>
+                <span className="text-sm font-semibold leading-tight">
+                  {opcion.etiqueta}
+                </span>
+              </a>
+            ) : (
+              <button
+                key={opcion.etiqueta}
+                type="button"
+                onClick={opcion.accion}
+                className="flex flex-col items-center gap-2 text-center"
+              >
+                <span
+                  className={`h-16 w-16 rounded-full ${opcion.color} grid place-items-center text-3xl font-black`}
+                >
+                  {opcion.icono}
+                </span>
+                <span className="text-sm font-semibold leading-tight">
+                  {opcion.etiqueta}
+                </span>
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ControlesMapa({
   miUbicacion,
 }: {
   miUbicacion?: { lat: number; lng: number } | null
 }) {
   const map = useMap()
+  const [compartirAbierto, setCompartirAbierto] = useState(false)
+  const urlCompartir =
+    typeof window !== 'undefined' ? window.location.origin : ''
+  const tituloCompartir = 'Red de Esperanza'
+
   return (
     <div className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] flex flex-col items-end gap-2">
+      <button
+        onClick={() => setCompartirAbierto(true)}
+        className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
+        title="Compartir Red de Esperanza"
+        aria-label="Compartir Red de Esperanza"
+      >
+        <span className="text-base leading-none">↗</span>
+        <span className="whitespace-nowrap">Compartir</span>
+      </button>
+
       <button
         onClick={() => map.setView(CENTRO_VENEZUELA, 6)}
         className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
@@ -279,6 +424,13 @@ function ControlesMapa({
           <span className="whitespace-nowrap">Mi ubicación</span>
         </button>
       )}
+      {compartirAbierto && (
+        <ModalCompartir
+          url={urlCompartir}
+          titulo={tituloCompartir}
+          onCerrar={() => setCompartirAbierto(false)}
+        />
+      )}
     </div>
   )
 }
@@ -292,6 +444,7 @@ export default function MapaNecesidades({
   onAsignarme,
   puedeVerContacto = false,
   resaltadaId,
+  resaltadaAcopioId,
   ajustarVista = false,
   verDesaparecidos = false,
   busquedaDesap = '',
@@ -328,6 +481,8 @@ export default function MapaNecesidades({
   puedeVerContacto?: boolean
   /** Id de una necesidad a resaltar (icono grande con halo) y centrar. */
   resaltadaId?: string
+  /** Id de un centro/hospital a resaltar y centrar al abrir un enlace. */
+  resaltadaAcopioId?: string
   /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
   ajustarVista?: boolean
 }) {
@@ -363,6 +518,18 @@ export default function MapaNecesidades({
   // Se carga al abrir el popup. undefined = aún no consultado; null = no dejó
   // teléfono; string = el contacto. Así el rescatista puede llamar/escribir.
   const [contactos, setContactos] = useState<Record<string, string | null>>({})
+  const [compartirDirecto, setCompartirDirecto] = useState<{
+    titulo: string
+    url: string
+  } | null>(null)
+
+  function linkDirecto(tipo: 'necesidad' | 'acopio', id: string) {
+    const url = new URL(window.location.href)
+    url.searchParams.delete(tipo === 'necesidad' ? 'acopio' : 'necesidad')
+    url.searchParams.set(tipo, id)
+    return url.toString()
+  }
+
   async function cargarContacto(id: string) {
     if (!puedeVerContacto || id in contactos) return
     const { data } = await supabase
@@ -456,6 +623,17 @@ export default function MapaNecesidades({
           }
         />
       )}
+      {resaltadaAcopioId && (
+        <CentrarEn
+          posicion={
+            posiciones.get(`acopio:${resaltadaAcopioId}`) ??
+            (() => {
+              const a = acopios.find((x) => x.id === resaltadaAcopioId)
+              return a ? ([a.lat, a.lng] as [number, number]) : null
+            })()
+          }
+        />
+      )}
 
       {/* Zonas sin atender: SOLO se muestran con su marcador 🚩 (lo dibuja el
           bucle de necesidades de abajo). Antes se pintaba además un círculo rojo
@@ -478,6 +656,7 @@ export default function MapaNecesidades({
         .map((n) => (
           <Marker
             key={n.id}
+            ref={(marker) => abrirPopupResaltado(marker, n.id === resaltadaId)}
             position={posiciones.get(n.id) ?? [n.lat as number, n.lng as number]}
             icon={iconoNecesidad(
               n.tipo,
@@ -498,7 +677,21 @@ export default function MapaNecesidades({
           >
             <Popup>
               {abierto === n.id && (
-              <div className="space-y-1">
+              <div className="relative space-y-1 pr-7">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCompartirDirecto({
+                      titulo: `${TIPO_META[n.tipo].etiqueta} - Red de Esperanza`,
+                      url: linkDirecto('necesidad', n.id),
+                    })
+                  }
+                  className="absolute right-0 top-0 h-7 w-7 rounded-full grid place-items-center text-bandera-azul hover:bg-bandera-azul/10"
+                  title="Compartir alerta"
+                  aria-label="Compartir alerta"
+                >
+                  ✈
+                </button>
                 <div className="font-bold">
                   {TIPO_META[n.tipo].emoji} {TIPO_META[n.tipo].etiqueta}
                 </div>
@@ -612,6 +805,7 @@ export default function MapaNecesidades({
         return (
         <Marker
           key={a.id}
+          ref={(marker) => abrirPopupResaltado(marker, a.id === resaltadaAcopioId)}
           position={posiciones.get(`acopio:${a.id}`) ?? [a.lat, a.lng]}
           icon={iconoCentro}
           pane="acopios"
@@ -623,7 +817,21 @@ export default function MapaNecesidades({
         >
           <Popup>
             {abierto === `acopio:${a.id}` && (
-            <div>
+            <div className="relative pr-7">
+            <button
+              type="button"
+              onClick={() =>
+                setCompartirDirecto({
+                  titulo: `${a.nombre} - Red de Esperanza`,
+                  url: linkDirecto('acopio', a.id),
+                })
+              }
+              className="absolute right-0 top-0 h-7 w-7 rounded-full grid place-items-center text-bandera-azul hover:bg-bandera-azul/10"
+              title="Compartir alerta"
+              aria-label="Compartir alerta"
+            >
+              ✈
+            </button>
             <div className="font-bold">
               {esHospital ? '🏥' : '📦'} {a.nombre}
             </div>
@@ -783,6 +991,14 @@ export default function MapaNecesidades({
         ))}
       </MarkerClusterGroup>
       </Suspense>
+      )}
+
+      {compartirDirecto && (
+        <ModalCompartir
+          url={compartirDirecto.url}
+          titulo={compartirDirecto.titulo}
+          onCerrar={() => setCompartirDirecto(null)}
+        />
       )}
 
       {/* Mi ubicación: marcador con mi foto. */}

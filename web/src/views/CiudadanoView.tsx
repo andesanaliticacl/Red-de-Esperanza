@@ -253,23 +253,25 @@ export default function CiudadanoView() {
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
   const { notificar } = useNotificaciones()
   const navigate = useNavigate()
-  // Necesidad a resaltar en el mapa (al venir de un aviso: /?necesidad=ID).
+  // Pin a resaltar en el mapa al abrir un enlace compartido.
   const [searchParams, setSearchParams] = useSearchParams()
   const resaltadaId = searchParams.get('necesidad') ?? undefined
+  const resaltadaAcopioId = searchParams.get('acopio') ?? undefined
   // El resaltado se quita solo a los 15 s para no quedar fijo.
   useEffect(() => {
-    if (!resaltadaId) return
+    if (!resaltadaId && !resaltadaAcopioId) return
     const t = window.setTimeout(() => {
       setSearchParams(
         (prev) => {
           prev.delete('necesidad')
+          prev.delete('acopio')
           return prev
         },
         { replace: true },
       )
     }, 15000)
     return () => window.clearTimeout(t)
-  }, [resaltadaId, setSearchParams])
+  }, [resaltadaAcopioId, resaltadaId, setSearchParams])
   // Voluntario/rescatista/admin pueden tomar una necesidad desde el mapa.
   const puedeAtender =
     rol === 'voluntario' || rol === 'rescatista' || rol === 'admin'
@@ -537,6 +539,7 @@ export default function CiudadanoView() {
             onAsignarme={puedeAtender ? asignarme : undefined}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
+            resaltadaAcopioId={resaltadaAcopioId}
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
             irACoordenada={irACoordenada}
