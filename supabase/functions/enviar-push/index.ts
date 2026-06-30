@@ -66,7 +66,7 @@ async function calcular(
     }
   }
 
-  // --- Asignación → avisar a quien reportó ("alguien va en camino") ---
+  // --- Asignación → avisar a quien reportó (ya están atendiendo su solicitud) ---
   if (p.table === 'necesidades' && p.type === 'UPDATE') {
     const antes = (p.old_record?.asignado_a ?? null) as string | null
     const ahora = (r.asignado_a ?? null) as string | null
@@ -74,8 +74,8 @@ async function calcular(
       return {
         userIds: [r.reportado_por as string],
         aviso: {
-          title: '🚑 ¡Alguien va en camino!',
-          body: 'Ya están atendiendo tu reporte.',
+          title: '🚑 ¡Ya están atendiendo tu solicitud!',
+          body: 'Un voluntario o rescatista tomó tu solicitud.',
           url: '/mis-reportes',
           tag: 'asignacion',
         },
