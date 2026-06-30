@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import TextoExpandible from '../components/TextoExpandible'
 import { TIPO_META, type Necesidad } from '../lib/types'
 
 const FMT: Intl.DateTimeFormatOptions = {
@@ -16,6 +17,8 @@ export default function HistorialView() {
   const { perfil, rol } = useAuth()
   const [mios, setMios] = useState<Necesidad[]>([])
   const [atendidos, setAtendidos] = useState<Necesidad[]>([])
+  // Notas de cierre por necesidad (solo el personal interno puede leerlas).
+  const [notas, setNotas] = useState<Map<string, string>>(new Map())
   const [cargando, setCargando] = useState(true)
 
   const esStaff =
@@ -45,8 +48,36 @@ export default function HistorialView() {
           : Promise.resolve({ data: [] as Necesidad[] }),
       ]
       const [r1, r2] = await Promise.all(consultas)
-      setMios((r1.data ?? []) as Necesidad[])
-      setAtendidos((r2.data ?? []) as Necesidad[])
+      const listaMios = (r1.data ?? []) as Necesidad[]
+      const listaAtendidos = (r2.data ?? []) as Necesidad[]
+      setMios(listaMios)
+      setAtendidos(listaAtendidos)
+
+      // Notas de cierre (solo personal). Las cargamos para todo lo mostrado y
+      // nos quedamos con la más reciente por necesidad.
+      if (esStaff) {
+        const ids = [
+          ...new Set([
+            ...listaMios.map((n) => n.id),
+            ...listaAtendidos.map((n) => n.id),
+          ]),
+        ]
+        if (ids.length) {
+          const { data } = await supabase
+            .from('notas_cierre')
+            .select('necesidad_id, nota, creado_en')
+            .in('necesidad_id', ids)
+            .order('creado_en', { ascending: false })
+          const m = new Map<string, string>()
+          for (const x of (data ?? []) as {
+            necesidad_id: string
+            nota: string
+          }[]) {
+            if (!m.has(x.necesidad_id)) m.set(x.necesidad_id, x.nota)
+          }
+          setNotas(m)
+        }
+      }
       setCargando(false)
     }
     cargar()
@@ -82,6 +113,7 @@ export default function HistorialView() {
         titulo="Necesidades y SOS que reporté"
         emoji="📋"
         lista={mios}
+        notas={notas}
         vacio="Aún no has enviado reportes con tu cuenta."
       />
 
@@ -91,12 +123,14 @@ export default function HistorialView() {
             titulo="SOS atendidos"
             emoji="🆘"
             lista={sosAtendidos}
+            notas={notas}
             vacio="Todavía no has atendido emergencias SOS."
           />
           <Seccion
             titulo="Necesidades atendidas"
             emoji="🤝"
             lista={necAtendidas}
+            notas={notas}
             vacio="Todavía no te has asignado necesidades."
           />
         </>
@@ -117,11 +151,13 @@ function Seccion({
   emoji,
   lista,
   vacio,
+  notas,
 }: {
   titulo: string
   emoji: string
   lista: Necesidad[]
   vacio: string
+  notas?: Map<string, string>
 }) {
   return (
     <section className="space-y-2">
@@ -137,14 +173,27 @@ function Seccion({
       ) : (
         <div className="space-y-2">
           {lista.map((n) => (
-            <div key={n.id} className="card flex items-center gap-3 py-3">
+            <div key={n.id} className="card flex items-start gap-3 py-3">
               <span className="text-2xl">{TIPO_META[n.tipo].emoji}</span>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold truncate">{n.descripcion}</div>
-                <div className="text-xs text-gray-500">
+                <TextoExpandible texto={n.descripcion} className="font-semibold" />
+                <div className="text-xs text-gray-500 mt-0.5">
                   {n.zona ? `📍 ${n.zona} · ` : ''}
                   {new Date(n.creado_en).toLocaleString('es-VE', FMT)}
                 </div>
+                {n.lat != null && n.lng != null && (
+                  <Link
+                    to={`/?necesidad=${n.id}`}
+                    className="inline-block text-xs font-semibold text-bandera-azul mt-1 no-underline"
+                  >
+                    🗺️ Ver en el mapa
+                  </Link>
+                )}
+                {notas?.get(n.id) && (
+                  <div className="mt-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2 py-1 text-xs text-amber-900">
+                    📝 <b>Nota de cierre:</b> {notas.get(n.id)}
+                  </div>
+                )}
               </div>
               <EstadoChip estado={n.estado} />
             </div>

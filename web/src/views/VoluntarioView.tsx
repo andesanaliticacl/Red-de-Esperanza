@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -7,6 +8,7 @@ import { nombresPublicos } from '../lib/perfiles'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
+import TextoExpandible from '../components/TextoExpandible'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -61,11 +63,19 @@ export default function VoluntarioView() {
     [necesidades],
   )
 
+  // Los líderes de voluntarios (y admin) pueden dejar un comentario al cerrar
+  // un caso. El resto del equipo cierra directo, como hasta ahora.
+  const esLider = rol === 'lider_voluntarios' || rol === 'admin'
+
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [zonaFiltro, setZonaFiltro] = useState('')
   const [trabajando, setTrabajando] = useState<string | null>(null)
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [aRetirar, setARetirar] = useState<Necesidad | null>(null)
+  // Diálogo de cierre con nota (solo líderes/admin).
+  const [aCerrar, setACerrar] = useState<Necesidad | null>(null)
+  const [notaCierre, setNotaCierre] = useState('')
+  const [guardandoCierre, setGuardandoCierre] = useState(false)
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
   // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
@@ -176,6 +186,52 @@ export default function VoluntarioView() {
     if (error) alert('Error: ' + error.message)
     await recargar()
     setTrabajando(null)
+  }
+
+  // Pulsar "Atendida": el líder pasa por el diálogo (para comentar el cierre);
+  // el resto del equipo cierra directo.
+  function iniciarCierre(n: Necesidad) {
+    if (esLider) {
+      setNotaCierre('')
+      setACerrar(n)
+    } else {
+      void atender(n)
+    }
+  }
+
+  // Cierra el caso (resuelta) y, si el líder escribió una nota, la guarda en la
+  // tabla privada `notas_cierre` (solo el personal interno la lee).
+  async function confirmarCierre() {
+    const n = aCerrar
+    if (!n) return
+    setGuardandoCierre(true)
+    const { error } = await supabase
+      .from('necesidades')
+      .update({ estado: 'resuelta' })
+      .eq('id', n.id)
+    if (error) {
+      notificar('No se pudo cerrar el caso: ' + error.message, 'alerta')
+      setGuardandoCierre(false)
+      return
+    }
+    const nota = notaCierre.trim()
+    if (nota) {
+      const { error: e2 } = await supabase
+        .from('notas_cierre')
+        .insert({ necesidad_id: n.id, autor: perfil?.id ?? null, nota })
+      if (e2)
+        notificar(
+          'Caso cerrado, pero no se pudo guardar la nota: ' + e2.message,
+          'alerta',
+        )
+      else notificar('✅ Caso cerrado con tu comentario.', 'exito')
+    } else {
+      notificar('✅ Caso cerrado.', 'exito')
+    }
+    setACerrar(null)
+    setNotaCierre('')
+    setGuardandoCierre(false)
+    await recargar()
   }
 
   // El voluntario que se asignó pero ya no puede continuar se retira: la
@@ -297,9 +353,10 @@ export default function VoluntarioView() {
               </span>
               <div className="text-2xl animate-pulse">🆘</div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">
-                  {n.descripcion}
-                </div>
+                <TextoExpandible
+                  texto={n.descripcion}
+                  className="text-sm font-semibold"
+                />
                 <div className="text-xs text-gray-500">
                   {n.zona ? `📍 ${n.zona} · ` : ''}
                   {new Date(n.creado_en).toLocaleTimeString('es-VE', {
@@ -307,6 +364,12 @@ export default function VoluntarioView() {
                     minute: '2-digit',
                   })}
                 </div>
+                <Link
+                  to={`/?necesidad=${n.id}`}
+                  className="inline-block text-xs font-semibold text-bandera-rojo mt-1 no-underline"
+                >
+                  🗺️ Ver en el mapa
+                </Link>
               </div>
               <div className="flex flex-col gap-1.5">
                 {n.lat != null && n.lng != null && (
@@ -403,7 +466,7 @@ export default function VoluntarioView() {
                 contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion="atender"
-                onAccion={() => atender(n)}
+                onAccion={() => iniciarCierre(n)}
                 onChat={() => setChat(n)}
                 onRetirar={() => setARetirar(n)}
               />
@@ -482,6 +545,52 @@ export default function VoluntarioView() {
         onConfirmar={confirmarRetiro}
         onCancelar={() => setARetirar(null)}
       />
+
+      {/* Cierre con comentario (solo líderes/admin) */}
+      {aCerrar && (
+        <div
+          className="fixed inset-0 z-[2600] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => !guardandoCierre && setACerrar(null)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-extrabold text-bandera-azul mb-1">
+              ✅ Cerrar caso
+            </h2>
+            <p className="text-sm text-gray-600 mb-3">
+              {TIPO_META[aCerrar.tipo].etiqueta}
+              {aCerrar.zona ? ` · ${aCerrar.zona}` : ''}. Lo marcarás como{' '}
+              <b>atendido</b>. Puedes dejar un comentario de cierre (opcional):
+              cómo se resolvió, observaciones, etc.
+            </p>
+            <textarea
+              className="input min-h-[90px]"
+              placeholder="Comentario de cierre (opcional)…"
+              maxLength={1000}
+              value={notaCierre}
+              onChange={(e) => setNotaCierre(e.target.value)}
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setACerrar(null)}
+                disabled={guardandoCierre}
+                className="btn-gris flex-1 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarCierre}
+                disabled={guardandoCierre}
+                className="btn-verde flex-1 disabled:opacity-60"
+              >
+                {guardandoCierre ? 'Guardando…' : 'Marcar como atendida'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -555,7 +664,7 @@ function Fila({
             {URGENCIA_META[n.urgencia].etiqueta}
           </span>
         </div>
-        <div className="text-sm text-gray-700 truncate">{n.descripcion}</div>
+        <TextoExpandible texto={n.descripcion} className="text-sm text-gray-700" />
         {n.zona && <div className="text-xs text-gray-500">📍 {n.zona}</div>}
         {atendidaPor && (
           <div className="text-xs font-semibold text-bandera-azul mt-0.5">
@@ -603,6 +712,12 @@ function Fila({
         >
           💬 Contactar
         </button>
+        <Link
+          to={`/?necesidad=${n.id}`}
+          className="btn-gris py-2.5 px-4 whitespace-nowrap text-center no-underline"
+        >
+          🗺️ Ver en el mapa
+        </Link>
         {onRetirar && (
           <button
             onClick={onRetirar}
