@@ -50,6 +50,7 @@ export function useDesaparecidosMapa(
     supabase
       .from('desaparecidos')
       .select('id', { count: 'exact', head: true })
+      .eq('estado', 'no_encontrado')
       .not('lat', 'is', null)
       .then(({ count }) => {
         if (!cancel) setTotal(count ?? null)
@@ -71,7 +72,11 @@ export function useDesaparecidosMapa(
     }
     let cancel = false
     ;(async () => {
-      let q = supabase.from('desaparecidos').select(COLS_DESAP).not('lat', 'is', null)
+      let q = supabase
+        .from('desaparecidos')
+        .select(COLS_DESAP)
+        .eq('estado', 'no_encontrado')
+        .not('lat', 'is', null)
       if (term) {
         q = q.ilike('nombre', `%${term}%`).limit(300)
       } else if (zona) {

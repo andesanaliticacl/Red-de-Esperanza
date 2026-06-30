@@ -359,6 +359,7 @@ export default function CiudadanoView() {
       supabase
         .from('desaparecidos')
         .select('id', { count: 'exact', head: true })
+        .eq('estado', 'no_encontrado')
         .not('lat', 'is', null)
         .then(({ count }) => {
           if (!cancel) setTotalDesap(count ?? null)
@@ -444,6 +445,8 @@ export default function CiudadanoView() {
   const [irACoordenada, setIrACoordenada] = useState<[number, number] | null>(
     null,
   )
+  const [desaparecidoSeleccionadoId, setDesaparecidoSeleccionadoId] =
+    useState<string | null>(null)
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
   const [chatNec, setChatNec] = useState<Necesidad | null>(null)
@@ -496,6 +499,7 @@ export default function CiudadanoView() {
         .select(
           'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en',
         )
+        .eq('estado', 'no_encontrado')
         .ilike('nombre', `%${term}%`)
         .not('lat', 'is', null)
         .limit(50)
@@ -513,7 +517,10 @@ export default function CiudadanoView() {
   // Tocar a una persona del listado: vuela el mapa a su punto y cierra la lista.
   function irAPersona(d: Desaparecido) {
     if (d.lat != null && d.lng != null) {
+      setVerDesapManual(true)
       setIrACoordenada([d.lat, d.lng])
+      setDesaparecidoSeleccionadoId(null)
+      window.setTimeout(() => setDesaparecidoSeleccionadoId(d.id), 0)
       setListaDesapVisible(false)
     }
   }
@@ -572,6 +579,8 @@ export default function CiudadanoView() {
     if (tipoFiltro === 'hospital') return acopios.filter((a) => esHosp(a))
     return []
   }, [acopios, tipoFiltro])
+  const necesidadesMapa = verDesap ? [] : filtradas
+  const acopiosMapa = verDesap ? [] : acopiosVisibles
   const hayFiltro = tipoFiltro !== 'todos' || urgFiltro !== 'todas'
 
   useEffect(() => {
@@ -637,8 +646,8 @@ export default function CiudadanoView() {
         )}
         <div className="absolute inset-0">
           <MapaNecesidades
-            necesidades={filtradas}
-            acopios={acopiosVisibles}
+            necesidades={necesidadesMapa}
+            acopios={acopiosMapa}
             miUbicacion={coordAuto}
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
@@ -649,6 +658,7 @@ export default function CiudadanoView() {
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
             irACoordenada={irACoordenada}
+            desaparecidoResaltadoId={desaparecidoSeleccionadoId}
             onHospitalSeleccionado={(hospital) => {
               setTipoFiltro('hospital')
               setHospitalSeleccionado(hospital)
@@ -798,6 +808,7 @@ export default function CiudadanoView() {
                 value={busqDesap}
                 onChange={(e) => {
                   setBusqDesap(e.target.value)
+                  setDesaparecidoSeleccionadoId(null)
                   setListaDesapVisible(true)
                 }}
                 placeholder="Buscar desaparecido por nombre…"
