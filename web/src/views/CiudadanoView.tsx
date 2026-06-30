@@ -63,22 +63,50 @@ function normalizarTexto(valor: string | null | undefined) {
     .toLowerCase()
 }
 
+const PALABRAS_GENERICAS_HOSPITAL = new Set([
+  'hospital',
+  'centro',
+  'clinico',
+  'clinica',
+  'dr',
+  'dra',
+  'doctor',
+  'general',
+  'universitario',
+  'universitaria',
+  'de',
+  'del',
+  'la',
+  'las',
+  'los',
+  'el',
+  'y',
+])
+
+function claveHospital(valor: string | null | undefined) {
+  return normalizarTexto(valor)
+    .split(' ')
+    .filter((palabra) => palabra.length > 1 && !PALABRAS_GENERICAS_HOSPITAL.has(palabra))
+    .join(' ')
+}
+
 function locacionCoincideConHospital(
   persona: PersonaHospitalExcel,
   hospital: CentroAcopio,
 ) {
-  const locacion = normalizarTexto(persona.locacion)
-  const opcionesHospital = [
-    hospital.nombre,
-    hospital.descripcion,
-    hospital.direccion,
-  ]
-    .map(normalizarTexto)
-    .filter(Boolean)
+  const locacion = claveHospital(persona.locacion)
+  const nombreHospital = claveHospital(hospital.nombre)
 
-  return opcionesHospital.some(
-    (opcion) =>
-      locacion === opcion || locacion.includes(opcion) || opcion.includes(locacion),
+  if (!locacion || !nombreHospital) return false
+  if (locacion === nombreHospital) return true
+
+  const tokensLocacion = new Set(locacion.split(' '))
+  const tokensHospital = nombreHospital.split(' ')
+  const coincidencias = tokensHospital.filter((token) => tokensLocacion.has(token))
+
+  return (
+    coincidencias.length >= Math.min(2, tokensHospital.length) &&
+    coincidencias.join(' ').length >= 5
   )
 }
 
