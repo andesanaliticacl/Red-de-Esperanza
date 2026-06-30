@@ -38,6 +38,10 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'otro',
 ]
 
+// Columnas de necesidad (mismas que el hook): para traer MIS casos asignados.
+const COLS_NECESIDAD =
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en'
+
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
   const { notificar } = useNotificaciones()
@@ -72,6 +76,26 @@ export default function VoluntarioView() {
   const [aCerrar, setACerrar] = useState<Necesidad | null>(null)
   const [notaCierre, setNotaCierre] = useState('')
   const [guardandoCierre, setGuardandoCierre] = useState(false)
+  // MIS casos asignados (estado en_proceso). Se traen APARTE del tope de 500 del
+  // hook: así, aunque entren muchas necesidades nuevas, los casos que la persona
+  // tomó siempre aparecen en "Me asigné" para poder cerrarlos/comentarlos.
+  const [misAsignadas, setMisAsignadas] = useState<Necesidad[]>([])
+  async function cargarMisAsignadas() {
+    if (!perfil?.id) {
+      setMisAsignadas([])
+      return
+    }
+    const { data } = await supabase
+      .from('necesidades')
+      .select(COLS_NECESIDAD)
+      .eq('asignado_a', perfil.id)
+      .eq('estado', 'en_proceso')
+    setMisAsignadas((data ?? []) as unknown as Necesidad[])
+  }
+  useEffect(() => {
+    cargarMisAsignadas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfil?.id])
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
   // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
@@ -137,9 +161,18 @@ export default function VoluntarioView() {
   const quienAtiende = (n: Necesidad): string | null =>
     n.asignado_a ? nombres.get(n.asignado_a)?.nombre ?? 'Voluntario' : null
 
+  // Conjunto combinado: las necesidades cargadas (tope 500) + MIS casos
+  // asignados (sin tope), sin duplicar. Garantiza que "Me asigné" no se vacíe.
+  const todas = useMemo(() => {
+    const map = new Map<string, Necesidad>()
+    for (const n of necesidades) map.set(n.id, n)
+    for (const n of misAsignadas) if (!map.has(n.id)) map.set(n.id, n)
+    return [...map.values()]
+  }, [necesidades, misAsignadas])
+
   const lista = useMemo(
     () =>
-      necesidades
+      todas
         .filter((n) => (tipoFiltro === 'todos' ? true : n.tipo === tipoFiltro))
         .filter((n) =>
           zonaFiltro.trim()
@@ -152,7 +185,7 @@ export default function VoluntarioView() {
           (a, b) =>
             URGENCIA_META[a.urgencia].orden - URGENCIA_META[b.urgencia].orden,
         ),
-    [necesidades, tipoFiltro, zonaFiltro],
+    [todas, tipoFiltro, zonaFiltro],
   )
 
   async function asignarme(n: Necesidad) {
@@ -170,6 +203,7 @@ export default function VoluntarioView() {
         'exito',
       )
     await recargar()
+    await cargarMisAsignadas()
     setTrabajando(null)
   }
 
@@ -219,6 +253,7 @@ export default function VoluntarioView() {
     setNotaCierre('')
     setGuardandoCierre(false)
     await recargar()
+    await cargarMisAsignadas()
   }
 
   // El voluntario que se asignó pero ya no puede continuar se retira: la
@@ -234,6 +269,7 @@ export default function VoluntarioView() {
       .eq('id', n.id)
     if (error) alert('Error: ' + error.message)
     await recargar()
+    await cargarMisAsignadas()
     setTrabajando(null)
   }
 
