@@ -268,7 +268,8 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                 </p>
                 <p className="text-xs text-gray-500 mb-1">
                   📱 <strong>Obligatorio.</strong> Privado: solo un{' '}
-                  <strong>líder de voluntarios</strong> lo verá y,{' '}
+                  <strong>líder de voluntarios</strong> o un{' '}
+                  <strong>administrador</strong> lo verá y,{' '}
                   <strong className="text-bandera-azul">
                     en caso de ser necesario
                   </strong>
