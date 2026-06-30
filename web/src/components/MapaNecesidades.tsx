@@ -28,6 +28,29 @@ import {
 } from '../lib/iconos'
 import IconoRuta from './IconoRuta'
 
+function IconoCompartir({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.7 10.7 15.3 6.3" />
+      <path d="M8.7 13.3 15.3 17.7" />
+    </svg>
+  )
+}
+
 /** Fecha legible en español (p. ej. "27 jun 2026, 3:14 p. m."). */
 function formatearFecha(iso: string): string {
   const d = new Date(iso)
@@ -381,7 +404,7 @@ function ControlesMapa({
         title="Compartir Red de Esperanza"
         aria-label="Compartir Red de Esperanza"
       >
-        <span className="text-base leading-none">↗</span>
+        <IconoCompartir className="h-4 w-4" />
         <span className="whitespace-nowrap">Compartir</span>
       </button>
 
@@ -677,7 +700,7 @@ export default function MapaNecesidades({
           >
             <Popup>
               {abierto === n.id && (
-              <div className="relative space-y-1 pr-7">
+              <div className="relative space-y-1 pr-28">
                 <button
                   type="button"
                   onClick={() =>
@@ -686,11 +709,12 @@ export default function MapaNecesidades({
                       url: linkDirecto('necesidad', n.id),
                     })
                   }
-                  className="absolute right-0 top-0 h-7 w-7 rounded-full grid place-items-center text-bandera-azul hover:bg-bandera-azul/10"
+                  className="absolute right-0 top-0 inline-flex h-8 items-center gap-1.5 rounded-lg border border-bandera-azul/20 bg-white px-2.5 text-xs font-semibold text-bandera-azul shadow-sm hover:bg-bandera-azul/5"
                   title="Compartir alerta"
                   aria-label="Compartir alerta"
                 >
-                  ✈
+                  <IconoCompartir className="h-4 w-4" />
+                  <span>Compartir</span>
                 </button>
                 <div className="font-bold">
                   {TIPO_META[n.tipo].emoji} {TIPO_META[n.tipo].etiqueta}
@@ -817,7 +841,7 @@ export default function MapaNecesidades({
         >
           <Popup>
             {abierto === `acopio:${a.id}` && (
-            <div className="relative pr-7">
+            <div className="relative pr-28">
             <button
               type="button"
               onClick={() =>
@@ -826,11 +850,12 @@ export default function MapaNecesidades({
                   url: linkDirecto('acopio', a.id),
                 })
               }
-              className="absolute right-0 top-0 h-7 w-7 rounded-full grid place-items-center text-bandera-azul hover:bg-bandera-azul/10"
+              className="absolute right-0 top-0 inline-flex h-8 items-center gap-1.5 rounded-lg border border-bandera-azul/20 bg-white px-2.5 text-xs font-semibold text-bandera-azul shadow-sm hover:bg-bandera-azul/5"
               title="Compartir alerta"
               aria-label="Compartir alerta"
             >
-              ✈
+              <IconoCompartir className="h-4 w-4" />
+              <span>Compartir</span>
             </button>
             <div className="font-bold">
               {esHospital ? '🏥' : '📦'} {a.nombre}
