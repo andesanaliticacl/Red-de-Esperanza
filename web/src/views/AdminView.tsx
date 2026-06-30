@@ -252,6 +252,27 @@ export default function AdminView() {
         </div>
       </section>
 
+      {/* Monitoreo de todas las conversaciones */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">Conversaciones</h2>
+        <Link
+          to="/panel-x7k2/conversaciones"
+          className="card flex items-center gap-3 no-underline"
+        >
+          <span className="text-2xl">💬</span>
+          <div className="flex-1">
+            <div className="font-semibold text-bandera-azul">
+              Monitorear todas las conversaciones
+            </div>
+            <div className="text-sm text-gray-600">
+              Revisa los chats entre quienes reportan y quienes atienden (solo
+              lectura).
+            </div>
+          </div>
+          <span className="text-bandera-azul">→</span>
+        </Link>
+      </section>
+
       {/* Scraping de personas desaparecidas */}
       <section>
         <h2 className="font-bold text-lg mb-2">Personas desaparecidas</h2>
