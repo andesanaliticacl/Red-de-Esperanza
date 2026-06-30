@@ -180,12 +180,27 @@ export default function VoluntarioView() {
     setACerrar(n)
   }
 
-  // Cierra el caso (resuelta) y, si el líder escribió una nota, la guarda en la
-  // tabla privada `notas_cierre` (solo el personal interno la lee).
+  // Guarda el comentario de cierre (si lo hay) y marca el caso como atendido.
+  // El comentario se guarda PRIMERO: si falla, no cerramos el caso para que la
+  // persona no pierda lo que escribió y pueda reintentar; el error real se
+  // muestra tal cual (ayuda a diagnosticar, p. ej. falta correr la migración).
   async function confirmarCierre() {
     const n = aCerrar
     if (!n) return
     setGuardandoCierre(true)
+    const nota = notaCierre.trim()
+
+    if (nota) {
+      const { error: e2 } = await supabase
+        .from('notas_cierre')
+        .insert({ necesidad_id: n.id, autor: perfil?.id ?? null, nota })
+      if (e2) {
+        notificar('No se pudo guardar tu comentario: ' + e2.message, 'alerta')
+        setGuardandoCierre(false)
+        return
+      }
+    }
+
     const { error } = await supabase
       .from('necesidades')
       .update({ estado: 'resuelta' })
@@ -195,20 +210,11 @@ export default function VoluntarioView() {
       setGuardandoCierre(false)
       return
     }
-    const nota = notaCierre.trim()
-    if (nota) {
-      const { error: e2 } = await supabase
-        .from('notas_cierre')
-        .insert({ necesidad_id: n.id, autor: perfil?.id ?? null, nota })
-      if (e2)
-        notificar(
-          'Caso cerrado, pero no se pudo guardar la nota: ' + e2.message,
-          'alerta',
-        )
-      else notificar('✅ Caso cerrado con tu comentario.', 'exito')
-    } else {
-      notificar('✅ Caso cerrado.', 'exito')
-    }
+
+    notificar(
+      nota ? '✅ Caso cerrado con tu comentario.' : '✅ Caso cerrado.',
+      'exito',
+    )
     setACerrar(null)
     setNotaCierre('')
     setGuardandoCierre(false)
