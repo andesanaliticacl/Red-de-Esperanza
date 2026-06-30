@@ -11,6 +11,10 @@ import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
+import {
+  PERSONAS_HOSPITALES,
+  type PersonaHospitalExcel,
+} from '../data/personasHospitales'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -48,65 +52,70 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
-const COLS_DESAP_HOSPITAL =
-  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en'
 
-function textoBusquedaHospital(hospital: CentroAcopio) {
-  return hospital.nombre
+function normalizarTexto(valor: string | null | undefined) {
+  return (valor ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/\([^)]*\)/g, '')
     .trim()
+    .toLowerCase()
 }
 
-function PersonaHospitalItem({
-  persona,
-  onVer,
-}: {
-  persona: Desaparecido
-  onVer: (persona: Desaparecido) => void
-}) {
+function locacionCoincideConHospital(
+  persona: PersonaHospitalExcel,
+  hospital: CentroAcopio,
+) {
+  const locacion = normalizarTexto(persona.locacion)
+  const opcionesHospital = [
+    hospital.nombre,
+    hospital.descripcion,
+    hospital.direccion,
+  ]
+    .map(normalizarTexto)
+    .filter(Boolean)
+
+  return opcionesHospital.some(
+    (opcion) =>
+      locacion === opcion || locacion.includes(opcion) || opcion.includes(locacion),
+  )
+}
+
+function PersonaHospitalItem({ persona }: { persona: PersonaHospitalExcel }) {
+  const nombreCompleto = [persona.nombre, persona.apellido].filter(Boolean).join(' ')
+
   return (
     <li>
-      <button
-        onClick={() => onVer(persona)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50"
-      >
-        {persona.foto_url ? (
-          <img
-            src={persona.foto_url}
-            alt={persona.nombre}
-            loading="lazy"
-            className="h-12 w-12 rounded-full object-cover border border-gray-200 shrink-0"
-            onError={(e) => {
-              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-            }}
-          />
-        ) : (
-          <span className="h-12 w-12 rounded-full bg-gray-100 grid place-items-center shrink-0 text-lg">
-            {persona.estado === 'encontrado' ? 'OK' : '?'}
-          </span>
-        )}
+      <div className="w-full flex items-center gap-3 p-3 text-left">
+        <span className="h-12 w-12 rounded-full bg-red-50 text-bandera-rojo grid place-items-center shrink-0 text-lg font-bold">
+          H
+        </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-gray-900 truncate">
-            {persona.nombre}
+            {nombreCompleto || 'Sin nombre'}
           </span>
           <span className="block text-xs text-gray-500 truncate">
             {[
-              persona.estado === 'encontrado' ? 'Encontrado/a' : 'Por localizar',
               persona.edad ? `${persona.edad} años` : null,
-              persona.ultima_ubicacion,
+              persona.locacion,
+              persona.ultimaUbicacion,
             ]
               .filter(Boolean)
               .join(' · ')}
           </span>
-          {persona.contacto_familiar && (
+          {persona.condicion && (
+            <span className="block text-xs text-gray-600 truncate">
+              {persona.condicion}
+            </span>
+          )}
+          {persona.contacto && (
             <span className="block text-xs font-semibold text-bandera-azul truncate">
-              {persona.contacto_familiar}
+              {persona.contacto}
             </span>
           )}
         </span>
-        <span className="text-xs font-bold text-bandera-azul shrink-0">Ver</span>
-      </button>
+      </div>
     </li>
   )
 }
@@ -115,22 +124,18 @@ function PersonasHospitalModal({
   hospital,
   personas,
   cargando,
-  criterio,
   onCerrar,
-  onVerPersona,
 }: {
   hospital: CentroAcopio
-  personas: Desaparecido[]
+  personas: PersonaHospitalExcel[]
   cargando: boolean
-  criterio: 'ubicacion' | 'cercania' | null
   onCerrar: () => void
-  onVerPersona: (persona: Desaparecido) => void
 }) {
   const [busqueda, setBusqueda] = useState('')
   const termino = busqueda.trim().toLowerCase()
   const personasFiltradas = termino
     ? personas.filter((persona) =>
-        persona.nombre.toLowerCase().includes(termino),
+        [persona.nombre, persona.apellido].join(' ').toLowerCase().includes(termino),
       )
     : personas
 
@@ -175,11 +180,7 @@ function PersonasHospitalModal({
 
         <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
           <p className="text-xs text-gray-600">
-            {criterio === 'ubicacion'
-              ? 'Coincidencias por ubicación registrada.'
-              : criterio === 'cercania'
-                ? 'Coincidencias por cercanía al marcador del hospital.'
-                : 'Se buscan coincidencias en el registro de desaparecidos.'}
+            Se muestran solo registros del Excel con estatus HOSPITAL y locación asociada a este hospital.
           </p>
           <input
             type="search"
@@ -210,7 +211,6 @@ function PersonasHospitalModal({
                 <PersonaHospitalItem
                   key={persona.id}
                   persona={persona}
-                  onVer={onVerPersona}
                 />
               ))}
             </ul>
@@ -315,11 +315,8 @@ export default function CiudadanoView() {
     useState<CentroAcopio | null>(null)
   const [modalPersonasHospitalAbierto, setModalPersonasHospitalAbierto] =
     useState(false)
-  const [personasHospital, setPersonasHospital] = useState<Desaparecido[]>([])
+  const [personasHospital, setPersonasHospital] = useState<PersonaHospitalExcel[]>([])
   const [cargandoPersonasHospital, setCargandoPersonasHospital] = useState(false)
-  const [criterioPersonasHospital, setCriterioPersonasHospital] = useState<
-    'ubicacion' | 'cercania' | null
-  >(null)
   const [irACoordenada, setIrACoordenada] = useState<[number, number] | null>(
     null,
   )
@@ -457,55 +454,17 @@ export default function CiudadanoView() {
     if (!modalPersonasHospitalAbierto || !hospitalSeleccionado) {
       setPersonasHospital([])
       setCargandoPersonasHospital(false)
-      setCriterioPersonasHospital(null)
       return
     }
 
-    let cancel = false
     const hospital = hospitalSeleccionado
-    const termino = textoBusquedaHospital(hospital)
-
-    async function cargarPersonasHospital() {
-      setCargandoPersonasHospital(true)
-      setCriterioPersonasHospital(null)
-
-      let personas: Desaparecido[] = []
-      let criterio: 'ubicacion' | 'cercania' | null = null
-      if (termino.length >= 3) {
-        const { data } = await supabase
-          .from('desaparecidos')
-          .select(COLS_DESAP_HOSPITAL)
-          .ilike('ultima_ubicacion', `%${termino}%`)
-          .limit(80)
-        personas = (data ?? []) as Desaparecido[]
-        if (personas.length > 0) criterio = 'ubicacion'
-      }
-
-      if (personas.length === 0) {
-        const margen = 0.015
-        const { data } = await supabase
-          .from('desaparecidos')
-          .select(COLS_DESAP_HOSPITAL)
-          .gte('lat', hospital.lat - margen)
-          .lte('lat', hospital.lat + margen)
-          .gte('lng', hospital.lng - margen)
-          .lte('lng', hospital.lng + margen)
-          .limit(80)
-        personas = (data ?? []) as Desaparecido[]
-        if (personas.length > 0) criterio = 'cercania'
-      }
-
-      if (!cancel) {
-        setPersonasHospital(personas)
-        setCriterioPersonasHospital(criterio)
-        setCargandoPersonasHospital(false)
-      }
-    }
-
-    void cargarPersonasHospital()
-    return () => {
-      cancel = true
-    }
+    setCargandoPersonasHospital(true)
+    setPersonasHospital(
+      PERSONAS_HOSPITALES.filter((persona) =>
+        locacionCoincideConHospital(persona, hospital),
+      ),
+    )
+    setCargandoPersonasHospital(false)
   }, [hospitalSeleccionado, modalPersonasHospitalAbierto])
 
   return (
@@ -777,12 +736,7 @@ export default function CiudadanoView() {
           hospital={hospitalSeleccionado}
           personas={personasHospital}
           cargando={cargandoPersonasHospital}
-          criterio={criterioPersonasHospital}
           onCerrar={() => setModalPersonasHospitalAbierto(false)}
-          onVerPersona={(persona) => {
-            irAPersona(persona)
-            setModalPersonasHospitalAbierto(false)
-          }}
         />
       )}
 
