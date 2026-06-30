@@ -91,7 +91,7 @@ export function iconoNecesidad(
       ? `<div style="position:absolute;top:${tam + 1}px;left:50%;transform:translateX(-50%);
             background:#002FA7;color:#fff;font-size:10px;font-weight:700;line-height:1.2;
             padding:2px 7px;border-radius:9999px;white-space:nowrap;
-            box-shadow:0 1px 3px rgba(0,0,0,.45);border:1px solid #fff;">🚑 Alguien va en camino</div>`
+            box-shadow:0 1px 3px rgba(0,0,0,.45);border:1px solid #fff;">🚑 Atendiendo solicitud</div>`
       : ''
 
   const icono = L.divIcon({
