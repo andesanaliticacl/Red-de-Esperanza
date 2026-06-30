@@ -288,7 +288,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                           mio ? 'text-white/70' : 'text-gray-400'
                         }`}
                       >
-                        {new Date(m.creado_en).toLocaleTimeString('es-VE', {
+                        {new Date(m.creado_en).toLocaleString('es-VE', {
+                          day: '2-digit',
+                          month: 'short',
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
