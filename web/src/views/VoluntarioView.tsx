@@ -52,6 +52,15 @@ function fechaCorta(iso: string): string {
   })
 }
 
+// Texto del origen (ciudad, país) desde donde se creó la solicitud, por IP.
+function textoOrigen(o?: {
+  pais: string | null
+  ciudad: string | null
+}): string | null {
+  if (!o || (!o.pais && !o.ciudad)) return null
+  return [o.ciudad, o.pais].filter(Boolean).join(', ')
+}
+
 // Cuánto tiempo lleva reportada (hace X). Cuanto más vieja, más espera lleva.
 function hace(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
@@ -122,22 +131,48 @@ export default function VoluntarioView() {
   // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
   // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
   const [contactos, setContactos] = useState<Map<string, string>>(new Map())
+  // Origen (país/ciudad desde donde se creó) por necesidad, para el personal.
+  const [origenes, setOrigenes] = useState<
+    Map<string, { pais: string | null; ciudad: string | null }>
+  >(new Map())
   useEffect(() => {
     supabase
       .from('contactos_necesidad')
-      .select('necesidad_id, contacto')
+      .select('necesidad_id, contacto, pais_origen, ciudad_origen')
       .then(({ data }) => {
         if (!data) return
-        setContactos(
+        const rows = data as {
+          necesidad_id: string
+          contacto: string
+          pais_origen: string | null
+          ciudad_origen: string | null
+        }[]
+        setContactos(new Map(rows.map((c) => [c.necesidad_id, c.contacto])))
+        setOrigenes(
           new Map(
-            (data as { necesidad_id: string; contacto: string }[]).map((c) => [
+            rows.map((c) => [
               c.necesidad_id,
-              c.contacto,
+              { pais: c.pais_origen, ciudad: c.ciudad_origen },
             ]),
           ),
         )
       })
   }, [necesidades])
+  // Cuántas solicitudes hay con el MISMO teléfono (para avisar de duplicados en
+  // la lista, igual que se atenúan en el mapa). Clave: solo los dígitos.
+  const conteoTelefono = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const tel of contactos.values()) {
+      const k = tel.replace(/\D/g, '')
+      if (k) m.set(k, (m.get(k) ?? 0) + 1)
+    }
+    return m
+  }, [contactos])
+  const repeticionesDe = (id: string) => {
+    const tel = contactos.get(id)
+    return tel ? conteoTelefono.get(tel.replace(/\D/g, '')) ?? 0 : 0
+  }
+
   // Las Emergencias SOS se pueden plegar para que no estorben a quien no quiere
   // verlas. Recordamos la preferencia entre visitas.
   const [sosAbierto, setSosAbierto] = useState(() => {
@@ -414,6 +449,12 @@ export default function VoluntarioView() {
                 >
                   🗺️ Ver en el mapa
                 </Link>
+                {/* Origen, teléfono (Llamar/WhatsApp) y duplicados del SOS. */}
+                <InfoContacto
+                  contacto={contactos.get(n.id) ?? null}
+                  origen={origenes.get(n.id)}
+                  repeticiones={repeticionesDe(n.id)}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 {n.lat != null && n.lng != null && (
@@ -508,6 +549,8 @@ export default function VoluntarioView() {
                 n={n}
                 numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
+                origen={origenes.get(n.id)}
+                repeticiones={repeticionesDe(n.id)}
                 trabajando={trabajando === n.id}
                 accion="atender"
                 onAccion={() => iniciarCierre(n)}
@@ -532,6 +575,8 @@ export default function VoluntarioView() {
                 n={n}
                 numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
+                origen={origenes.get(n.id)}
+                repeticiones={repeticionesDe(n.id)}
                 trabajando={trabajando === n.id}
                 accion={null}
                 atendidaPor={quienAtiende(n)}
@@ -559,6 +604,8 @@ export default function VoluntarioView() {
                 n={n}
                 numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
+                origen={origenes.get(n.id)}
+                repeticiones={repeticionesDe(n.id)}
                 trabajando={trabajando === n.id}
                 accion="asignar"
                 onAccion={() => asignarme(n)}
@@ -664,10 +711,74 @@ function ResumenTipo({
   )
 }
 
+/**
+ * Datos de contacto de una solicitud (para el personal): origen (país/ciudad),
+ * teléfono con Llamar/WhatsApp o aviso de que no tiene, y cuántas solicitudes
+ * hay con ese mismo número (duplicados).
+ */
+function InfoContacto({
+  contacto,
+  origen,
+  repeticiones,
+}: {
+  contacto?: string | null
+  origen?: { pais: string | null; ciudad: string | null }
+  repeticiones?: number
+}) {
+  const origenTxt = textoOrigen(origen)
+  return (
+    <>
+      {origenTxt && (
+        <div className="text-xs text-gray-500 mt-0.5">
+          🌐 Creado desde: {origenTxt}
+        </div>
+      )}
+      {contacto ? (
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-bold text-bandera-azul break-all">
+            📞 {contacto}
+          </span>
+          <a
+            href={`tel:${contacto.replace(/[^\d+]/g, '')}`}
+            className="text-xs bg-bandera-azul !text-white font-semibold px-2 py-0.5 rounded-lg no-underline"
+          >
+            Llamar
+          </a>
+          <a
+            href={`https://wa.me/${contacto.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs bg-green-600 !text-white font-semibold px-2 py-0.5 rounded-lg no-underline"
+          >
+            WhatsApp
+          </a>
+        </div>
+      ) : (
+        <div className="mt-1 text-xs font-semibold text-amber-600">
+          ⚠️ Sin número de teléfono
+        </div>
+      )}
+      {repeticiones != null && repeticiones > 1 && (
+        <div
+          className={`mt-1 inline-block text-[11px] font-bold px-2 py-0.5 rounded-full ${
+            repeticiones > 3
+              ? 'bg-red-100 text-red-700'
+              : 'bg-amber-100 text-amber-700'
+          }`}
+        >
+          🔁 {repeticiones} solicitudes con este número
+        </div>
+      )}
+    </>
+  )
+}
+
 function Fila({
   n,
   numero,
   contacto,
+  origen,
+  repeticiones,
   trabajando,
   accion,
   onAccion,
@@ -678,6 +789,8 @@ function Fila({
   n: Necesidad
   numero?: number
   contacto?: string | null
+  origen?: { pais: string | null; ciudad: string | null }
+  repeticiones?: number
   trabajando: boolean
   accion: 'asignar' | 'atender' | null
   onAccion?: () => void
@@ -720,28 +833,11 @@ function Fila({
             🤝 Atiende: {atendidaPor}
           </div>
         )}
-        {/* Teléfono de quien reportó: para que el personal pueda comunicarse. */}
-        {contacto && (
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-bold text-bandera-azul break-all">
-              📞 {contacto}
-            </span>
-            <a
-              href={`tel:${contacto.replace(/[^\d+]/g, '')}`}
-              className="text-xs bg-bandera-azul !text-white font-semibold px-2 py-0.5 rounded-lg no-underline"
-            >
-              Llamar
-            </a>
-            <a
-              href={`https://wa.me/${contacto.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs bg-green-600 !text-white font-semibold px-2 py-0.5 rounded-lg no-underline"
-            >
-              WhatsApp
-            </a>
-          </div>
-        )}
+        <InfoContacto
+          contacto={contacto}
+          origen={origen}
+          repeticiones={repeticiones}
+        />
       </div>
       <div className="flex flex-col gap-2">
         {accion && onAccion && (

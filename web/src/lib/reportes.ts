@@ -1,5 +1,21 @@
 import { supabase } from './supabase'
+import { paisPorIP } from './visitas'
 import type { NecesidadTipo, NecesidadUrgencia } from './types'
+
+// Máximo de solicitudes por día con el mismo teléfono (se bloquea la 4.ª).
+const LIMITE_POR_TELEFONO_DIA = 3
+
+/** Origen (país/ciudad por IP) con un tope de espera para no frenar el reporte. */
+async function origenConTimeout(
+  ms = 2500,
+): Promise<{ pais: string | null; ciudad: string | null }> {
+  return Promise.race([
+    paisPorIP(),
+    new Promise<{ pais: null; ciudad: null }>((resolve) =>
+      setTimeout(() => resolve({ pais: null, ciudad: null }), ms),
+    ),
+  ])
+}
 
 export interface NuevoReporte {
   tipo: NecesidadTipo
@@ -28,6 +44,22 @@ export interface NuevoReporte {
  * solicitud "fantasma" sin número (era el caso del SOS sin teléfono).
  */
 export async function crearNecesidad(r: NuevoReporte) {
+  // Anti-spam: una persona no puede crear más de LIMITE_POR_TELEFONO_DIA
+  // solicitudes al día con el MISMO teléfono. Se valida ANTES de crear nada.
+  if (r.contacto && r.contactoObligatorio) {
+    const { data: n } = await supabase.rpc('reportes_hoy_por_telefono', {
+      p_tel: r.contacto,
+    })
+    if ((n ?? 0) >= LIMITE_POR_TELEFONO_DIA) {
+      throw new Error(
+        `Ya registraste ${LIMITE_POR_TELEFONO_DIA} solicitudes hoy con este número de teléfono. Por seguridad no se permiten más por hoy; si es una nueva emergencia, contacta a un voluntario o llama al 911.`,
+      )
+    }
+  }
+
+  // Origen (país/ciudad por IP) de quien crea la solicitud, en paralelo.
+  const origenPromesa = r.contacto ? origenConTimeout() : null
+
   // Si quien reporta está autenticado, guardamos su id para habilitar el chat.
   const { data: auth } = await supabase.auth.getUser()
   const reportado_por = auth?.user?.id ?? null
@@ -53,12 +85,16 @@ export async function crearNecesidad(r: NuevoReporte) {
   if (error) throw error
 
   if (r.contacto && data?.id) {
+    const origen = (await origenPromesa) ?? { pais: null, ciudad: null }
     // Reintentamos un par de veces por si hay un fallo de red puntual.
     let errContacto = null
     for (let intento = 0; intento < 3; intento++) {
-      const res = await supabase
-        .from('contactos_necesidad')
-        .insert({ necesidad_id: data.id, contacto: r.contacto })
+      const res = await supabase.from('contactos_necesidad').insert({
+        necesidad_id: data.id,
+        contacto: r.contacto,
+        pais_origen: origen.pais,
+        ciudad_origen: origen.ciudad,
+      })
       errContacto = res.error
       if (!errContacto) break
     }

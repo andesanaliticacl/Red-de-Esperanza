@@ -24,8 +24,13 @@ export function iconoNecesidad(
   // En teléfonos los marcadores van un poco más pequeños para no saturar la
   // pantalla ni recargar el dibujado. En escritorio: compacto = false.
   compacto = false,
+  // atenuar: se pinta MÁS transparente (sin teléfono, o repetido del mismo
+  // número más allá de 3), pero conservando color y forma para poder verlo.
+  atenuar = false,
+  // sinTelefono: añade una insignia 📵 para distinguir los que no dejaron número.
+  sinTelefono = false,
 ): L.DivIcon {
-  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}|${compacto ? 1 : 0}`
+  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}|${compacto ? 1 : 0}|${atenuar ? 1 : 0}|${sinTelefono ? 1 : 0}`
   const enCache = _cacheNecesidad.get(clave)
   if (enCache) return enCache
   const { color, emoji } = TIPO_META[tipo]
@@ -38,13 +43,21 @@ export function iconoNecesidad(
       : estado === 'resuelta'
         ? '3px solid #16A34A'
         : '3px solid #ffffff'
-  const opacidad = estado === 'resuelta' ? 0.5 : 1
+  const opacidadBase = estado === 'resuelta' ? 0.5 : 1
+  // Si hay que atenuar (sin teléfono / repetido), se baja bastante la opacidad
+  // para distinguirlo de un vistazo, pero sin ocultarlo.
+  const opacidad = atenuar ? Math.min(opacidadBase, 0.4) : opacidadBase
   // Pequeña insignia de estado encima del pin (solo "resuelta" lleva insignia;
   // "en proceso" se anuncia con un cartelito debajo, ver más abajo).
   const insignia =
     estado === 'resuelta'
       ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
       : ''
+  // Insignia "sin teléfono" (📵) en una esquinita del pin, al estilo del ⚠️ de
+  // peligro (solo el símbolo, sin recuadro), para reconocerlos sin atenuarlos.
+  const insigniaSinTel = sinTelefono
+    ? '<span style="position:absolute;top:-8px;left:-8px;font-size:18px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">📵</span>'
+    : ''
 
   // El derrumbe se ve más explícito: pin más grande, halo que late y una
   // insignia ⚠️ para que se entienda al instante que es un edificio colapsado.
@@ -116,7 +129,7 @@ export function iconoNecesidad(
           display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
         </div>
-        ${insignia}${insigniaPeligro}${etiquetaEnCamino}
+        ${insignia}${insigniaSinTel}${insigniaPeligro}${etiquetaEnCamino}
       </div>`,
     iconSize: [tam, tam],
     iconAnchor: [tam / 2, tam],

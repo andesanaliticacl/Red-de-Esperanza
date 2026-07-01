@@ -183,6 +183,14 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     finRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensajes])
 
+  // Si el rol (admin/líder) se resuelve DESPUÉS de abrir el chat, o cambia,
+  // pedimos los teléfonos que falten de los mensajes ya cargados. Sin esto, si
+  // la sesión tardaba en cargar el rol, los botones no aparecían.
+  useEffect(() => {
+    if (esLiderOAdmin && mensajes.length) void asegurarTelefonos(mensajes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esLiderOAdmin])
+
   function entrar(e: React.FormEvent) {
     e.preventDefault()
     const nom = esLogueado ? nombreEfectivo : nombre.trim()
