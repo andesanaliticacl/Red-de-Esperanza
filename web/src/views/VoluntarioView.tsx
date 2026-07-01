@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -35,6 +35,61 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'refugio',
   'otro',
 ]
+
+function DescripcionSos({ texto }: { texto: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [expandido, setExpandido] = useState(false)
+  const [puedeAmpliar, setPuedeAmpliar] = useState(false)
+
+  useEffect(() => {
+    setExpandido(false)
+  }, [texto])
+
+  useEffect(() => {
+    if (expandido) return
+    const el = ref.current
+    if (!el) return
+
+    function medir() {
+      const actual = ref.current
+      if (!actual) return
+      setPuedeAmpliar(actual.scrollWidth > actual.clientWidth + 1)
+    }
+
+    medir()
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(medir) : null
+    observer?.observe(el)
+    window.addEventListener('resize', medir)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', medir)
+    }
+  }, [expandido, texto])
+
+  return (
+    <div>
+      <div
+        ref={ref}
+        className={`text-sm font-semibold ${
+          expandido ? 'whitespace-pre-wrap break-words' : 'truncate'
+        }`}
+      >
+        {texto}
+      </div>
+      {(puedeAmpliar || expandido) && (
+        <button
+          type="button"
+          onClick={() => setExpandido((v) => !v)}
+          className="mt-1 text-xs font-bold text-bandera-azul hover:underline"
+          aria-expanded={expandido}
+        >
+          {expandido ? 'Ver menos' : 'Ver más'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
@@ -297,9 +352,7 @@ export default function VoluntarioView() {
               </span>
               <div className="text-2xl animate-pulse">🆘</div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">
-                  {n.descripcion}
-                </div>
+                <DescripcionSos texto={n.descripcion} />
                 <div className="text-xs text-gray-500">
                   {n.zona ? `📍 ${n.zona} · ` : ''}
                   {new Date(n.creado_en).toLocaleTimeString('es-VE', {
