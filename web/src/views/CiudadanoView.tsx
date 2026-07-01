@@ -343,7 +343,7 @@ function PersonasHospitalModal({
 
 export default function CiudadanoView() {
   const { perfil, session, rol } = useAuth()
-  const { necesidades, acopios } = useNecesidades(
+  const { necesidades, acopios, recargarAcopios } = useNecesidades(
     ['sin_verificar', 'verificada', 'en_proceso'],
     undefined,
     // Realtime solo para usuarios con sesión (staff). Los anónimos refrescan
@@ -401,6 +401,7 @@ export default function CiudadanoView() {
     rol === 'admin'
   const esRescatista =
     rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
+  const puedeReportarHospital = rol === 'lider_voluntarios' || rol === 'admin'
 
   // Tomar una necesidad desde el popup del mapa: la pasa a "en proceso" y le
   // avisa (Realtime) a quien la creó que alguien ya va en camino.
@@ -908,8 +909,15 @@ export default function CiudadanoView() {
         <ReportarModal
           coordInicial={coordAuto}
           fuenteInicial={fuenteAuto}
+          puedeReportarHospital={puedeReportarHospital}
           onCerrar={() => setAbrirReporte(false)}
-          onCreado={() => setAbrirReporte(false)}
+          onCreado={(tipo) => {
+            setAbrirReporte(false)
+            if (tipo === 'hospital') {
+              setTipoFiltro('hospital')
+              void recargarAcopios()
+            }
+          }}
         />
       )}
       {abrirSos && <SosModal onCerrar={() => setAbrirSos(false)} />}
