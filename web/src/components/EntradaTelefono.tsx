@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 
 const CODIGO_VENEZUELA = '+58'
 const PREFIJO_BASE = '04'
-const PREFIJOS_VALIDOS = ['0416', '0424', '0414', '0426', '0412', '0422']
-const EJEMPLO_TELEFONO = '+58 04121234567'
+const PREFIJOS_VALIDOS = ['0416', '0424', '0414', '0426', '0412', '0422', '0212']
+const EJEMPLO_TELEFONO = '+58 0412...'
+const EJEMPLO_TELEFONOCASA = '+58 0212...'
 
 export function esTelefonoVenezuelaValido(valor: string): boolean {
   const digitos = (valor ?? '').replace(/\D/g, '')
@@ -14,14 +15,16 @@ export function esTelefonoVenezuelaValido(valor: string): boolean {
 }
 
 export function mensajeTelefonoVenezuela(): string {
-  return `El numero no es el esperado. Usa un celular venezolano valido, por ejemplo ${EJEMPLO_TELEFONO}.`
+  return `El numero no es el esperado. Usa un telefono venezolano valido, por ejemplo ${EJEMPLO_TELEFONO} o ${EJEMPLO_TELEFONOCASA}.`
 }
 
 function normalizarNumeroLocal(valor: string): string {
   let digitos = (valor ?? '').replace(/\D/g, '')
   if (digitos.startsWith('58')) digitos = digitos.slice(2)
   if (digitos.startsWith('4')) digitos = `0${digitos}`
+  if (digitos.startsWith('212')) digitos = `0${digitos}`
   if (!digitos) return PREFIJO_BASE
+  if (digitos === '0' || digitos.startsWith('02')) return digitos.slice(0, 11)
   if (!digitos.startsWith(PREFIJO_BASE)) {
     digitos = PREFIJO_BASE + digitos.replace(/^0+/, '')
   }
@@ -83,7 +86,7 @@ export default function EntradaTelefono({
       {numero === PREFIJO_BASE ? (
         <p className="text-xs text-gray-500 mt-1">
           Ejemplo: {EJEMPLO_TELEFONO}. Prefijos permitidos: 0416, 0424, 0414,
-          0426, 0412 y 0422.
+          0426, 0412, 0422 y 0212.
         </p>
       ) : mostrarError ? (
         <p className="text-xs text-bandera-rojo font-semibold mt-1">
