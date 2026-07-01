@@ -6,6 +6,8 @@ const CLAVE = 'esperanza.identidad'
 export interface Identidad {
   nombre: string
   estado: string
+  /** Teléfono del invitado (registro express), opcional. */
+  telefono?: string
 }
 
 export function leerIdentidad(): Identidad | null {

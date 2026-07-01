@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -7,6 +8,7 @@ import { nombresPublicos } from '../lib/perfiles'
 import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
+import TextoExpandible from '../components/TextoExpandible'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -36,59 +38,30 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'otro',
 ]
 
-function DescripcionSos({ texto }: { texto: string }) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  const [expandido, setExpandido] = useState(false)
-  const [puedeAmpliar, setPuedeAmpliar] = useState(false)
+// Columnas de necesidad (mismas que el hook): para traer MIS casos asignados.
+const COLS_NECESIDAD =
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en'
 
-  useEffect(() => {
-    setExpandido(false)
-  }, [texto])
+// Fecha de creación legible (día, mes y hora) — para estimar la prioridad.
+function fechaCorta(iso: string): string {
+  return new Date(iso).toLocaleString('es-VE', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
-  useEffect(() => {
-    if (expandido) return
-    const el = ref.current
-    if (!el) return
-
-    function medir() {
-      const actual = ref.current
-      if (!actual) return
-      setPuedeAmpliar(actual.scrollWidth > actual.clientWidth + 1)
-    }
-
-    medir()
-    const observer =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(medir) : null
-    observer?.observe(el)
-    window.addEventListener('resize', medir)
-    return () => {
-      observer?.disconnect()
-      window.removeEventListener('resize', medir)
-    }
-  }, [expandido, texto])
-
-  return (
-    <div>
-      <div
-        ref={ref}
-        className={`text-sm font-semibold ${
-          expandido ? 'whitespace-pre-wrap break-words' : 'truncate'
-        }`}
-      >
-        {texto}
-      </div>
-      {(puedeAmpliar || expandido) && (
-        <button
-          type="button"
-          onClick={() => setExpandido((v) => !v)}
-          className="mt-1 text-xs font-bold text-bandera-azul hover:underline"
-          aria-expanded={expandido}
-        >
-          {expandido ? 'Ver menos' : 'Ver más'}
-        </button>
-      )}
-    </div>
-  )
+// Cuánto tiempo lleva reportada (hace X). Cuanto más vieja, más espera lleva.
+function hace(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(ms / 60000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const d = Math.floor(h / 24)
+  return `hace ${d} d`
 }
 
 export default function VoluntarioView() {
@@ -121,6 +94,30 @@ export default function VoluntarioView() {
   const [trabajando, setTrabajando] = useState<string | null>(null)
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [aRetirar, setARetirar] = useState<Necesidad | null>(null)
+  // Diálogo de cierre con nota (solo líderes/admin).
+  const [aCerrar, setACerrar] = useState<Necesidad | null>(null)
+  const [notaCierre, setNotaCierre] = useState('')
+  const [guardandoCierre, setGuardandoCierre] = useState(false)
+  // MIS casos asignados (estado en_proceso). Se traen APARTE del tope de 500 del
+  // hook: así, aunque entren muchas necesidades nuevas, los casos que la persona
+  // tomó siempre aparecen en "Me asigné" para poder cerrarlos/comentarlos.
+  const [misAsignadas, setMisAsignadas] = useState<Necesidad[]>([])
+  async function cargarMisAsignadas() {
+    if (!perfil?.id) {
+      setMisAsignadas([])
+      return
+    }
+    const { data } = await supabase
+      .from('necesidades')
+      .select(COLS_NECESIDAD)
+      .eq('asignado_a', perfil.id)
+      .eq('estado', 'en_proceso')
+    setMisAsignadas((data ?? []) as unknown as Necesidad[])
+  }
+  useEffect(() => {
+    cargarMisAsignadas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfil?.id])
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
   // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
@@ -186,9 +183,18 @@ export default function VoluntarioView() {
   const quienAtiende = (n: Necesidad): string | null =>
     n.asignado_a ? nombres.get(n.asignado_a)?.nombre ?? 'Voluntario' : null
 
+  // Conjunto combinado: las necesidades cargadas (tope 500) + MIS casos
+  // asignados (sin tope), sin duplicar. Garantiza que "Me asigné" no se vacíe.
+  const todas = useMemo(() => {
+    const map = new Map<string, Necesidad>()
+    for (const n of necesidades) map.set(n.id, n)
+    for (const n of misAsignadas) if (!map.has(n.id)) map.set(n.id, n)
+    return [...map.values()]
+  }, [necesidades, misAsignadas])
+
   const lista = useMemo(
     () =>
-      necesidades
+      todas
         .filter((n) => (tipoFiltro === 'todos' ? true : n.tipo === tipoFiltro))
         .filter((n) =>
           zonaFiltro.trim()
@@ -201,7 +207,7 @@ export default function VoluntarioView() {
           (a, b) =>
             URGENCIA_META[a.urgencia].orden - URGENCIA_META[b.urgencia].orden,
         ),
-    [necesidades, tipoFiltro, zonaFiltro],
+    [todas, tipoFiltro, zonaFiltro],
   )
 
   async function asignarme(n: Necesidad) {
@@ -215,22 +221,61 @@ export default function VoluntarioView() {
     if (error) notificar('No se pudo asignar: ' + error.message, 'alerta')
     else
       notificar(
-        '✅ Te asignaste. Avisamos a la persona que vas en camino.',
+        '✅ Te asignaste. Avisamos a la persona que estás atendiendo su solicitud.',
         'exito',
       )
     await recargar()
+    await cargarMisAsignadas()
     setTrabajando(null)
   }
 
-  async function atender(n: Necesidad) {
-    setTrabajando(n.id)
+  // Pulsar "Atendida": abre el diálogo de cierre para que cualquiera del equipo
+  // (voluntario, rescatista, líder o admin) pueda dejar un comentario opcional.
+  function iniciarCierre(n: Necesidad) {
+    setNotaCierre('')
+    setACerrar(n)
+  }
+
+  // Guarda el comentario de cierre (si lo hay) y marca el caso como atendido.
+  // El comentario se guarda PRIMERO: si falla, no cerramos el caso para que la
+  // persona no pierda lo que escribió y pueda reintentar; el error real se
+  // muestra tal cual (ayuda a diagnosticar, p. ej. falta correr la migración).
+  async function confirmarCierre() {
+    const n = aCerrar
+    if (!n) return
+    setGuardandoCierre(true)
+    const nota = notaCierre.trim()
+
+    if (nota) {
+      const { error: e2 } = await supabase
+        .from('notas_cierre')
+        .insert({ necesidad_id: n.id, autor: perfil?.id ?? null, nota })
+      if (e2) {
+        notificar('No se pudo guardar tu comentario: ' + e2.message, 'alerta')
+        setGuardandoCierre(false)
+        return
+      }
+    }
+
     const { error } = await supabase
       .from('necesidades')
       .update({ estado: 'resuelta' })
       .eq('id', n.id)
-    if (error) alert('Error: ' + error.message)
+    if (error) {
+      notificar('No se pudo cerrar el caso: ' + error.message, 'alerta')
+      setGuardandoCierre(false)
+      return
+    }
+
+    notificar(
+      nota ? '✅ Caso cerrado con tu comentario.' : '✅ Caso cerrado.',
+      'exito',
+    )
+    setACerrar(null)
+    setNotaCierre('')
+    setGuardandoCierre(false)
     await recargar()
-    setTrabajando(null)
+    await cargarMisAsignadas()
   }
 
   // El voluntario que se asignó pero ya no puede continuar se retira: la
@@ -246,6 +291,7 @@ export default function VoluntarioView() {
       .eq('id', n.id)
     if (error) alert('Error: ' + error.message)
     await recargar()
+    await cargarMisAsignadas()
     setTrabajando(null)
   }
 
@@ -352,14 +398,22 @@ export default function VoluntarioView() {
               </span>
               <div className="text-2xl animate-pulse">🆘</div>
               <div className="flex-1 min-w-0">
-                <DescripcionSos texto={n.descripcion} />
+                <TextoExpandible
+                  texto={n.descripcion}
+                  className="text-sm font-semibold"
+                />
                 <div className="text-xs text-gray-500">
-                  {n.zona ? `📍 ${n.zona} · ` : ''}
-                  {new Date(n.creado_en).toLocaleTimeString('es-VE', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {n.zona ? `📍 ${n.zona}` : ''}
                 </div>
+                <div className="text-xs font-semibold text-bandera-rojo">
+                  🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
+                </div>
+                <Link
+                  to={`/?necesidad=${n.id}`}
+                  className="inline-block text-xs font-semibold text-bandera-rojo mt-1 no-underline"
+                >
+                  🗺️ Ver en el mapa
+                </Link>
               </div>
               <div className="flex flex-col gap-1.5">
                 {n.lat != null && n.lng != null && (
@@ -456,7 +510,7 @@ export default function VoluntarioView() {
                 contacto={contactos.get(n.id) ?? null}
                 trabajando={trabajando === n.id}
                 accion="atender"
-                onAccion={() => atender(n)}
+                onAccion={() => iniciarCierre(n)}
                 onChat={() => setChat(n)}
                 onRetirar={() => setARetirar(n)}
               />
@@ -535,6 +589,52 @@ export default function VoluntarioView() {
         onConfirmar={confirmarRetiro}
         onCancelar={() => setARetirar(null)}
       />
+
+      {/* Cierre con comentario (solo líderes/admin) */}
+      {aCerrar && (
+        <div
+          className="fixed inset-0 z-[2600] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => !guardandoCierre && setACerrar(null)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-extrabold text-bandera-azul mb-1">
+              ✅ Cerrar caso
+            </h2>
+            <p className="text-sm text-gray-600 mb-3">
+              {TIPO_META[aCerrar.tipo].etiqueta}
+              {aCerrar.zona ? ` · ${aCerrar.zona}` : ''}. Lo marcarás como{' '}
+              <b>atendido</b>. Puedes dejar un comentario de cierre (opcional):
+              cómo se resolvió, observaciones, etc.
+            </p>
+            <textarea
+              className="input min-h-[90px]"
+              placeholder="Comentario de cierre (opcional)…"
+              maxLength={1000}
+              value={notaCierre}
+              onChange={(e) => setNotaCierre(e.target.value)}
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setACerrar(null)}
+                disabled={guardandoCierre}
+                className="btn-gris flex-1 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarCierre}
+                disabled={guardandoCierre}
+                className="btn-verde flex-1 disabled:opacity-60"
+              >
+                {guardandoCierre ? 'Guardando…' : 'Marcar como atendida'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -608,8 +708,13 @@ function Fila({
             {URGENCIA_META[n.urgencia].etiqueta}
           </span>
         </div>
-        <div className="text-sm text-gray-700 truncate">{n.descripcion}</div>
+        <TextoExpandible texto={n.descripcion} className="text-sm text-gray-700" />
         {n.zona && <div className="text-xs text-gray-500">📍 {n.zona}</div>}
+        {/* Momento en que se reportó: ayuda a estimar prioridad (lo más viejo
+            lleva más esperando). */}
+        <div className="text-xs font-semibold text-gray-600 mt-0.5">
+          🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
+        </div>
         {atendidaPor && (
           <div className="text-xs font-semibold text-bandera-azul mt-0.5">
             🤝 Atiende: {atendidaPor}
@@ -656,6 +761,12 @@ function Fila({
         >
           💬 Contactar
         </button>
+        <Link
+          to={`/?necesidad=${n.id}`}
+          className="btn-gris py-2.5 px-4 whitespace-nowrap text-center no-underline"
+        >
+          🗺️ Ver en el mapa
+        </Link>
         {onRetirar && (
           <button
             onClick={onRetirar}

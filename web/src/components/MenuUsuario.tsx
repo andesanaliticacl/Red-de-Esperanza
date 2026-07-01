@@ -149,6 +149,14 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                   <span className="font-medium">Chat en vivo</span>
                 </button>
               )}
+              {(rol === 'admin' || rol === 'lider_voluntarios') && (
+                <ItemLink
+                  to="/notas-cierre"
+                  emoji="📝"
+                  texto="Notas de cierre"
+                  onClick={cerrar}
+                />
+              )}
               {rol === 'admin' && (
                 <ItemLink to="/panel-x7k2" emoji="🛡️" texto="Administración" onClick={cerrar} />
               )}

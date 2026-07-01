@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { listarChat, enviarChat, suscribirChat } from '../lib/chatGlobal'
+import {
+  listarChat,
+  enviarChat,
+  suscribirChat,
+  telefonosDeChat,
+  telefonosDeUsuarios,
+} from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
+import EntradaTelefono from './EntradaTelefono'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -62,7 +69,10 @@ function EtiquetaRol({
  * Sin cuenta, pide un apodo y el estado (se recuerdan en el dispositivo).
  */
 export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
-  const { perfil } = useAuth()
+  const { perfil, rol } = useAuth()
+  // Solo los líderes de voluntarios (y admin) pueden ver el teléfono de los
+  // invitados para contactarlos. El resto del chat no lo ve (la RLS lo impide).
+  const esLiderOAdmin = rol === 'lider_voluntarios' || rol === 'admin'
   const guardada = leerIdentidad()
   // Si la persona ya inició sesión, su nombre es automático (el de su perfil) y
   // solo puede elegir/rotar su estado. Sin cuenta, sí pide un apodo.
@@ -72,7 +82,11 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     : ''
   const [nombre, setNombre] = useState(guardada?.nombre ?? '')
   const [estado, setEstado] = useState(guardada?.estado ?? perfil?.estado ?? '')
+  // Teléfono del invitado (registro express), para poder contactarlo.
+  const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
+  // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
+  const telefonoValido = telefono.replace(/\D/g, '').length >= 8
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
@@ -81,7 +95,43 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Rol de cada autor (id → rol), para mostrar la etiqueta de color junto al
   // nombre. Se resuelve con la vista pública perfiles_publicos.
   const [roles, setRoles] = useState<Map<string, RolUsuario>>(new Map())
+  // Teléfonos por mensaje (id → teléfono). Solo se llenan para líderes/admin.
+  const [telefonos, setTelefonos] = useState<Map<string, string>>(new Map())
   const finRef = useRef<HTMLDivElement>(null)
+
+  // Trae los teléfonos (privados) de los mensajes dados. Solo para líderes/admin.
+  // Invitados: su teléfono está en chat_contactos (por id de mensaje).
+  // Registrados: su teléfono está en su perfil (por id de autor).
+  async function asegurarTelefonos(msgs: MensajeGlobal[]) {
+    if (!esLiderOAdmin) return
+    const faltan = msgs.filter((m) => !telefonos.has(m.id))
+    if (faltan.length === 0) return
+
+    const idsInvitados = faltan.filter((m) => !m.autor).map((m) => m.id)
+    const idsAutores = [
+      ...new Set(
+        faltan.filter((m) => m.autor).map((m) => m.autor as string),
+      ),
+    ]
+
+    const [porMensaje, porAutor] = await Promise.all([
+      telefonosDeChat(idsInvitados),
+      telefonosDeUsuarios(idsAutores),
+    ])
+    if (porMensaje.size === 0 && porAutor.size === 0) return
+
+    setTelefonos((prev) => {
+      const m = new Map(prev)
+      // Invitados: directo por id de mensaje.
+      for (const [k, v] of porMensaje) m.set(k, v)
+      // Registrados: el teléfono del autor se asigna a cada uno de sus mensajes.
+      for (const msg of faltan) {
+        const tel = msg.autor ? porAutor.get(msg.autor) : undefined
+        if (tel) m.set(msg.id, tel)
+      }
+      return m
+    })
+  }
 
   // Busca los roles que falten para los autores recibidos y los agrega al mapa.
   async function asegurarRoles(autores: (string | null)[]) {
@@ -110,6 +160,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         if (!activo) return
         setMensajes(m)
         void asegurarRoles(m.map((x) => x.autor))
+        void asegurarTelefonos(m)
       })
       .catch((e) => setErrorMsg((e as Error).message))
       .finally(() => activo && setCargando(false))
@@ -119,6 +170,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         prev.some((x) => x.id === m.id) ? prev : [...prev, m],
       )
       void asegurarRoles([m.autor])
+      void asegurarTelefonos([m])
     })
     return () => {
       activo = false
@@ -134,8 +186,14 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   function entrar(e: React.FormEvent) {
     e.preventDefault()
     const nom = esLogueado ? nombreEfectivo : nombre.trim()
+    // Sin sesión: nombre + estado + teléfono (para poder contactar).
     if (!nom || !estado.trim()) return
-    guardarIdentidad({ nombre: nom, estado: estado.trim() })
+    if (!esLogueado && !telefonoValido) return
+    guardarIdentidad({
+      nombre: nom,
+      estado: estado.trim(),
+      telefono: esLogueado ? undefined : telefono.trim(),
+    })
     setMensajes([])
     setListo(true)
   }
@@ -151,6 +209,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         ciudad: estado,
         nombre: esLogueado ? nombreEfectivo : nombre,
         cuerpo,
+        // Solo el invitado adjunta teléfono; el usuario con cuenta no expone el
+        // suyo en el chat comunitario.
+        telefono: esLogueado ? null : telefono,
       })
     } catch (err) {
       setErrorMsg((err as Error).message)
@@ -211,16 +272,33 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           ) : (
-            <label className="block text-sm font-semibold">
-              Nombre de la persona
-              <input
-                className="input mt-1"
-                placeholder="Tu nombre o apodo"
-                maxLength={40}
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
-            </label>
+            <>
+              <label className="block text-sm font-semibold">
+                Nombre de la persona
+                <input
+                  className="input mt-1"
+                  placeholder="Tu nombre o apodo"
+                  maxLength={40}
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                />
+              </label>
+              <div>
+                <p className="text-sm font-semibold mb-1">
+                  Teléfono de contacto
+                </p>
+                <p className="text-xs text-gray-500 mb-1">
+                  📱 <strong>Obligatorio.</strong> Privado: solo un{' '}
+                  <strong>líder de voluntarios</strong> o un{' '}
+                  <strong>administrador</strong> lo verá y,{' '}
+                  <strong className="text-bandera-azul">
+                    en caso de ser necesario
+                  </strong>
+                  , podrá contactarte. No aparece para el resto del chat.
+                </p>
+                <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
+              </div>
+            </>
           )}
           <label className="block text-sm font-semibold">
             Estado
@@ -239,7 +317,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           </label>
           <button
             type="submit"
-            disabled={(!esLogueado && !nombre.trim()) || !estado.trim()}
+            disabled={
+              !estado.trim() ||
+              (!esLogueado && (!nombre.trim() || !telefonoValido))
+            }
             className="btn-azul w-full disabled:opacity-50"
           >
             Entrar al chat
@@ -283,12 +364,41 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                         </div>
                       )}
                       <div className="break-words">{m.cuerpo}</div>
+                      {/* Teléfono del invitado: SOLO los líderes/admin lo ven
+                          (el mapa solo se llena para ellos) para contactarlo. */}
+                      {!mio && telefonos.get(m.id) && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-bold text-bandera-azul break-all">
+                            📞 {telefonos.get(m.id)}
+                          </span>
+                          <a
+                            href={`tel:${telefonos
+                              .get(m.id)!
+                              .replace(/[^\d+]/g, '')}`}
+                            className="text-[11px] bg-bandera-azul !text-white font-semibold px-1.5 py-0.5 rounded no-underline"
+                          >
+                            Llamar
+                          </a>
+                          <a
+                            href={`https://wa.me/${telefonos
+                              .get(m.id)!
+                              .replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] bg-green-600 !text-white font-semibold px-1.5 py-0.5 rounded no-underline"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      )}
                       <div
                         className={`text-[10px] mt-0.5 ${
                           mio ? 'text-white/70' : 'text-gray-400'
                         }`}
                       >
-                        {new Date(m.creado_en).toLocaleTimeString('es-VE', {
+                        {new Date(m.creado_en).toLocaleString('es-VE', {
+                          day: '2-digit',
+                          month: 'short',
                           hour: '2-digit',
                           minute: '2-digit',
                         })}

@@ -71,12 +71,39 @@
 > - Tutorial "¿Cómo funciona?" actualizado (zonas, banderas, aviso de desaparecidos
 >   aproximados) y botón más visual.
 >
+> ### 🆕🆕 Novedades más recientes (post-lanzamiento, terremoto)
+> - **Roles nuevos:** **`acopio_admin`** (admin de centros de acopio, migración 24)
+>   y **`lider_voluntarios`** (rol combinado = voluntario + rescatista +
+>   centro_acopio + acopio_admin, migración 28). Asignables solo por un admin.
+> - **Notas de cierre:** cualquiera del equipo puede dejar un comentario al cerrar
+>   un caso; se guardan en la tabla privada `notas_cierre` (solo personal la lee,
+>   migración 29) y hay una vista `/notas-cierre` para admin y líderes con TODAS
+>   las notas. Se ven también en el historial.
+> - **Monitoreo de conversaciones (admin):** vista de solo lectura con todos los
+>   chats por necesidad; en el menú reemplaza al "Chat en vivo" para el admin.
+> - **Chat en vivo mejorado:** rol del autor con color junto al nombre;
+>   "Sin iniciar sesión" para invitados; el usuario con sesión no reescribe su
+>   nombre (solo cambia de estado).
+> - **SOS/teléfono:** el teléfono es **obligatorio** y se guarda de forma fiable
+>   (si falla, no se crea la solicitud); el reportante puede ver el teléfono de
+>   quien atiende su caso (función `telefono_de_quien_atiende`, migración 27).
+> - **Atender solicitudes:** SOS plegables, numeración y resumen por tipo, "Ver
+>   título completo", "Ver en el mapa", y "Me asigné" carga los casos propios
+>   aparte del tope de 500 para que no desaparezcan.
+> - **Mensaje "Atendiendo solicitud"** (antes "Alguien va en camino") en el mapa,
+>   en la app y en la **push**.
+> - **Notificaciones push (Web Push):** tabla `push_subscriptions` (migración 26)
+>   + Edge Function `enviar-push` + webhooks. Ver `functions/enviar-push/DEPLOY.md`.
+> - **Panel admin:** conteo de usuarios por rol y lista de usuarios paginada
+>   (más de 1000). **Correo en el perfil** (migración 25). **Personas
+>   hospitalizadas** en el mapa (migración 28_personas_hospitalizadas).
+>
 > ### 📦 Estructura actual
 > ```
 > red-de-esperanza/
 > ├── web/        → PWA (todo el frontend)
 > ├── scraper/    → scraper de desaparecidos (Python + Playwright)
-> ├── supabase/   → schema.sql + migraciones 02→23
+> ├── supabase/   → schema.sql + migraciones 02→29 (+ functions/enviar-push)
 > └── README.md
 > ```
 > El stack real es: React + Vite + TS · Tailwind · Leaflet/OSM (+ Google Maps solo

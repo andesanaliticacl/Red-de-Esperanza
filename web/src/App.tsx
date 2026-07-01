@@ -25,6 +25,7 @@ const AdminView = lazy(() => import('./views/AdminView'))
 const AdminConversacionesView = lazy(
   () => import('./views/AdminConversacionesView'),
 )
+const NotasCierreView = lazy(() => import('./views/NotasCierreView'))
 const ScrapingAdminView = lazy(() => import('./views/ScrapingAdminView'))
 
 function Cargando() {
@@ -97,6 +98,16 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <MisConversacionesView />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Notas de cierre: las revisan el admin y los líderes de voluntarios */}
+            <Route
+              path="/notas-cierre"
+              element={
+                <ProtectedRoute roles={['lider_voluntarios', 'admin']}>
+                  <NotasCierreView />
                 </ProtectedRoute>
               }
             />
