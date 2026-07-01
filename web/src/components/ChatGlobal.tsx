@@ -91,7 +91,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
   const [paisVisitante, setPaisVisitante] = useState<string | null>(null)
-  const [ipVerificada, setIpVerificada] = useState(false)
   const puedeEscribir = esVenezuela(paisVisitante)
   // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
   const telefonoValido =
@@ -113,7 +112,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     paisPorIP().then(({ pais }) => {
       if (!activo) return
       setPaisVisitante(pais)
-      setIpVerificada(true)
     })
     return () => {
       activo = false
@@ -232,7 +230,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     e.preventDefault()
     if (!texto.trim()) return
     if (!puedeEscribir) {
-      setErrorMsg('Solo se puede escribir en el chat desde Venezuela.')
       return
     }
     const cuerpo = texto.trim()
@@ -252,12 +249,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       setTexto(cuerpo)
     }
   }
-
-  const mensajeBloqueoEscritura = ipVerificada
-    ? paisVisitante
-      ? `Solo lectura: tu conexion se detecta desde ${paisVisitante}.`
-      : 'Solo lectura: no pudimos confirmar que tu conexion esta en Venezuela.'
-    : 'Confirmando si tu conexion esta en Venezuela...'
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -312,7 +303,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           ) : (
-            puedeEscribir ? (
+            puedeEscribir && (
               <>
               <label className="block text-sm font-semibold">
                 Nombre de la persona
@@ -340,11 +331,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                 <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
               </div>
               </>
-            ) : (
-              <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                Puedes leer el chat. Para escribir, la conexion debe estar
-                confirmada desde Venezuela.
-              </p>
             )
           )}
           <label className="block text-sm font-semibold">
@@ -462,12 +448,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             <p className="px-3 text-bandera-rojo text-xs">⚠️ {errorMsg}</p>
           )}
 
-          {!puedeEscribir && (
-            <p className="px-3 py-2 text-xs text-gray-600 bg-gray-50 border-t">
-              {mensajeBloqueoEscritura}
-            </p>
-          )}
-
+          {puedeEscribir && (
           <form onSubmit={enviar} className="p-2.5 border-t flex gap-2">
             <input
               className="input flex-1"
@@ -485,6 +466,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               ➤
             </button>
           </form>
+          )}
         </>
       )}
     </div>
