@@ -9,6 +9,7 @@ import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TextoExpandible from '../components/TextoExpandible'
+import { cargarContactosNecesidad } from '../lib/contactos'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -136,28 +137,20 @@ export default function VoluntarioView() {
     Map<string, { pais: string | null; ciudad: string | null }>
   >(new Map())
   useEffect(() => {
-    supabase
-      .from('contactos_necesidad')
-      .select('necesidad_id, contacto, pais_origen, ciudad_origen')
-      .then(({ data }) => {
-        if (!data) return
-        const rows = data as {
-          necesidad_id: string
-          contacto: string
-          pais_origen: string | null
-          ciudad_origen: string | null
-        }[]
-        setContactos(new Map(rows.map((c) => [c.necesidad_id, c.contacto])))
-        setOrigenes(
-          new Map(
-            rows.map((c) => [
-              c.necesidad_id,
-              { pais: c.pais_origen, ciudad: c.ciudad_origen },
-            ]),
-          ),
-        )
-      })
-  }, [necesidades])
+    cargarContactosNecesidad().then((m) => {
+      const cont = new Map<string, string>()
+      const orig = new Map<
+        string,
+        { pais: string | null; ciudad: string | null }
+      >()
+      for (const [id, c] of m) {
+        cont.set(id, c.contacto)
+        orig.set(id, { pais: c.pais_origen, ciudad: c.ciudad_origen })
+      }
+      setContactos(cont)
+      setOrigenes(orig)
+    })
+  }, [necesidades.length])
   // Cuántas solicitudes hay con el MISMO teléfono (para avisar de duplicados en
   // la lista, igual que se atenúan en el mapa). Clave: solo los dígitos.
   const conteoTelefono = useMemo(() => {

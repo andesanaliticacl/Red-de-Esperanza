@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
+import { cargarContactosNecesidad } from '../lib/contactos'
 import {
   MapContainer,
   TileLayer,
@@ -664,20 +665,16 @@ export default function MapaNecesidades({
   )
   useEffect(() => {
     if (!puedeVerContacto) return
-    supabase
-      .from('contactos_necesidad')
-      .select('necesidad_id, contacto')
-      .then(({ data }) => {
-        if (!data) return
-        setMapaTelefonos(
-          new Map(
-            (data as { necesidad_id: string; contacto: string }[]).map((c) => [
-              c.necesidad_id,
-              c.contacto,
-            ]),
-          ),
-        )
-      })
+    let activo = true
+    cargarContactosNecesidad().then((m) => {
+      if (!activo) return
+      const soloTel = new Map<string, string>()
+      for (const [id, c] of m) soloTel.set(id, c.contacto)
+      setMapaTelefonos(soloTel)
+    })
+    return () => {
+      activo = false
+    }
   }, [puedeVerContacto, necesidades.length])
 
   // Qué marcadores atenuar y cuáles marcar "sin teléfono":
