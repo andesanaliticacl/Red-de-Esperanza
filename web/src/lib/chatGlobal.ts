@@ -6,7 +6,7 @@ export function normalizarCiudad(ciudad: string): string {
   return ciudad.trim().toLowerCase()
 }
 
-/** Últimos mensajes del chat (solo de los últimos 3 días), en orden cronológico. */
+/** Ultimos mensajes del chat, solo de los ultimos 3 dias, en orden cronologico. */
 export async function listarChat(
   ciudad: string,
   limite = 100,
@@ -23,40 +23,35 @@ export async function listarChat(
   return ((data ?? []) as MensajeGlobal[]).reverse()
 }
 
-/** Envía un mensaje al chat de una ciudad. Si el invitado dejó teléfono, se
- *  guarda en la tabla PRIVADA `chat_contactos` (solo líderes/admin la leen). */
+/** Envia un mensaje pasando por la Edge Function que valida la IP en servidor. */
 export async function enviarChat(args: {
   ciudad: string
   nombre: string
   cuerpo: string
   telefono?: string | null
 }): Promise<void> {
-  const { data: auth } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from('chat_global')
-    .insert({
-      ciudad: normalizarCiudad(args.ciudad),
-      nombre: args.nombre.trim().slice(0, 40),
-      cuerpo: args.cuerpo.trim().slice(0, 500),
-      autor: auth?.user?.id ?? null,
-    })
-    .select('id')
-    .single()
-  if (error) throw error
-
-  const tel = args.telefono?.trim()
-  if (tel && data?.id) {
-    const { error: e2 } = await supabase
-      .from('chat_contactos')
-      .insert({ mensaje_id: data.id, telefono: tel.slice(0, 30) })
-    if (e2) console.error('No se pudo guardar el teléfono del chat:', e2.message)
+  const { data, error } = await supabase.functions.invoke<{
+    ok: boolean
+    error?: string
+  }>('enviar-chat', {
+    body: {
+      ciudad: args.ciudad,
+      nombre: args.nombre,
+      cuerpo: args.cuerpo,
+      telefono: args.telefono ?? null,
+    },
+  })
+  if (error) {
+    const contexto = (error as { context?: Response }).context
+    const payload = await contexto?.json().catch(() => null)
+    throw new Error(payload?.error || error.message)
   }
+  if (data?.ok === false) throw new Error(data.error || 'No se pudo enviar el mensaje.')
 }
 
 /**
- * Teléfonos (privados) de una lista de mensajes del chat. La RLS solo devuelve
- * filas si quien consulta es líder de voluntarios o admin; cualquier otro recibe
- * un mapa vacío. Devuelve mensaje_id → teléfono.
+ * Telefonos privados por mensaje. La RLS solo devuelve filas a lideres/admin.
+ * Devuelve mensaje_id -> telefono.
  */
 export async function telefonosDeChat(
   ids: string[],
@@ -75,10 +70,8 @@ export async function telefonosDeChat(
 }
 
 /**
- * Teléfonos de una lista de USUARIOS registrados (autores de mensajes), leídos
- * de su perfil. La función SECURITY DEFINER solo devuelve datos si quien
- * consulta es líder de voluntarios o admin; cualquier otro recibe vacío.
- * Devuelve id_usuario → teléfono.
+ * Telefonos de usuarios registrados, leidos por funcion con controles de rol.
+ * Devuelve id_usuario -> telefono.
  */
 export async function telefonosDeUsuarios(
   ids: string[],
@@ -94,15 +87,13 @@ export async function telefonosDeUsuarios(
 
 /**
  * Se suscribe en tiempo real a los mensajes nuevos de una ciudad.
- * Devuelve una función para cancelar la suscripción.
+ * Devuelve una funcion para cancelar la suscripcion.
  */
 export function suscribirChat(
   ciudad: string,
   alLlegar: (m: MensajeGlobal) => void,
 ): () => void {
   const sala = normalizarCiudad(ciudad)
-  // Canal único por suscriptor: evita el error "subscribe multiple times"
-  // cuando coexisten la barra lateral y el modal del chat en la misma página.
   const canal = supabase
     .channel(`chat-global:${sala}:${Math.random().toString(36).slice(2)}`)
     .on(
