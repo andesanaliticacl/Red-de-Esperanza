@@ -13,7 +13,10 @@ import {
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
-import EntradaTelefono from './EntradaTelefono'
+import EntradaTelefono, {
+  esTelefonoVenezuelaValido,
+  mensajeTelefonoVenezuela,
+} from './EntradaTelefono'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
 // propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
@@ -150,10 +153,8 @@ export default function ReportarModal({
     setErrorMsg('')
     try {
       // El teléfono es OBLIGATORIO: sin él, nadie puede contactar a la persona.
-      if (contacto.replace(/\D/g, '').length < 8) {
-        throw new Error(
-          'Escribe un número de teléfono válido (con su código de país) para que puedan contactarte.',
-        )
+      if (!esTelefonoVenezuelaValido(contacto)) {
+        throw new Error(mensajeTelefonoVenezuela())
       }
 
       let lat = coord?.lat ?? null
@@ -279,8 +280,7 @@ export default function ReportarModal({
       </p>
       <p className="text-xs text-gray-600 mb-2">
         📱 <strong>Obligatorio.</strong> Es la forma de que un rescatista o
-        voluntario te llame o te escriba por WhatsApp. Elige el código de tu país
-        y escribe tu número. Es <strong>privado</strong>: solo lo ve quien te
+        voluntario te llame o te escriba por WhatsApp.<br />Es <strong>privado</strong>: solo lo ve quien te
         ayuda, nunca aparece en el mapa público.
       </p>
       <EntradaTelefono valor={contacto} onChange={setContacto} requerido />

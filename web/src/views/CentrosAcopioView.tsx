@@ -31,7 +31,10 @@ import SelectorPunto from '../components/SelectorPunto'
 import { PAISES_MUNDO, isoDe } from '../lib/paises'
 import Bandera from '../components/Bandera'
 import IconoRuta from '../components/IconoRuta'
-import EntradaTelefono from '../components/EntradaTelefono'
+import EntradaTelefono, {
+  esTelefonoVenezuelaValido,
+  mensajeTelefonoVenezuela,
+} from '../components/EntradaTelefono'
 
 /** Enlace de WhatsApp a partir de un teléfono (solo dígitos). */
 function enlaceWhatsApp(contacto: string): string {
@@ -481,10 +484,8 @@ function FormCentro({
 
     // El número de contacto es OBLIGATORIO: es el que verá la gente para
     // coordinar la ayuda (botón "Contactar").
-    if (contacto.replace(/\D/g, '').length < 8) {
-      setErrorMsg(
-        'El número de contacto es obligatorio (con su código de país).',
-      )
+    if (!esTelefonoVenezuelaValido(contacto)) {
+      setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
 

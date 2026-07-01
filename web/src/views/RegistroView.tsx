@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import EntradaTelefono from '../components/EntradaTelefono'
+import EntradaTelefono, {
+  esTelefonoVenezuelaValido,
+  mensajeTelefonoVenezuela,
+} from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
@@ -104,6 +107,10 @@ export default function RegistroView() {
     setErrorMsg('')
     if (password.length < 6) {
       setErrorMsg('La contraseña debe tener al menos 6 caracteres.')
+      return
+    }
+    if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
+      setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
     setEnviando(true)

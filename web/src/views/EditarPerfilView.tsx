@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import EntradaTelefono from '../components/EntradaTelefono'
+import EntradaTelefono, {
+  esTelefonoVenezuelaValido,
+  mensajeTelefonoVenezuela,
+} from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
@@ -94,6 +97,10 @@ export default function EditarPerfilView() {
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
     if (!perfil?.id) return
+    if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
+      setErrorMsg(mensajeTelefonoVenezuela())
+      return
+    }
     setGuardando(true)
     setErrorMsg('')
     const { error } = await supabase

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { crearNecesidad } from '../lib/reportes'
 import { obtenerUbicacion, type FuenteUbicacion } from '../lib/geo'
-import EntradaTelefono from './EntradaTelefono'
+import EntradaTelefono, {
+  esTelefonoVenezuelaValido,
+  mensajeTelefonoVenezuela,
+} from './EntradaTelefono'
 
 // Número único de emergencias de Venezuela (VEN 911, nacional desde 2013).
 const NUMERO_EMERGENCIA = '911'
@@ -37,8 +40,8 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
 
   async function enviarSOS() {
     // El teléfono es OBLIGATORIO: sin él, los rescatistas no pueden ubicarte.
-    if (contacto.replace(/\D/g, '').length < 8) {
-      setErrorMsg('Escribe tu número de teléfono (con código de país) para que puedan contactarte.')
+    if (!esTelefonoVenezuelaValido(contacto)) {
+      setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
     setEnviando(true)
