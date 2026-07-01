@@ -52,6 +52,15 @@ function fechaCorta(iso: string): string {
   })
 }
 
+// Texto del origen (ciudad, país) desde donde se creó la solicitud, por IP.
+function textoOrigen(o?: {
+  pais: string | null
+  ciudad: string | null
+}): string | null {
+  if (!o || (!o.pais && !o.ciudad)) return null
+  return [o.ciudad, o.pais].filter(Boolean).join(', ')
+}
+
 // Cuánto tiempo lleva reportada (hace X). Cuanto más vieja, más espera lleva.
 function hace(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
@@ -122,17 +131,28 @@ export default function VoluntarioView() {
   // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
   // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
   const [contactos, setContactos] = useState<Map<string, string>>(new Map())
+  // Origen (país/ciudad desde donde se creó) por necesidad, para el personal.
+  const [origenes, setOrigenes] = useState<
+    Map<string, { pais: string | null; ciudad: string | null }>
+  >(new Map())
   useEffect(() => {
     supabase
       .from('contactos_necesidad')
-      .select('necesidad_id, contacto')
+      .select('necesidad_id, contacto, pais_origen, ciudad_origen')
       .then(({ data }) => {
         if (!data) return
-        setContactos(
+        const rows = data as {
+          necesidad_id: string
+          contacto: string
+          pais_origen: string | null
+          ciudad_origen: string | null
+        }[]
+        setContactos(new Map(rows.map((c) => [c.necesidad_id, c.contacto])))
+        setOrigenes(
           new Map(
-            (data as { necesidad_id: string; contacto: string }[]).map((c) => [
+            rows.map((c) => [
               c.necesidad_id,
-              c.contacto,
+              { pais: c.pais_origen, ciudad: c.ciudad_origen },
             ]),
           ),
         )
@@ -508,6 +528,7 @@ export default function VoluntarioView() {
                 n={n}
                 numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
+                origen={origenes.get(n.id)}
                 trabajando={trabajando === n.id}
                 accion="atender"
                 onAccion={() => iniciarCierre(n)}
@@ -532,6 +553,7 @@ export default function VoluntarioView() {
                 n={n}
                 numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
+                origen={origenes.get(n.id)}
                 trabajando={trabajando === n.id}
                 accion={null}
                 atendidaPor={quienAtiende(n)}
@@ -559,6 +581,7 @@ export default function VoluntarioView() {
                 n={n}
                 numero={i + 1}
                 contacto={contactos.get(n.id) ?? null}
+                origen={origenes.get(n.id)}
                 trabajando={trabajando === n.id}
                 accion="asignar"
                 onAccion={() => asignarme(n)}
@@ -668,6 +691,7 @@ function Fila({
   n,
   numero,
   contacto,
+  origen,
   trabajando,
   accion,
   onAccion,
@@ -678,6 +702,7 @@ function Fila({
   n: Necesidad
   numero?: number
   contacto?: string | null
+  origen?: { pais: string | null; ciudad: string | null }
   trabajando: boolean
   accion: 'asignar' | 'atender' | null
   onAccion?: () => void
@@ -685,6 +710,7 @@ function Fila({
   onRetirar?: () => void
   atendidaPor?: string | null
 }) {
+  const origenTxt = textoOrigen(origen)
   return (
     <div className="card flex items-center gap-3">
       {numero != null && (
@@ -715,13 +741,20 @@ function Fila({
         <div className="text-xs font-semibold text-gray-600 mt-0.5">
           🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
         </div>
+        {/* País/ciudad desde donde se creó la solicitud (aprox. por IP). */}
+        {origenTxt && (
+          <div className="text-xs text-gray-500 mt-0.5">
+            🌐 Creado desde: {origenTxt}
+          </div>
+        )}
         {atendidaPor && (
           <div className="text-xs font-semibold text-bandera-azul mt-0.5">
             🤝 Atiende: {atendidaPor}
           </div>
         )}
-        {/* Teléfono de quien reportó: para que el personal pueda comunicarse. */}
-        {contacto && (
+        {/* Teléfono de quien reportó: para que el personal pueda comunicarse.
+            Si no tiene, lo marcamos para distinguirlo. */}
+        {contacto ? (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-bold text-bandera-azul break-all">
               📞 {contacto}
@@ -740,6 +773,10 @@ function Fila({
             >
               WhatsApp
             </a>
+          </div>
+        ) : (
+          <div className="mt-1 text-xs font-semibold text-amber-600">
+            ⚠️ Sin número de teléfono
           </div>
         )}
       </div>

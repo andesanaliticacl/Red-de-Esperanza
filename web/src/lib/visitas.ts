@@ -21,7 +21,7 @@ function idVisitante(): string {
 }
 
 /** País y ciudad aproximados por IP (sin clave). Null si no se puede. */
-async function paisPorIP(): Promise<{ pais: string | null; ciudad: string | null }> {
+export async function paisPorIP(): Promise<{ pais: string | null; ciudad: string | null }> {
   try {
     const r = await fetch('https://ipwho.is/')
     const j = await r.json()
