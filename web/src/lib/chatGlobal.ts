@@ -75,6 +75,24 @@ export async function telefonosDeChat(
 }
 
 /**
+ * Teléfonos de una lista de USUARIOS registrados (autores de mensajes), leídos
+ * de su perfil. La función SECURITY DEFINER solo devuelve datos si quien
+ * consulta es líder de voluntarios o admin; cualquier otro recibe vacío.
+ * Devuelve id_usuario → teléfono.
+ */
+export async function telefonosDeUsuarios(
+  ids: string[],
+): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map()
+  const { data } = await supabase.rpc('telefonos_de_usuarios', { p_ids: ids })
+  return new Map(
+    ((data ?? []) as { id: string; telefono: string | null }[])
+      .filter((x) => x.telefono)
+      .map((x) => [x.id, x.telefono as string]),
+  )
+}
+
+/**
  * Se suscribe en tiempo real a los mensajes nuevos de una ciudad.
  * Devuelve una función para cancelar la suscripción.
  */

@@ -6,6 +6,7 @@ import {
   enviarChat,
   suscribirChat,
   telefonosDeChat,
+  telefonosDeUsuarios,
 } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
 import EntradaTelefono from './EntradaTelefono'
@@ -99,15 +100,35 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const finRef = useRef<HTMLDivElement>(null)
 
   // Trae los teléfonos (privados) de los mensajes dados. Solo para líderes/admin.
-  async function asegurarTelefonos(ids: string[]) {
+  // Invitados: su teléfono está en chat_contactos (por id de mensaje).
+  // Registrados: su teléfono está en su perfil (por id de autor).
+  async function asegurarTelefonos(msgs: MensajeGlobal[]) {
     if (!esLiderOAdmin) return
-    const faltan = ids.filter((id) => !telefonos.has(id))
+    const faltan = msgs.filter((m) => !telefonos.has(m.id))
     if (faltan.length === 0) return
-    const mapa = await telefonosDeChat(faltan)
-    if (mapa.size === 0) return
+
+    const idsInvitados = faltan.filter((m) => !m.autor).map((m) => m.id)
+    const idsAutores = [
+      ...new Set(
+        faltan.filter((m) => m.autor).map((m) => m.autor as string),
+      ),
+    ]
+
+    const [porMensaje, porAutor] = await Promise.all([
+      telefonosDeChat(idsInvitados),
+      telefonosDeUsuarios(idsAutores),
+    ])
+    if (porMensaje.size === 0 && porAutor.size === 0) return
+
     setTelefonos((prev) => {
       const m = new Map(prev)
-      for (const [k, v] of mapa) m.set(k, v)
+      // Invitados: directo por id de mensaje.
+      for (const [k, v] of porMensaje) m.set(k, v)
+      // Registrados: el teléfono del autor se asigna a cada uno de sus mensajes.
+      for (const msg of faltan) {
+        const tel = msg.autor ? porAutor.get(msg.autor) : undefined
+        if (tel) m.set(msg.id, tel)
+      }
       return m
     })
   }
@@ -139,7 +160,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         if (!activo) return
         setMensajes(m)
         void asegurarRoles(m.map((x) => x.autor))
-        void asegurarTelefonos(m.map((x) => x.id))
+        void asegurarTelefonos(m)
       })
       .catch((e) => setErrorMsg((e as Error).message))
       .finally(() => activo && setCargando(false))
@@ -149,7 +170,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         prev.some((x) => x.id === m.id) ? prev : [...prev, m],
       )
       void asegurarRoles([m.autor])
-      void asegurarTelefonos([m.id])
+      void asegurarTelefonos([m])
     })
     return () => {
       activo = false
