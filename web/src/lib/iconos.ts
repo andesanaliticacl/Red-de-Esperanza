@@ -53,9 +53,10 @@ export function iconoNecesidad(
     estado === 'resuelta'
       ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
       : ''
-  // Insignia "sin teléfono" (📵) para reconocer los reportes sin número.
+  // Insignia "sin teléfono" (📵) en una esquinita del pin, al estilo del ⚠️ de
+  // peligro (solo el símbolo, sin recuadro), para reconocerlos sin atenuarlos.
   const insigniaSinTel = sinTelefono
-    ? '<span style="position:absolute;bottom:-5px;left:-5px;background:#D97706;color:#fff;border-radius:9999px;font-size:9px;line-height:1;padding:2px 3px;border:1.5px solid #fff;">📵</span>'
+    ? '<span style="position:absolute;top:-7px;left:-7px;font-size:14px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">📵</span>'
     : ''
 
   // El derrumbe se ve más explícito: pin más grande, halo que late y una

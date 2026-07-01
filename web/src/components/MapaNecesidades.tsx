@@ -688,11 +688,9 @@ export default function MapaNecesidades({
     const atenuar = new Set<string>()
     const sinTel = new Set<string>()
     if (!puedeVerContacto) return { atenuar, sinTel }
+    // Sin teléfono: solo se marca con la insignia 📵 (NO se atenúa).
     for (const n of necesidades) {
-      if (!mapaTelefonos.has(n.id)) {
-        sinTel.add(n.id)
-        atenuar.add(n.id)
-      }
+      if (!mapaTelefonos.has(n.id)) sinTel.add(n.id)
     }
     const porTel = new Map<string, Necesidad[]>()
     for (const n of necesidades) {
