@@ -9,6 +9,7 @@ import {
   telefonosDeUsuarios,
 } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
+import { paisPorIP } from '../lib/visitas'
 import EntradaTelefono, { esTelefonoVenezuelaValido } from './EntradaTelefono'
 import {
   ESTADOS_VENEZUELA,
@@ -28,6 +29,10 @@ const COLOR_ROL: Record<RolUsuario, string> = {
   lider_voluntarios: '#B45309',
   verificador: '#7C3AED',
   admin: '#CF9B00',
+}
+
+function esVenezuela(pais: string | null | undefined): boolean {
+  return (pais ?? '').trim().toLowerCase() === 'venezuela'
 }
 
 /**
@@ -85,8 +90,12 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Teléfono del invitado (registro express), para poder contactarlo.
   const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
+  const [paisVisitante, setPaisVisitante] = useState<string | null>(null)
+  const [ipVerificada, setIpVerificada] = useState(false)
+  const puedeEscribir = esVenezuela(paisVisitante)
   // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
-  const telefonoValido = esTelefonoVenezuelaValido(telefono)
+  const telefonoValido =
+    !puedeEscribir || esTelefonoVenezuelaValido(telefono)
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
@@ -98,6 +107,18 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Teléfonos por mensaje (id → teléfono). Solo se llenan para líderes/admin.
   const [telefonos, setTelefonos] = useState<Map<string, string>>(new Map())
   const finRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let activo = true
+    paisPorIP().then(({ pais }) => {
+      if (!activo) return
+      setPaisVisitante(pais)
+      setIpVerificada(true)
+    })
+    return () => {
+      activo = false
+    }
+  }, [])
 
   // Trae los teléfonos (privados) de los mensajes dados. Solo para líderes/admin.
   // Invitados: su teléfono está en chat_contactos (por id de mensaje).
@@ -193,14 +214,15 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
 
   function entrar(e: React.FormEvent) {
     e.preventDefault()
-    const nom = esLogueado ? nombreEfectivo : nombre.trim()
+    const nom = esLogueado ? nombreEfectivo : nombre.trim() || 'Visitante'
     // Sin sesión: nombre + estado + teléfono (para poder contactar).
-    if (!nom || !estado.trim()) return
-    if (!esLogueado && !telefonoValido) return
+    if (!estado.trim()) return
+    if (puedeEscribir && !esLogueado && (!nombre.trim() || !telefonoValido)) return
     guardarIdentidad({
       nombre: nom,
       estado: estado.trim(),
-      telefono: esLogueado ? undefined : telefono.trim(),
+      telefono:
+        esLogueado || !puedeEscribir ? undefined : telefono.trim(),
     })
     setMensajes([])
     setListo(true)
@@ -209,6 +231,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     if (!texto.trim()) return
+    if (!puedeEscribir) {
+      setErrorMsg('Solo se puede escribir en el chat desde Venezuela.')
+      return
+    }
     const cuerpo = texto.trim()
     setTexto('')
     setErrorMsg('')
@@ -226,6 +252,12 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       setTexto(cuerpo)
     }
   }
+
+  const mensajeBloqueoEscritura = ipVerificada
+    ? paisVisitante
+      ? `Solo lectura: tu conexion se detecta desde ${paisVisitante}.`
+      : 'Solo lectura: no pudimos confirmar que tu conexion esta en Venezuela.'
+    : 'Confirmando si tu conexion esta en Venezuela...'
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -280,7 +312,8 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           ) : (
-            <>
+            puedeEscribir ? (
+              <>
               <label className="block text-sm font-semibold">
                 Nombre de la persona
                 <input
@@ -306,7 +339,13 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                 </p>
                 <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
               </div>
-            </>
+              </>
+            ) : (
+              <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                Puedes leer el chat. Para escribir, la conexion debe estar
+                confirmada desde Venezuela.
+              </p>
+            )
           )}
           <label className="block text-sm font-semibold">
             Estado
@@ -327,7 +366,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             type="submit"
             disabled={
               !estado.trim() ||
-              (!esLogueado && (!nombre.trim() || !telefonoValido))
+              (puedeEscribir && !esLogueado && (!nombre.trim() || !telefonoValido))
             }
             className="btn-azul w-full disabled:opacity-50"
           >
@@ -423,17 +462,24 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             <p className="px-3 text-bandera-rojo text-xs">⚠️ {errorMsg}</p>
           )}
 
+          {!puedeEscribir && (
+            <p className="px-3 py-2 text-xs text-gray-600 bg-gray-50 border-t">
+              {mensajeBloqueoEscritura}
+            </p>
+          )}
+
           <form onSubmit={enviar} className="p-2.5 border-t flex gap-2">
             <input
               className="input flex-1"
               placeholder="Escribe un mensaje…"
               maxLength={500}
               value={texto}
+              disabled={!puedeEscribir}
               onChange={(e) => setTexto(e.target.value)}
             />
             <button
               type="submit"
-              disabled={!texto.trim()}
+              disabled={!puedeEscribir || !texto.trim()}
               className="btn-azul px-4 disabled:opacity-50"
             >
               ➤
