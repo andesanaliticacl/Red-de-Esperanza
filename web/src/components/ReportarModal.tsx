@@ -5,6 +5,13 @@ import {
   type NecesidadUrgencia,
 } from '../lib/types'
 import { crearNecesidad } from '../lib/reportes'
+import { supabase } from '../lib/supabase'
+import {
+  buscarHospitalesGoogle,
+  detalleLugarGoogle,
+  GoogleMapsConfigError,
+  type HospitalGoogle,
+} from '../lib/googleGeocode'
 import {
   obtenerUbicacion,
   geocodificarDireccion,
@@ -28,6 +35,12 @@ const TIPOS: NecesidadTipo[] = [
   'derrumbe',
   'otro',
 ]
+type TipoReporte = NecesidadTipo | 'hospital'
+const HOSPITAL_META = {
+  etiqueta: 'Hospital',
+  emoji: '🏥',
+  color: '#CC0001',
+}
 // Tamaños (DIÁMETRO aprox.) de una "zona sin atender", en km. Por defecto 3.
 // Guardamos el radio = diámetro / 2 para que el círculo sea fino y proporcional.
 const TAMANOS_ZONA = [1, 3, 5]
@@ -48,15 +61,23 @@ export default function ReportarModal({
   onCreado,
   coordInicial,
   fuenteInicial,
+  puedeReportarHospital = false,
 }: {
   onCerrar: () => void
-  onCreado: () => void
+  onCreado: (tipo?: TipoReporte) => void
   coordInicial?: { lat: number; lng: number } | null
   fuenteInicial?: FuenteUbicacion | null
+  puedeReportarHospital?: boolean
 }) {
   const [paso, setPaso] = useState(1)
-  const [tipo, setTipo] = useState<NecesidadTipo>('otro')
+  const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
+  const [nombreHospital, setNombreHospital] = useState('')
+  const [hospitalConfirmado, setHospitalConfirmado] =
+    useState<HospitalGoogle | null>(null)
+  const [sugerenciasHospital, setSugerenciasHospital] = useState<HospitalGoogle[]>([])
+  const [buscandoHospital, setBuscandoHospital] = useState(false)
+  const [seleccionandoHospital, setSeleccionandoHospital] = useState(false)
   const [urgencia, setUrgencia] = useState<NecesidadUrgencia>('media')
   const [zona, setZona] = useState('') // dirección / referencia del lugar
   const [tamZonaKm, setTamZonaKm] = useState(3) // diámetro aprox. de la zona
@@ -85,6 +106,11 @@ export default function ReportarModal({
 
   const esDerrumbe = tipo === 'derrumbe'
   const esZona = tipo === 'zona_sin_atender'
+  const esHospital = tipo === 'hospital'
+  const tiposDisponibles: TipoReporte[] = puedeReportarHospital
+    ? [...TIPOS, 'hospital']
+    : TIPOS
+  const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
 
   async function actualizarUbicacion() {
     setGpsEstado('buscando')
@@ -105,12 +131,56 @@ export default function ReportarModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function elegirTipo(t: NecesidadTipo) {
+  useEffect(() => {
+    if (!esHospital) return
+    const q = nombreHospital.trim()
+    if (hospitalConfirmado?.nombre === q) return
+    setHospitalConfirmado(null)
+    if (q.length < 3) {
+      setSugerenciasHospital([])
+      setBuscandoHospital(false)
+      return
+    }
+    let cancelado = false
+    setBuscandoHospital(true)
+    const t = window.setTimeout(async () => {
+      try {
+        const resultados = await buscarHospitalesGoogle(q)
+        if (!cancelado) {
+          setSugerenciasHospital(resultados)
+          setErrorMsg('')
+        }
+      } catch (e) {
+        if (!cancelado) {
+          setSugerenciasHospital([])
+          setErrorMsg(
+            e instanceof GoogleMapsConfigError
+              ? e.message
+              : 'No pudimos consultar Google Maps. Intenta de nuevo.',
+          )
+        }
+      } finally {
+        if (!cancelado) {
+          setBuscandoHospital(false)
+        }
+      }
+    }, 450)
+    return () => {
+      cancelado = true
+      window.clearTimeout(t)
+    }
+  }, [esHospital, nombreHospital, hospitalConfirmado?.nombre])
+
+  function elegirTipo(t: TipoReporte) {
     setTipo(t)
     if (t === 'derrumbe' || t === 'rescate' || t === 'zona_sin_atender')
       setUrgencia('alta')
     // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
-    setCoord(t === 'derrumbe' || t === 'zona_sin_atender' ? null : coordAuto)
+    setCoord(
+      t === 'derrumbe' || t === 'zona_sin_atender' || t === 'hospital'
+        ? null
+        : coordAuto,
+    )
     setErrorMsg('')
     setPaso(2)
   }
@@ -153,8 +223,17 @@ export default function ReportarModal({
     setErrorMsg('')
     try {
       // El teléfono es OBLIGATORIO: sin él, nadie puede contactar a la persona.
-      if (!esTelefonoVenezuelaValido(contacto)) {
+      if (!esHospital && !esTelefonoVenezuelaValido(contacto)) {
         throw new Error(mensajeTelefonoVenezuela())
+      }
+      if (esHospital && !nombreHospital.trim()) {
+        throw new Error('Escribe el nombre del hospital.')
+      }
+      if (esHospital && !hospitalConfirmado) {
+        throw new Error('Selecciona un hospital confirmado por Google Maps.')
+      }
+      if (esHospital && !zona.trim()) {
+        throw new Error('Escribe la direccion o referencia del hospital.')
       }
 
       let lat = coord?.lat ?? null
@@ -181,10 +260,33 @@ export default function ReportarModal({
         )
       }
 
+      if (esHospital) {
+        const hospital = hospitalConfirmado
+        if (!hospital?.lat || !hospital?.lng) {
+          throw new Error('Selecciona un hospital confirmado por Google Maps.')
+        }
+        const { data: auth } = await supabase.auth.getUser()
+        const detalle = descripcion.trim()
+        const { error } = await supabase.from('centros_acopio').insert({
+          nombre: hospital.nombre,
+          descripcion: detalle ? `Hospital. ${detalle}` : 'Hospital',
+          pais: 'Venezuela',
+          direccion: hospital.direccion,
+          contacto: null,
+          red_social: null,
+          lat: hospital.lat,
+          lng: hospital.lng,
+          creado_por: auth?.user?.id ?? null,
+        })
+        if (error) throw error
+        onCreado('hospital')
+        return
+      }
+
       await crearNecesidad({
-        tipo,
+        tipo: tipo as NecesidadTipo,
         urgencia,
-        descripcion: descripcion.trim() || TIPO_META[tipo].etiqueta,
+        descripcion: descripcion.trim() || metaTipo.etiqueta,
         zona: zona.trim() || null,
         lat,
         lng,
@@ -193,7 +295,7 @@ export default function ReportarModal({
         contactoObligatorio: true,
         origen: 'web',
       })
-      onCreado()
+      onCreado(tipo)
     } catch (e) {
       setErrorMsg((e as Error).message)
       setGuardando(false)
@@ -205,7 +307,13 @@ export default function ReportarModal({
     <div>
       <p className="font-bold mb-1">
         Ubicación{' '}
-        {esZona ? 'de la zona' : esDerrumbe ? 'del edificio' : 'del reporte'}{' '}
+        {esZona
+          ? 'de la zona'
+          : esDerrumbe
+            ? 'del edificio'
+            : esHospital
+              ? 'del hospital'
+              : 'del reporte'}{' '}
         <span className="text-bandera-rojo">*</span>
       </p>
       <p className="text-xs text-gray-500 mb-2">
@@ -317,32 +425,41 @@ export default function ReportarModal({
     ? '🏚️ Reporta un edificio o departamento colapsado. Indica la dirección y ajusta el pin al lugar exacto.'
     : esZona
       ? null // la zona lleva su propio aviso con <strong>
-      : `${TIPO_META[tipo].emoji} Indica qué necesitas y el lugar exacto. Ajusta el pin si hace falta.`
+      : esHospital
+        ? '🏥 Registra un hospital para que aparezca en el mapa y en el filtro de hospitales.'
+        : `${metaTipo.emoji} Indica qué necesitas y el lugar exacto. Ajusta el pin si hace falta.`
 
   const etiquetaDir = esDerrumbe
     ? 'Dirección del edificio'
     : esZona
       ? 'Dirección o referencia de la zona'
-      : 'Dirección o lugar (opcional)'
+      : esHospital
+        ? 'Dirección del hospital'
+        : 'Dirección o lugar (opcional)'
 
   const placeholderDir = esDerrumbe
-    ? 'Calle, número, edificio, urbanización…'
+    ? 'Calle, número, edificio, urbanización...'
     : esZona
-      ? 'Sector, urbanización, pueblo, carretera…'
-      : 'Calle, número, sector, referencia…'
+      ? 'Sector, urbanización, pueblo, carretera...'
+      : esHospital
+        ? 'Calle, avenida, sector o referencia'
+        : 'Calle, número, sector, referencia...'
 
   const etiquetaDetalle =
-    esDerrumbe || esZona ? 'Detalles (opcional)' : '¿Qué necesitas?'
+    esHospital
+      ? 'Información adicional (opcional)'
+      : esDerrumbe || esZona ? 'Detalles (opcional)' : '¿Qué necesitas?'
 
   const placeholderDetalle = esDerrumbe
-    ? 'Ej: 4 pisos, posible gente atrapada en el 2.º'
+    ? 'Ej: 4 pisos, posible gente atrapada en el 2do'
     : esZona
       ? 'Ej: caseríos incomunicados tras el derrumbe de la vía'
-      : 'Ej: Familia con 2 niños sin agua desde ayer'
+      : esHospital
+        ? 'Ej: emergencia, triaje, disponibilidad, referencia de acceso'
+        : 'Ej: Familia con 2 niños sin agua desde ayer'
 
   const titulo =
-    paso > 1 ? TIPO_META[tipo].etiqueta : 'Reportar necesidad'
-
+    paso > 1 ? metaTipo.etiqueta : 'Reportar necesidad'
   return (
     <div className="fixed inset-0 z-[2000] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[92vh] overflow-y-auto">
@@ -362,20 +479,23 @@ export default function ReportarModal({
           <div>
             <p className="font-bold mb-3">¿Qué quieres reportar?</p>
             <div className="grid grid-cols-2 gap-3">
-              {TIPOS.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => elegirTipo(t)}
-                  className={`card flex flex-col items-center py-5 border-2 ${
-                    tipo === t ? 'border-bandera-azul' : 'border-transparent'
-                  }`}
-                >
-                  <span className="text-3xl">{TIPO_META[t].emoji}</span>
-                  <span className="font-bold mt-1 text-center text-sm">
-                    {TIPO_META[t].etiqueta}
-                  </span>
-                </button>
-              ))}
+              {tiposDisponibles.map((t) => {
+                const meta = t === 'hospital' ? HOSPITAL_META : TIPO_META[t]
+                return (
+                  <button
+                    key={t}
+                    onClick={() => elegirTipo(t)}
+                    className={`card flex flex-col items-center py-5 border-2 ${
+                      tipo === t ? 'border-bandera-azul' : 'border-transparent'
+                    }`}
+                  >
+                    <span className="text-3xl">{meta.emoji}</span>
+                    <span className="font-bold mt-1 text-center text-sm">
+                      {meta.etiqueta}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -395,14 +515,94 @@ export default function ReportarModal({
               )}
             </div>
 
+            {esHospital && (
+              <div>
+                <p className="font-bold mb-2">
+                  Nombre del hospital <span className="text-bandera-rojo">*</span>
+                </p>
+                <input
+                  className="input"
+                  placeholder="Ej: Hospital Jose Maria Vargas"
+                  value={nombreHospital}
+                  onChange={(e) => setNombreHospital(e.target.value)}
+                />
+                {buscandoHospital && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Buscando en Google Maps...
+                  </p>
+                )}
+                {seleccionandoHospital && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Confirmando lugar en Google Maps...
+                  </p>
+                )}
+                {!buscandoHospital &&
+                  !seleccionandoHospital &&
+                  nombreHospital.trim().length >= 3 &&
+                  !hospitalConfirmado &&
+                  sugerenciasHospital.length === 0 && (
+                    <p className="text-xs text-bandera-rojo font-semibold mt-1">
+                      No encontramos un hospital confirmado con ese nombre.
+                    </p>
+                  )}
+                {!hospitalConfirmado && sugerenciasHospital.length > 0 && (
+                  <div className="mt-2 rounded-xl border border-gray-200 overflow-hidden">
+                    {sugerenciasHospital.map((h) => (
+                      <button
+                        key={h.placeId}
+                        type="button"
+                        onClick={async () => {
+                          setSeleccionandoHospital(true)
+                          setErrorMsg('')
+                          const detalle = await detalleLugarGoogle(h.placeId)
+                          setSeleccionandoHospital(false)
+                          if (!detalle?.lat || !detalle?.lng) {
+                            setErrorMsg(
+                              'No pudimos confirmar ese lugar en Google Maps. Elige otro resultado.',
+                            )
+                            return
+                          }
+                          setHospitalConfirmado(detalle)
+                          setNombreHospital(detalle.nombre)
+                          setZona(detalle.direccion)
+                          setCoord({ lat: detalle.lat, lng: detalle.lng })
+                          setFuente(null)
+                          setSugerenciasHospital([])
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0"
+                      >
+                        <span className="block text-sm font-bold text-bandera-azul">
+                          {h.nombre}
+                        </span>
+                        <span className="block text-xs text-gray-600">
+                          {h.direccion}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {hospitalConfirmado && (
+                  <p className="text-xs text-green-700 font-semibold mt-1">
+                    Hospital confirmado por Google Maps.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <p className="font-bold mb-2">{etiquetaDir}</p>
               <input
-                className="input"
+                className={`input ${esHospital ? 'bg-gray-50 text-gray-700' : ''}`}
                 placeholder={placeholderDir}
                 value={zona}
+                readOnly={esHospital}
                 onChange={(e) => setZona(e.target.value)}
               />
+              {esHospital && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Se completa al seleccionar un hospital confirmado por Google Maps.
+                </p>
+              )}
             </div>
 
             {esZona && (
@@ -438,8 +638,8 @@ export default function ReportarModal({
               />
             </div>
 
-            {selectorUrgencia}
-            {bloqueContacto}
+            {!esHospital && selectorUrgencia}
+            {!esHospital && bloqueContacto}
             {avisoError}
 
             <div className="flex gap-2">
@@ -451,7 +651,7 @@ export default function ReportarModal({
                 disabled={guardando}
                 className="btn-verde flex-1 disabled:opacity-60"
               >
-                {guardando ? 'Enviando…' : 'Enviar reporte'}
+                {guardando ? 'Enviando…' : esHospital ? 'Guardar hospital' : 'Enviar reporte'}
               </button>
             </div>
           </div>

@@ -79,7 +79,7 @@ export function useNecesidades(
     const ac = await supabase
       .from('centros_acopio')
       .select(
-        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, id_fuente',
+        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, creado_por, creado_en, id_fuente',
       )
     if (!ac.error) setAcopios((ac.data ?? []) as unknown as CentroAcopio[])
   }
@@ -137,5 +137,5 @@ export function useNecesidades(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(filtroEstados), tiempoReal])
 
-  return { necesidades, acopios, cargando, error, recargar: cargar }
+  return { necesidades, acopios, cargando, error, recargar: cargar, recargarAcopios: cargarAcopios }
 }
