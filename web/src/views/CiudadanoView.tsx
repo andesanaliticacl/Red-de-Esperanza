@@ -10,6 +10,7 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
+import { eliminarDelMapa } from '../lib/reportes'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
@@ -402,6 +403,19 @@ export default function CiudadanoView() {
   const esRescatista =
     rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
   const puedeReportarHospital = rol === 'lider_voluntarios' || rol === 'admin'
+  // Solo líder de voluntarios/admin pueden quitar una solicitud del mapa.
+  const puedeEliminarDelMapa = rol === 'lider_voluntarios' || rol === 'admin'
+
+  // Quitar una necesidad del mapa (borrado suave). Realtime la marca como
+  // eliminada y el mapa deja de mostrarla al instante.
+  async function eliminarDelMapaHandler(n: Necesidad, motivo: string) {
+    try {
+      await eliminarDelMapa(n.id, true, motivo)
+      notificar('🗑️ Solicitud eliminada del mapa. Queda registrada.', 'exito')
+    } catch (e) {
+      notificar('No se pudo eliminar: ' + (e as Error).message, 'alerta')
+    }
+  }
 
   // Tomar una necesidad desde el popup del mapa: la pasa a "en proceso" y le
   // avisa (Realtime) a quien la creó que alguien ya va en camino.
@@ -653,6 +667,9 @@ export default function CiudadanoView() {
             miFoto={perfil?.foto_url}
             onMensaje={contactar}
             onAsignarme={puedeAtender ? asignarme : undefined}
+            onEliminarDelMapa={
+              puedeEliminarDelMapa ? eliminarDelMapaHandler : undefined
+            }
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}

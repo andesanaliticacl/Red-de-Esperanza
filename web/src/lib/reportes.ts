@@ -112,3 +112,23 @@ export async function crearNecesidad(r: NuevoReporte) {
 
   return data
 }
+
+/**
+ * Quita (o restaura) una necesidad/SOS del mapa. Borrado suave: la fila sigue en
+ * la base con `eliminada_del_mapa` para dejar registro de qué se eliminó, quién y
+ * cuándo. La función SQL valida que solo un líder de voluntarios o un admin pueda
+ * hacerlo (la RLS deja a cualquier voluntario actualizar, así que el permiso fino
+ * vive en el servidor). Pasa `eliminar=false` para restaurarla al mapa.
+ */
+export async function eliminarDelMapa(
+  id: string,
+  eliminar = true,
+  motivo?: string,
+) {
+  const { error } = await supabase.rpc('eliminar_necesidad_del_mapa', {
+    p_id: id,
+    p_eliminar: eliminar,
+    p_motivo: motivo ?? null,
+  })
+  if (error) throw error
+}

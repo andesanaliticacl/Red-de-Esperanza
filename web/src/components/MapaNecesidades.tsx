@@ -558,6 +558,7 @@ export default function MapaNecesidades({
   miFoto,
   onMensaje,
   onAsignarme,
+  onEliminarDelMapa,
   puedeVerContacto = false,
   resaltadaId,
   resaltadaAcopioId,
@@ -590,6 +591,12 @@ export default function MapaNecesidades({
    * (esto avisa a quien la creó que alguien ya va en camino).
    */
   onAsignarme?: (n: Necesidad) => void
+  /**
+   * Si se pasa (solo líder de voluntarios/admin), el popup muestra un botón
+   * para QUITAR esa necesidad del mapa (borrado suave). Pide un MOTIVO que queda
+   * registrado. Deja registro de quién, cuándo y por qué.
+   */
+  onEliminarDelMapa?: (n: Necesidad, motivo: string) => void
   /**
    * Si es true (personal que atiende: voluntario/rescatista/admin), el popup de
    * cada necesidad muestra el TELÉFONO de quien la reportó, para poder llamarlo
@@ -631,6 +638,12 @@ export default function MapaNecesidades({
   // Antes se montaban a la vez los popups de TODOS los marcadores (cientos de
   // subárboles de React con botones/imágenes), lo que ralentizaba la entrada.
   const [abierto, setAbierto] = useState<string | null>(null)
+
+  // "Eliminar del mapa": al pulsarlo se abre un MODAL aparte (fuera del popup de
+  // Leaflet, que se cierra con cualquier clic del mapa) para escribir el motivo
+  // obligatorio sin que se cierre. Guardamos la necesidad a eliminar y el texto.
+  const [eliminarNec, setEliminarNec] = useState<Necesidad | null>(null)
+  const [motivoEliminar, setMotivoEliminar] = useState('')
 
   // Teléfono de quien reportó cada necesidad (solo para el personal que atiende).
   // Se carga al abrir el popup. undefined = aún no consultado; null = no dejó
@@ -824,7 +837,7 @@ export default function MapaNecesidades({
           El rastreador de abajo fija la vista al cargar y al mover/zoom. */}
       <RastreadorVista onBounds={setVista} esMovil={esMovil} />
       {necesidadesEnVista
-        .filter((n) => n.lat != null && n.lng != null)
+        .filter((n) => n.lat != null && n.lng != null && !n.eliminada_del_mapa)
         .map((n) => (
           <Marker
             key={n.id}
@@ -956,6 +969,23 @@ export default function MapaNecesidades({
                     </button>
                   )}
                 </div>
+                {/* Eliminar del mapa: solo líder/admin (si se pasó el callback).
+                    Abre un modal aparte para escribir el motivo (el popup del
+                    mapa se cierra con cualquier clic, por eso no va aquí dentro). */}
+                {onEliminarDelMapa && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => {
+                        setEliminarNec(n)
+                        setMotivoEliminar('')
+                      }}
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-bandera-rojo hover:underline"
+                      title="Quitar esta solicitud del mapa (líder/admin)"
+                    >
+                      🗑️ Eliminar del mapa
+                    </button>
+                  </div>
+                )}
               </div>
               )}
             </Popup>
@@ -1178,6 +1208,66 @@ export default function MapaNecesidades({
           titulo={compartirDirecto.titulo}
           onCerrar={() => setCompartirDirecto(null)}
         />
+      )}
+
+      {/* Modal para eliminar del mapa con motivo (líder/admin). Va fuera del
+          popup de Leaflet para que escribir no cierre nada. */}
+      {eliminarNec && onEliminarDelMapa && (
+        <div
+          className="fixed inset-0 z-[3000] bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            setEliminarNec(null)
+            setMotivoEliminar('')
+          }}
+        >
+          <div
+            className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-extrabold text-bandera-rojo mb-1">
+              🗑️ Eliminar del mapa
+            </h2>
+            <p className="text-sm text-gray-600 mb-3">
+              {TIPO_META[eliminarNec.tipo].emoji}{' '}
+              {TIPO_META[eliminarNec.tipo].etiqueta}
+              {eliminarNec.zona ? ` · ${eliminarNec.zona}` : ''}. Dejará de verse
+              en el mapa, pero queda registrada. Escribe el motivo:
+            </p>
+            <textarea
+              autoFocus
+              value={motivoEliminar}
+              onChange={(e) => setMotivoEliminar(e.target.value)}
+              placeholder="¿Por qué se elimina? (ej.: duplicado, spam, ya resuelto…)"
+              maxLength={300}
+              rows={3}
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => {
+                  setEliminarNec(null)
+                  setMotivoEliminar('')
+                }}
+                className="flex-1 py-2.5 rounded-2xl font-bold border-2 border-gray-200 text-gray-600"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  onEliminarDelMapa(eliminarNec, motivoEliminar.trim())
+                  setEliminarNec(null)
+                  setMotivoEliminar('')
+                }}
+                disabled={!motivoEliminar.trim()}
+                className="flex-1 py-2.5 rounded-2xl font-bold bg-bandera-rojo !text-white disabled:opacity-50"
+              >
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Mi ubicación: marcador con mi foto. */}
