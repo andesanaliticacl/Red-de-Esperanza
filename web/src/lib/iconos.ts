@@ -56,7 +56,7 @@ export function iconoNecesidad(
   // Insignia "sin teléfono" (📵) en una esquinita del pin, al estilo del ⚠️ de
   // peligro (solo el símbolo, sin recuadro), para reconocerlos sin atenuarlos.
   const insigniaSinTel = sinTelefono
-    ? '<span style="position:absolute;top:-7px;left:-7px;font-size:14px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">📵</span>'
+    ? '<span style="position:absolute;top:-8px;left:-8px;font-size:18px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">📵</span>'
     : ''
 
   // El derrumbe se ve más explícito: pin más grande, halo que late y una
