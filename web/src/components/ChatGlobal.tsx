@@ -9,7 +9,7 @@ import {
   telefonosDeUsuarios,
 } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
-import EntradaTelefono from './EntradaTelefono'
+import EntradaTelefono, { esTelefonoVenezuelaValido } from './EntradaTelefono'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -86,7 +86,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
   // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
-  const telefonoValido = telefono.replace(/\D/g, '').length >= 8
+  const telefonoValido = esTelefonoVenezuelaValido(telefono)
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
