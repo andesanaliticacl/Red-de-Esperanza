@@ -49,6 +49,12 @@ export interface Necesidad {
   reportado_por: string | null
   asignado_a: string | null
   creado_en: string
+  // Borrado suave: un líder/admin la quitó del mapa (spam, duplicado, etc.).
+  // Sigue en la base para dejar registro; deja de verse en el mapa público.
+  eliminada_del_mapa?: boolean
+  eliminada_en?: string | null
+  eliminada_por?: string | null
+  motivo_eliminacion?: string | null
   // Campos pesados/sensibles que no se traen en las vistas públicas.
   texto_crudo?: string | null
   verificada_por?: string | null

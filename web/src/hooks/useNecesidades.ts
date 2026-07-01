@@ -5,7 +5,7 @@ import type { Necesidad, CentroAcopio } from '../lib/types'
 // Solo las columnas que usan las vistas (no traemos texto_crudo, verificada_por,
 // actualizado_en ni nada sensible). Reduce muchísimo el tráfico. (Fase 2)
 const COLS_NECESIDAD =
-  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en'
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa'
 
 // Tope de registros por carga: nadie puede ver decenas de miles. (Fase 4)
 const LIMITE = 500
@@ -49,7 +49,12 @@ export function useNecesidades(
 
   function firmaDe(lista: Necesidad[]): string {
     return lista
-      .map((n) => `${n.id}:${n.estado}:${n.asignado_a ?? ''}:${n.lat ?? ''}:${n.lng ?? ''}`)
+      .map(
+        (n) =>
+          `${n.id}:${n.estado}:${n.asignado_a ?? ''}:${n.lat ?? ''}:${n.lng ?? ''}:${
+            n.eliminada_del_mapa ? 1 : 0
+          }`,
+      )
       .join('|')
   }
 

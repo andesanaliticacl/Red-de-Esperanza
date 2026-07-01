@@ -10,6 +10,7 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TextoExpandible from '../components/TextoExpandible'
 import { cargarContactosNecesidad } from '../lib/contactos'
+import { eliminarDelMapa } from '../lib/reportes'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -41,7 +42,11 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
 
 // Columnas de necesidad (mismas que el hook): para traer MIS casos asignados.
 const COLS_NECESIDAD =
-  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en'
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa'
+
+// Columnas extra para el REGISTRO de eliminadas (quién y cuándo se quitó).
+const COLS_ELIMINADA =
+  COLS_NECESIDAD + ', eliminada_en, eliminada_por, motivo_eliminacion'
 
 // Fecha de creación legible (día, mes y hora) — para estimar la prioridad.
 function fechaCorta(iso: string): string {
@@ -79,6 +84,8 @@ export default function VoluntarioView() {
   const { notificar } = useNotificaciones()
   const esRescatista =
     rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
+  // Solo líder de voluntarios/admin pueden quitar (o restaurar) del mapa.
+  const puedeEliminar = rol === 'lider_voluntarios' || rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
   // El aviso sonoro de "nueva necesidad / SOS" lo da el proveedor global de
@@ -88,19 +95,28 @@ export default function VoluntarioView() {
     'verificada',
     'en_proceso',
   ])
+  // Necesidades ACTIVAS: excluimos las eliminadas del mapa (borrado suave) de
+  // todas las secciones normales y de los conteos. Las eliminadas se ven aparte,
+  // en su propio registro (filtro "Eliminadas del mapa").
+  const activas = useMemo(
+    () => necesidades.filter((n) => !n.eliminada_del_mapa),
+    [necesidades],
+  )
   // Emergencias SOS: siempre visibles arriba, sin importar los filtros.
   const sos = useMemo(
     () =>
-      necesidades.filter(
+      activas.filter(
         (n) =>
           (n.estado === 'sin_verificar' || n.estado === 'verificada') &&
           (n.tipo === 'rescate' || n.origen === 'sos'),
       ),
-    [necesidades],
+    [activas],
   )
 
   const [tipoFiltro, setTipoFiltro] = useState<NecesidadTipo | 'todos'>('todos')
   const [zonaFiltro, setZonaFiltro] = useState('')
+  // Filtro especial: ver el REGISTRO de solicitudes eliminadas del mapa.
+  const [verEliminadas, setVerEliminadas] = useState(false)
   const [trabajando, setTrabajando] = useState<string | null>(null)
   const [chat, setChat] = useState<Necesidad | null>(null)
   const [aRetirar, setARetirar] = useState<Necesidad | null>(null)
@@ -122,12 +138,31 @@ export default function VoluntarioView() {
       .select(COLS_NECESIDAD)
       .eq('asignado_a', perfil.id)
       .eq('estado', 'en_proceso')
+      .eq('eliminada_del_mapa', false)
     setMisAsignadas((data ?? []) as unknown as Necesidad[])
   }
   useEffect(() => {
     cargarMisAsignadas()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil?.id])
+
+  // REGISTRO de eliminadas del mapa (borrado suave). Se cargan aparte, solo
+  // cuando se activa el filtro, para no pesar en la vista normal. Incluye quién
+  // y cuándo la eliminó, y permite restaurarla (líder/admin).
+  const [eliminadas, setEliminadas] = useState<Necesidad[]>([])
+  async function cargarEliminadas() {
+    const { data } = await supabase
+      .from('necesidades')
+      .select(COLS_ELIMINADA)
+      .eq('eliminada_del_mapa', true)
+      .order('eliminada_en', { ascending: false })
+      .limit(500)
+    setEliminadas((data ?? []) as unknown as Necesidad[])
+  }
+  useEffect(() => {
+    if (verEliminadas) cargarEliminadas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verEliminadas])
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
   // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
@@ -202,11 +237,21 @@ export default function VoluntarioView() {
     setVerAviso(false)
   }
 
-  // Resuelve los nombres de quienes ya tomaron una necesidad (asignado_a).
+  // Resuelve los nombres de quienes ya tomaron una necesidad (asignado_a) y de
+  // quienes eliminaron alguna del mapa. Se ACUMULAN (merge) para no perder unos
+  // al refrescar los otros.
   useEffect(() => {
     const ids = necesidades.map((n) => n.asignado_a)
-    nombresPublicos(ids).then(setNombres)
+    nombresPublicos(ids).then((m) =>
+      setNombres((prev) => new Map([...prev, ...m])),
+    )
   }, [necesidades])
+  useEffect(() => {
+    if (!eliminadas.length) return
+    nombresPublicos(eliminadas.map((n) => n.eliminada_por ?? null)).then((m) =>
+      setNombres((prev) => new Map([...prev, ...m])),
+    )
+  }, [eliminadas])
 
   const quienAtiende = (n: Necesidad): string | null =>
     n.asignado_a ? nombres.get(n.asignado_a)?.nombre ?? 'Voluntario' : null
@@ -215,10 +260,10 @@ export default function VoluntarioView() {
   // asignados (sin tope), sin duplicar. Garantiza que "Me asigné" no se vacíe.
   const todas = useMemo(() => {
     const map = new Map<string, Necesidad>()
-    for (const n of necesidades) map.set(n.id, n)
+    for (const n of activas) map.set(n.id, n)
     for (const n of misAsignadas) if (!map.has(n.id)) map.set(n.id, n)
     return [...map.values()]
-  }, [necesidades, misAsignadas])
+  }, [activas, misAsignadas])
 
   const lista = useMemo(
     () =>
@@ -323,6 +368,31 @@ export default function VoluntarioView() {
     setTrabajando(null)
   }
 
+  // Quitar del mapa (líder/admin): borrado suave. Realtime la marca eliminada y
+  // desaparece de las listas activas al instante.
+  async function eliminarDelMapaHandler(n: Necesidad, motivo: string) {
+    try {
+      await eliminarDelMapa(n.id, true, motivo)
+      notificar('🗑️ Solicitud eliminada del mapa. Queda registrada.', 'exito')
+      await recargar()
+      await cargarMisAsignadas()
+    } catch (e) {
+      notificar('No se pudo eliminar: ' + (e as Error).message, 'alerta')
+    }
+  }
+
+  // Restaurar una solicitud eliminada: vuelve a aparecer en el mapa y las listas.
+  async function restaurarDelMapa(n: Necesidad) {
+    try {
+      await eliminarDelMapa(n.id, false)
+      notificar('♻️ Solicitud restaurada al mapa.', 'exito')
+      await cargarEliminadas()
+      await recargar()
+    } catch (e) {
+      notificar('No se pudo restaurar: ' + (e as Error).message, 'alerta')
+    }
+  }
+
   const enCurso = lista.filter((n) => n.estado === 'en_proceso')
   const mias = enCurso.filter((n) => n.asignado_a === perfil?.id)
   const deOtros = enCurso.filter((n) => n.asignado_a !== perfil?.id)
@@ -337,17 +407,16 @@ export default function VoluntarioView() {
   // El SOS va aparte (rescate u origen 'sos'), por ser la máxima prioridad.
   const totalSos = useMemo(
     () =>
-      necesidades.filter((n) => n.tipo === 'rescate' || n.origen === 'sos')
-        .length,
-    [necesidades],
+      activas.filter((n) => n.tipo === 'rescate' || n.origen === 'sos').length,
+    [activas],
   )
   const conteoTipos = useMemo(
     () =>
       RESUMEN_TIPOS.map((t) => ({
         tipo: t,
-        n: necesidades.filter((x) => x.tipo === t).length,
+        n: activas.filter((x) => x.tipo === t).length,
       })).filter((c) => c.n > 0),
-    [necesidades],
+    [activas],
   )
 
   return (
@@ -395,7 +464,7 @@ export default function VoluntarioView() {
       )}
 
       {/* Emergencias SOS entrantes (sin verificar) — visibles al instante */}
-      {sos.length > 0 && (
+      {!verEliminadas && sos.length > 0 && (
         <section className="rounded-2xl border-2 border-bandera-rojo bg-red-50 p-3 space-y-2">
           <button
             onClick={alternarSos}
@@ -489,25 +558,43 @@ export default function VoluntarioView() {
       {/* Filtros */}
       <div className="card flex gap-2 flex-wrap">
         <select
-          className="rounded-lg border px-2 py-2 text-sm"
-          value={tipoFiltro}
-          onChange={(e) => setTipoFiltro(e.target.value as NecesidadTipo | 'todos')}
+          className={`rounded-lg border px-2 py-2 text-sm font-semibold ${
+            verEliminadas ? 'border-bandera-rojo text-bandera-rojo' : ''
+          }`}
+          value={verEliminadas ? 'eliminadas' : 'activas'}
+          onChange={(e) => setVerEliminadas(e.target.value === 'eliminadas')}
         >
-          <option value="todos">Todos los tipos</option>
-          {TIPOS.map((t) => (
-            <option key={t} value={t}>
-              {TIPO_META[t].etiqueta}
-            </option>
-          ))}
+          <option value="activas">✅ Solicitudes activas</option>
+          <option value="eliminadas">🗑️ Eliminadas del mapa</option>
         </select>
-        <input
-          className="rounded-lg border px-2 py-2 text-sm flex-1"
-          placeholder="Filtrar por zona…"
-          value={zonaFiltro}
-          onChange={(e) => setZonaFiltro(e.target.value)}
-        />
+        {!verEliminadas && (
+          <>
+            <select
+              className="rounded-lg border px-2 py-2 text-sm"
+              value={tipoFiltro}
+              onChange={(e) =>
+                setTipoFiltro(e.target.value as NecesidadTipo | 'todos')
+              }
+            >
+              <option value="todos">Todos los tipos</option>
+              {TIPOS.map((t) => (
+                <option key={t} value={t}>
+                  {TIPO_META[t].etiqueta}
+                </option>
+              ))}
+            </select>
+            <input
+              className="rounded-lg border px-2 py-2 text-sm flex-1"
+              placeholder="Filtrar por zona…"
+              value={zonaFiltro}
+              onChange={(e) => setZonaFiltro(e.target.value)}
+            />
+          </>
+        )}
       </div>
 
+      {!verEliminadas && (
+      <>
       {/* Mapa de lo verificado */}
       <div className="h-56 rounded-2xl overflow-hidden shadow">
         <MapaNecesidades
@@ -524,6 +611,7 @@ export default function VoluntarioView() {
             }
             void asignarme(n)
           }}
+          onEliminarDelMapa={puedeEliminar ? eliminarDelMapaHandler : undefined}
           puedeVerContacto
           ajustarVista
         />
@@ -608,6 +696,78 @@ export default function VoluntarioView() {
           </div>
         )}
       </section>
+      </>
+      )}
+
+      {/* Registro de solicitudes ELIMINADAS del mapa (borrado suave) */}
+      {verEliminadas && (
+        <section>
+          <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 mb-3 text-sm text-gray-600">
+            🗑️ <b>Registro de eliminadas del mapa.</b> Estas solicitudes ya no se
+            muestran en el mapa, pero quedan aquí como registro.
+            {puedeEliminar
+              ? ' Puedes restaurarlas al mapa cuando quieras.'
+              : ' Solo un líder o admin puede restaurarlas.'}
+          </div>
+          <h2 className="font-bold text-lg mb-2">
+            Eliminadas del mapa ({eliminadas.length})
+          </h2>
+          {eliminadas.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">
+              No hay solicitudes eliminadas del mapa.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {eliminadas.map((n) => (
+                <div key={n.id} className="card flex items-start gap-3 opacity-90">
+                  <div className="text-3xl grayscale">{TIPO_META[n.tipo].emoji}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold">
+                      {TIPO_META[n.tipo].etiqueta}
+                      {(n.tipo === 'rescate' || n.origen === 'sos') && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                          🆘 SOS
+                        </span>
+                      )}
+                    </div>
+                    <TextoExpandible
+                      texto={n.descripcion}
+                      className="text-sm text-gray-700"
+                    />
+                    {n.zona && (
+                      <div className="text-xs text-gray-500">📍 {n.zona}</div>
+                    )}
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      🕒 Creada: {fechaCorta(n.creado_en)}
+                    </div>
+                    <div className="text-xs font-semibold text-bandera-rojo mt-0.5">
+                      🗑️ Eliminada
+                      {n.eliminada_en ? ` ${fechaCorta(n.eliminada_en)}` : ''}
+                      {n.eliminada_por
+                        ? ` · por ${nombres.get(n.eliminada_por)?.nombre ?? 'personal'}`
+                        : ''}
+                    </div>
+                    {n.motivo_eliminacion && (
+                      <div className="text-xs text-gray-700 mt-1 bg-red-50 border border-red-100 rounded-lg px-2 py-1">
+                        <span className="font-semibold">Motivo:</span>{' '}
+                        {n.motivo_eliminacion}
+                      </div>
+                    )}
+                  </div>
+                  {puedeEliminar && (
+                    <button
+                      onClick={() => restaurarDelMapa(n)}
+                      className="btn-azul py-2 px-3 text-sm whitespace-nowrap"
+                    >
+                      ♻️ Restaurar
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {chat && (
         <ChatNecesidad
