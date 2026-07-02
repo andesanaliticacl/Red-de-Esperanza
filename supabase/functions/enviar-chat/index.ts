@@ -43,6 +43,9 @@ interface PayloadChat {
   nombre?: unknown
   cuerpo?: unknown
   telefono?: unknown
+  respuesta_a?: unknown
+  respuesta_nombre?: unknown
+  respuesta_cuerpo?: unknown
 }
 
 function json(data: unknown, init: ResponseInit = {}) {
@@ -159,6 +162,18 @@ Deno.serve(async (req) => {
   const nombre = typeof body.nombre === 'string' ? body.nombre.trim().slice(0, 40) : ''
   const cuerpo = typeof body.cuerpo === 'string' ? body.cuerpo.trim().slice(0, 500) : ''
   const telefono = typeof body.telefono === 'string' ? body.telefono.trim().slice(0, 30) : ''
+  const respuestaA =
+    typeof body.respuesta_a === 'string' && body.respuesta_a.trim()
+      ? body.respuesta_a.trim()
+      : null
+  const respuestaNombre =
+    typeof body.respuesta_nombre === 'string' && body.respuesta_nombre.trim()
+      ? body.respuesta_nombre.trim().slice(0, 40)
+      : null
+  const respuestaCuerpo =
+    typeof body.respuesta_cuerpo === 'string' && body.respuesta_cuerpo.trim()
+      ? body.respuesta_cuerpo.trim().slice(0, 180)
+      : null
 
   if (!ciudadValida(ciudad)) {
     return json({ ok: false, error: 'Elige un estado de Venezuela valido.' }, { status: 400 })
@@ -175,6 +190,9 @@ Deno.serve(async (req) => {
       nombre,
       cuerpo,
       autor,
+      respuesta_a: respuestaA,
+      respuesta_nombre: respuestaNombre,
+      respuesta_cuerpo: respuestaCuerpo,
     })
     .select('id')
     .single()

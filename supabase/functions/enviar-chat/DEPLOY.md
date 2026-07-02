@@ -23,11 +23,15 @@ En Supabase SQL Editor, corre:
 
 ```sql
 -- contenido de supabase/36_chat_solo_edge_function.sql
+-- contenido de supabase/37_chat_respuestas.sql
 ```
 
 Esta migracion bloquea inserts directos desde `anon`/`authenticated` en
 `chat_global` y `chat_contactos`. Desde ese momento, el unico camino de escritura
 es la Edge Function `enviar-chat`.
+
+La migracion `37_chat_respuestas.sql` agrega los campos necesarios para mostrar
+la cita del mensaje respondido.
 
 ## 3) Riesgo conocido
 

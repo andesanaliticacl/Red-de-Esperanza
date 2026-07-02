@@ -35,6 +35,11 @@ function esVenezuela(pais: string | null | undefined): boolean {
   return (pais ?? '').trim().toLowerCase() === 'venezuela'
 }
 
+function fragmento(texto: string, max = 120): string {
+  const limpio = texto.replace(/\s+/g, ' ').trim()
+  return limpio.length > max ? `${limpio.slice(0, max).trim()}...` : limpio
+}
+
 /**
  * Etiqueta del rol que va junto al nombre en cada mensaje.
  * - Sin cuenta (autor null) → "Sin iniciar sesión" en gris.
@@ -98,6 +103,11 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
+  const [respuestaA, setRespuestaA] = useState<{
+    id: string
+    nombre: string
+    cuerpo: string
+  } | null>(null)
   const [cargando, setCargando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   // Rol de cada autor (id → rol), para mostrar la etiqueta de color junto al
@@ -223,6 +233,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         esLogueado || !puedeEscribir ? undefined : telefono.trim(),
     })
     setMensajes([])
+    setRespuestaA(null)
     setListo(true)
   }
 
@@ -243,7 +254,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         // Solo el invitado adjunta teléfono; el usuario con cuenta no expone el
         // suyo en el chat comunitario.
         telefono: esLogueado ? null : telefono,
+        respuestaA,
       })
+      setRespuestaA(null)
     } catch (err) {
       setErrorMsg((err as Error).message)
       setTexto(cuerpo)
@@ -396,6 +409,26 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                           />
                         </div>
                       )}
+                      {m.respuesta_nombre && m.respuesta_cuerpo && (
+                        <div
+                          className={`mb-1.5 rounded-md border-l-4 px-2 py-1 text-xs ${
+                            mio
+                              ? 'bg-white/15 border-white/70 text-white/85'
+                              : 'bg-gray-50 border-bandera-azul text-gray-600'
+                          }`}
+                        >
+                          <div
+                            className={`font-bold truncate ${
+                              mio ? 'text-white' : 'text-bandera-azul'
+                            }`}
+                          >
+                            {m.respuesta_nombre}
+                          </div>
+                          <div className="line-clamp-2 break-words">
+                            {fragmento(m.respuesta_cuerpo, 120)}
+                          </div>
+                        </div>
+                      )}
                       <div className="break-words">{m.cuerpo}</div>
                       {/* Teléfono del invitado: SOLO los líderes/admin lo ven
                           (el mapa solo se llena para ellos) para contactarlo. */}
@@ -436,6 +469,23 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                           minute: '2-digit',
                         })}
                       </div>
+                      {puedeEscribir && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRespuestaA({
+                              id: m.id,
+                              nombre: m.nombre,
+                              cuerpo: m.cuerpo,
+                            })
+                          }
+                          className={`mt-1 text-[11px] font-semibold ${
+                            mio ? 'text-white/80' : 'text-bandera-azul'
+                          }`}
+                        >
+                          Responder
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -449,6 +499,29 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           )}
 
           {puedeEscribir && (
+            <>
+          {respuestaA && (
+            <div className="border-t bg-white px-3 pt-2">
+              <div className="flex items-start gap-2 rounded-md border-l-4 border-bandera-azul bg-gray-50 px-2 py-1.5 text-xs">
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-bandera-azul truncate">
+                    {respuestaA.nombre}
+                  </div>
+                  <div className="text-gray-600 truncate">
+                    {fragmento(respuestaA.cuerpo, 110)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRespuestaA(null)}
+                  className="text-gray-400 hover:text-gray-700"
+                  aria-label="Cancelar respuesta"
+                >
+                  x
+                </button>
+              </div>
+            </div>
+          )}
           <form onSubmit={enviar} className="p-2.5 border-t flex gap-2">
             <input
               className="input flex-1"
@@ -466,6 +539,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               ➤
             </button>
           </form>
+            </>
           )}
         </>
       )}
