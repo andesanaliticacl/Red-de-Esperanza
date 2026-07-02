@@ -39,3 +39,23 @@ La geolocalizacion por IP detecta el pais del punto de salida. Si una VPN sale
 por fuera de Venezuela, queda bloqueada. Si una VPN sale por una IP venezolana,
 esta regla la tratara como Venezuela salvo que se agregue un proveedor especifico
 de deteccion de VPN/proxy.
+
+## 4) Bypass local para pruebas
+
+Opcionalmente puedes permitir escritura desde `localhost` sin validar IP usando
+un token de prueba.
+
+En Supabase Edge Functions Secrets agrega:
+
+```bash
+CHAT_DEV_BYPASS_TOKEN=un-token-largo-y-random
+```
+
+En `web/.env` local agrega el mismo valor:
+
+```bash
+VITE_CHAT_DEV_BYPASS_TOKEN=un-token-largo-y-random
+```
+
+Este bypass solo se envia desde builds de desarrollo de Vite y la Edge Function
+solo lo acepta si el `Origin` es `localhost`, `127.0.0.1` o `::1`.

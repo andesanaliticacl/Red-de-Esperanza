@@ -46,6 +46,7 @@ interface PayloadChat {
   respuesta_a?: unknown
   respuesta_nombre?: unknown
   respuesta_cuerpo?: unknown
+  dev_bypass_token?: unknown
 }
 
 function json(data: unknown, init: ResponseInit = {}) {
@@ -78,6 +79,26 @@ function ipDeRequest(req: Request): string | null {
     req.headers.get('x-forwarded-for')?.split(',')[0],
   ]
   return candidatos.map((x) => x?.trim()).find(Boolean) ?? null
+}
+
+function origenLocal(req: Request): boolean {
+  const origin = req.headers.get('origin') ?? ''
+  try {
+    const url = new URL(origin)
+    return ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+function bypassDevPermitido(req: Request, token: unknown): boolean {
+  const esperado = Deno.env.get('CHAT_DEV_BYPASS_TOKEN')?.trim()
+  return (
+    Boolean(esperado) &&
+    typeof token === 'string' &&
+    token.trim() === esperado &&
+    origenLocal(req)
+  )
 }
 
 async function paisPorIP(ip: string): Promise<{ pais: string | null; codigo: string | null }> {
@@ -130,32 +151,35 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ ok: false, error: 'Metodo no permitido' }, { status: 405 })
 
-  const ip = ipDeRequest(req)
-  if (!ip) {
-    return json(
-      { ok: false, error: 'No pudimos confirmar tu ubicacion. El chat queda en solo lectura.' },
-      { status: 403 },
-    )
-  }
-
-  const geo = await paisPorIP(ip)
-  if (!esVenezuela(geo)) {
-    return json(
-      {
-        ok: false,
-        error: geo.pais
-          ? `Solo se puede escribir desde Venezuela. Tu conexion se detecta desde ${geo.pais}.`
-          : 'Solo se puede escribir desde Venezuela. No pudimos confirmar tu ubicacion.',
-      },
-      { status: 403 },
-    )
-  }
-
   let body: PayloadChat
   try {
     body = (await req.json()) as PayloadChat
   } catch {
     return json({ ok: false, error: 'Solicitud invalida' }, { status: 400 })
+  }
+
+  const permiteBypassDev = bypassDevPermitido(req, body.dev_bypass_token)
+  if (!permiteBypassDev) {
+    const ip = ipDeRequest(req)
+    if (!ip) {
+      return json(
+        { ok: false, error: 'No pudimos confirmar tu ubicacion. El chat queda en solo lectura.' },
+        { status: 403 },
+      )
+    }
+
+    const geo = await paisPorIP(ip)
+    if (!esVenezuela(geo)) {
+      return json(
+        {
+          ok: false,
+          error: geo.pais
+            ? `Solo se puede escribir desde Venezuela. Tu conexion se detecta desde ${geo.pais}.`
+            : 'Solo se puede escribir desde Venezuela. No pudimos confirmar tu ubicacion.',
+        },
+        { status: 403 },
+      )
+    }
   }
 
   const ciudad = typeof body.ciudad === 'string' ? body.ciudad.trim() : ''

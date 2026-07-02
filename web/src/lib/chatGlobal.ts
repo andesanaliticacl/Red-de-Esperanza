@@ -61,6 +61,7 @@ export async function enviarChat(args: {
     nombre: string
     cuerpo: string
   } | null
+  devBypassToken?: string | null
 }): Promise<void> {
   const { data, error } = await supabase.functions.invoke<{
     ok: boolean
@@ -74,6 +75,7 @@ export async function enviarChat(args: {
       respuesta_a: args.respuestaA?.id ?? null,
       respuesta_nombre: args.respuestaA?.nombre ?? null,
       respuesta_cuerpo: args.respuestaA?.cuerpo ?? null,
+      dev_bypass_token: args.devBypassToken || null,
     },
   })
   if (error) {

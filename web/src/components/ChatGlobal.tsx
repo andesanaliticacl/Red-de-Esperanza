@@ -96,7 +96,11 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
   const [paisVisitante, setPaisVisitante] = useState<string | null>(null)
-  const puedeEscribir = esVenezuela(paisVisitante)
+  const tokenPruebaChat = import.meta.env.DEV
+    ? ((import.meta.env.VITE_CHAT_DEV_BYPASS_TOKEN as string | undefined) ?? '').trim()
+    : ''
+  const modoPruebaChat = Boolean(tokenPruebaChat)
+  const puedeEscribir = esVenezuela(paisVisitante) || modoPruebaChat
   // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
   const telefonoValido =
     !puedeEscribir || esTelefonoVenezuelaValido(telefono)
@@ -255,6 +259,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         // suyo en el chat comunitario.
         telefono: esLogueado ? null : telefono,
         respuestaA,
+        devBypassToken: tokenPruebaChat,
       })
       setRespuestaA(null)
     } catch (err) {
