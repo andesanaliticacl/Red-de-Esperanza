@@ -24,6 +24,7 @@ En Supabase SQL Editor, corre:
 ```sql
 -- contenido de supabase/36_chat_solo_edge_function.sql
 -- contenido de supabase/37_chat_respuestas.sql
+-- contenido de supabase/38_chat_borrar_admin.sql
 ```
 
 Esta migracion bloquea inserts directos desde `anon`/`authenticated` en
@@ -32,6 +33,9 @@ es la Edge Function `enviar-chat`.
 
 La migracion `37_chat_respuestas.sql` agrega los campos necesarios para mostrar
 la cita del mensaje respondido.
+
+La migracion `38_chat_borrar_admin.sql` permite borrar mensajes solo al rol
+admin y activa los eventos realtime de borrado.
 
 ## 3) Riesgo conocido
 

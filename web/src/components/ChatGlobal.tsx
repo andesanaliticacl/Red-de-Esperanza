@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import {
   listarChat,
   enviarChat,
+  borrarChat,
   suscribirChat,
   telefonosDeChat,
   telefonosDeUsuarios,
@@ -83,6 +84,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Solo los líderes de voluntarios (y admin) pueden ver el teléfono de los
   // invitados para contactarlos. El resto del chat no lo ve (la RLS lo impide).
   const esLiderOAdmin = rol === 'lider_voluntarios' || rol === 'admin'
+  const esAdmin = rol === 'admin'
   const guardada = leerIdentidad()
   // Si la persona ya inició sesión, su nombre es automático (el de su perfil) y
   // solo puede elegir/rotar su estado. Sin cuenta, sí pide un apodo.
@@ -198,13 +200,25 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       .catch((e) => setErrorMsg((e as Error).message))
       .finally(() => activo && setCargando(false))
 
-    const cancelar = suscribirChat(estado, (m) => {
-      setMensajes((prev) =>
-        prev.some((x) => x.id === m.id) ? prev : [...prev, m],
-      )
-      void asegurarRoles([m.autor])
-      void asegurarTelefonos([m])
-    })
+    const cancelar = suscribirChat(
+      estado,
+      (m) => {
+        setMensajes((prev) =>
+          prev.some((x) => x.id === m.id) ? prev : [...prev, m],
+        )
+        void asegurarRoles([m.autor])
+        void asegurarTelefonos([m])
+      },
+      (id) => {
+        setMensajes((prev) => prev.filter((m) => m.id !== id))
+        setTelefonos((prev) => {
+          const m = new Map(prev)
+          m.delete(id)
+          return m
+        })
+        setRespuestaA((prev) => (prev?.id === id ? null : prev))
+      },
+    )
     return () => {
       activo = false
       cancelar()
@@ -265,6 +279,24 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     } catch (err) {
       setErrorMsg((err as Error).message)
       setTexto(cuerpo)
+    }
+  }
+
+  async function borrarMensaje(m: MensajeGlobal) {
+    if (!esAdmin) return
+    if (!window.confirm('¿Borrar este mensaje del chat?')) return
+    setErrorMsg('')
+    try {
+      await borrarChat(m.id)
+      setMensajes((prev) => prev.filter((x) => x.id !== m.id))
+      setTelefonos((prev) => {
+        const copia = new Map(prev)
+        copia.delete(m.id)
+        return copia
+      })
+      setRespuestaA((prev) => (prev?.id === m.id ? null : prev))
+    } catch (err) {
+      setErrorMsg((err as Error).message)
     }
   }
 
@@ -489,6 +521,17 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                           }`}
                         >
                           Responder
+                        </button>
+                      )}
+                      {esAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => void borrarMensaje(m)}
+                          className={`ml-3 mt-1 text-[11px] font-semibold ${
+                            mio ? 'text-white/80' : 'text-bandera-rojo'
+                          }`}
+                        >
+                          Borrar
                         </button>
                       )}
                     </div>
