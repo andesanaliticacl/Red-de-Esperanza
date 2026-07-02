@@ -77,6 +77,9 @@ export interface MensajeGlobal {
   cuerpo: string
   autor: string | null
   creado_en: string
+  respuesta_a: string | null
+  respuesta_nombre: string | null
+  respuesta_cuerpo: string | null
 }
 
 /** Perfil mínimo público (para mostrar "atendido por …"). */

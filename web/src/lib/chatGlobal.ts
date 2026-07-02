@@ -6,6 +6,15 @@ export function normalizarCiudad(ciudad: string): string {
   return ciudad.trim().toLowerCase()
 }
 
+function completarRespuesta(mensajes: Partial<MensajeGlobal>[]): MensajeGlobal[] {
+  return mensajes.map((m) => ({
+    ...(m as MensajeGlobal),
+    respuesta_a: m.respuesta_a ?? null,
+    respuesta_nombre: m.respuesta_nombre ?? null,
+    respuesta_cuerpo: m.respuesta_cuerpo ?? null,
+  }))
+}
+
 /** Ultimos mensajes del chat, solo de los ultimos 3 dias, en orden cronologico. */
 export async function listarChat(
   ciudad: string,
@@ -14,13 +23,31 @@ export async function listarChat(
   const hace3dias = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from('chat_global')
+    .select(
+      'id, ciudad, nombre, cuerpo, autor, creado_en, respuesta_a, respuesta_nombre, respuesta_cuerpo',
+    )
+    .eq('ciudad', normalizarCiudad(ciudad))
+    .gte('creado_en', hace3dias)
+    .order('creado_en', { ascending: false })
+    .limit(limite)
+  if (!error) return completarRespuesta(data ?? []).reverse()
+
+  if (
+    error.code !== '42703' &&
+    !error.message.toLowerCase().includes('respuesta_')
+  ) {
+    throw error
+  }
+
+  const respaldo = await supabase
+    .from('chat_global')
     .select('id, ciudad, nombre, cuerpo, autor, creado_en')
     .eq('ciudad', normalizarCiudad(ciudad))
     .gte('creado_en', hace3dias)
     .order('creado_en', { ascending: false })
     .limit(limite)
-  if (error) throw error
-  return ((data ?? []) as MensajeGlobal[]).reverse()
+  if (respaldo.error) throw respaldo.error
+  return completarRespuesta(respaldo.data ?? []).reverse()
 }
 
 /** Envia un mensaje pasando por la Edge Function que valida la IP en servidor. */
@@ -29,6 +56,11 @@ export async function enviarChat(args: {
   nombre: string
   cuerpo: string
   telefono?: string | null
+  respuestaA?: {
+    id: string
+    nombre: string
+    cuerpo: string
+  } | null
 }): Promise<void> {
   const { data, error } = await supabase.functions.invoke<{
     ok: boolean
@@ -39,6 +71,9 @@ export async function enviarChat(args: {
       nombre: args.nombre,
       cuerpo: args.cuerpo,
       telefono: args.telefono ?? null,
+      respuesta_a: args.respuestaA?.id ?? null,
+      respuesta_nombre: args.respuestaA?.nombre ?? null,
+      respuesta_cuerpo: args.respuestaA?.cuerpo ?? null,
     },
   })
   if (error) {
