@@ -61,6 +61,7 @@ export async function enviarChat(args: {
     nombre: string
     cuerpo: string
   } | null
+  devBypassToken?: string | null
 }): Promise<void> {
   const { data, error } = await supabase.functions.invoke<{
     ok: boolean
@@ -74,6 +75,7 @@ export async function enviarChat(args: {
       respuesta_a: args.respuestaA?.id ?? null,
       respuesta_nombre: args.respuestaA?.nombre ?? null,
       respuesta_cuerpo: args.respuestaA?.cuerpo ?? null,
+      dev_bypass_token: args.devBypassToken || null,
     },
   })
   if (error) {
@@ -82,6 +84,12 @@ export async function enviarChat(args: {
     throw new Error(payload?.error || error.message)
   }
   if (data?.ok === false) throw new Error(data.error || 'No se pudo enviar el mensaje.')
+}
+
+/** Borra un mensaje del chat. La RLS solo lo permite a administradores. */
+export async function borrarChat(id: string): Promise<void> {
+  const { error } = await supabase.from('chat_global').delete().eq('id', id)
+  if (error) throw error
 }
 
 /**
@@ -127,6 +135,7 @@ export async function telefonosDeUsuarios(
 export function suscribirChat(
   ciudad: string,
   alLlegar: (m: MensajeGlobal) => void,
+  alBorrar?: (id: string) => void,
 ): () => void {
   const sala = normalizarCiudad(ciudad)
   const canal = supabase
@@ -140,6 +149,19 @@ export function suscribirChat(
         filter: `ciudad=eq.${sala}`,
       },
       (payload) => alLlegar(payload.new as MensajeGlobal),
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'chat_global',
+      },
+      (payload) => {
+        const viejo = payload.old as Partial<MensajeGlobal>
+        if (viejo.ciudad && viejo.ciudad !== sala) return
+        if (viejo.id) alBorrar?.(viejo.id)
+      },
     )
     .subscribe()
   return () => {
