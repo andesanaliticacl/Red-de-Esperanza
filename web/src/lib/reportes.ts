@@ -132,3 +132,12 @@ export async function eliminarDelMapa(
   })
   if (error) throw error
 }
+
+/** Cambia solo el tipo de una necesidad. El servidor valida que sea admin. */
+export async function cambiarTipoNecesidad(id: string, tipo: NecesidadTipo) {
+  const { error } = await supabase.rpc('cambiar_tipo_necesidad', {
+    p_id: id,
+    p_tipo: tipo,
+  })
+  if (error) throw error
+}

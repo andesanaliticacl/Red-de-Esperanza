@@ -255,7 +255,18 @@ import {
   URGENCIA_META,
   type Necesidad,
   type CentroAcopio,
+  type NecesidadTipo,
 } from '../lib/types'
+
+const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
+  'rescate',
+  'zona_sin_atender',
+  'agua_comida',
+  'medicinas',
+  'refugio',
+  'derrumbe',
+  'otro',
+]
 
 /**
  * Separa los marcadores que caen casi en el mismo punto GPS para que no
@@ -559,6 +570,8 @@ export default function MapaNecesidades({
   onMensaje,
   onAsignarme,
   onEliminarDelMapa,
+  onCambiarTipo,
+  mostrarEliminadas = false,
   puedeVerContacto = false,
   resaltadaId,
   resaltadaAcopioId,
@@ -597,6 +610,10 @@ export default function MapaNecesidades({
    * registrado. Deja registro de quién, cuándo y por qué.
    */
   onEliminarDelMapa?: (n: Necesidad, motivo: string) => void
+  /** Si se pasa (solo admin), permite cambiar exclusivamente el tipo de alerta. */
+  onCambiarTipo?: (n: Necesidad, tipo: NecesidadTipo) => void
+  /** Admin: muestra tambien solicitudes ocultas/eliminadas del mapa. */
+  mostrarEliminadas?: boolean
   /**
    * Si es true (personal que atiende: voluntario/rescatista/admin), el popup de
    * cada necesidad muestra el TELÉFONO de quien la reportó, para poder llamarlo
@@ -837,7 +854,12 @@ export default function MapaNecesidades({
           El rastreador de abajo fija la vista al cargar y al mover/zoom. */}
       <RastreadorVista onBounds={setVista} esMovil={esMovil} />
       {necesidadesEnVista
-        .filter((n) => n.lat != null && n.lng != null && !n.eliminada_del_mapa)
+        .filter(
+          (n) =>
+            n.lat != null &&
+            n.lng != null &&
+            (mostrarEliminadas || !n.eliminada_del_mapa),
+        )
         .map((n) => (
           <Marker
             key={n.id}
@@ -849,7 +871,9 @@ export default function MapaNecesidades({
               n.id === resaltadaId,
               !dentroDelRecuadroVE(n.lat as number, n.lng as number),
               esMovil,
-              idsAtenuar.has(n.id),
+              idsAtenuar.has(n.id) ||
+                n.eliminada_del_mapa ||
+                n.estado === 'rechazada',
               idsSinTel.has(n.id),
             )}
             pane="primerPlano"
@@ -905,6 +929,16 @@ export default function MapaNecesidades({
                 )}
                 {/* Teléfono de quien reportó: solo para el personal que atiende
                     (voluntario/rescatista/admin), para poder comunicarse. */}
+                {n.estado === 'rechazada' && (
+                  <div className="text-xs font-semibold text-bandera-rojo">
+                    Cerrada / rechazada
+                  </div>
+                )}
+                {n.eliminada_del_mapa && (
+                  <div className="text-xs font-semibold text-bandera-rojo">
+                    Oculta del mapa publico
+                  </div>
+                )}
                 {puedeVerContacto && (
                   <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-2 py-1.5">
                     {contactos[n.id] === undefined ? (
@@ -972,7 +1006,25 @@ export default function MapaNecesidades({
                 {/* Eliminar del mapa: solo líder/admin (si se pasó el callback).
                     Abre un modal aparte para escribir el motivo (el popup del
                     mapa se cierra con cualquier clic, por eso no va aquí dentro). */}
-                {onEliminarDelMapa && (
+                {onCambiarTipo && (
+                  <label className="mt-2 block rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                    Cambiar tipo
+                    <select
+                      value={n.tipo}
+                      onChange={(e) =>
+                        onCambiarTipo(n, e.target.value as NecesidadTipo)
+                      }
+                      className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800"
+                    >
+                      {TIPOS_ALERTA_EDITABLES.map((t) => (
+                        <option key={t} value={t}>
+                          {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {onEliminarDelMapa && !n.eliminada_del_mapa && (
                   <div className="mt-2 pt-2 border-t border-gray-100">
                     <button
                       onClick={() => {

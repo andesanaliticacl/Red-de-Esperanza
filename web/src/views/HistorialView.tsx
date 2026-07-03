@@ -85,10 +85,10 @@ export default function HistorialView() {
 
   // De lo atendido, separamos SOS/rescates del resto.
   const sosAtendidos = atendidos.filter(
-    (n) => n.tipo === 'rescate' || n.origen === 'sos',
+    (n) => n.tipo === 'rescate',
   )
   const necAtendidas = atendidos.filter(
-    (n) => !(n.tipo === 'rescate' || n.origen === 'sos'),
+    (n) => n.tipo !== 'rescate',
   )
 
   if (cargando) {

@@ -7,8 +7,16 @@ import type { Necesidad, CentroAcopio } from '../lib/types'
 const COLS_NECESIDAD =
   'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa'
 
-// Tope de registros por carga: nadie puede ver decenas de miles. (Fase 4)
+// Tope de registros por carga normal: nadie puede ver decenas de miles. (Fase 4)
 const LIMITE = 500
+const TAM_PAGINA = 1000
+
+interface OpcionesNecesidades {
+  /** Admin: permite traer tambien solicitudes eliminadas/ocultas del mapa. */
+  incluirEliminadas?: boolean
+  /** null = traer todas las filas por paginas. */
+  limite?: number | null
+}
 
 /**
  * Carga necesidades + centros de acopio y se mantiene al día por Realtime.
@@ -28,7 +36,10 @@ export function useNecesidades(
   // —refrescan por sondeo— para no saturar el tope de conexiones con miles a la
   // vez. Por defecto true (compatibilidad).
   tiempoReal: boolean = true,
+  opciones: OpcionesNecesidades = {},
 ) {
+  const incluirEliminadas = opciones.incluirEliminadas ?? false
+  const limite = opciones.limite === undefined ? LIMITE : opciones.limite
   const [necesidades, setNecesidades] = useState<Necesidad[]>([])
   const [acopios, setAcopios] = useState<CentroAcopio[]>([])
   const [cargando, setCargando] = useState(true)
@@ -42,7 +53,11 @@ export function useNecesidades(
   const firmaRef = useRef('')
 
   // ¿Una fila entra en el filtro de estados activo?
-  function pasaFiltro(n: { estado: Necesidad['estado'] }): boolean {
+  function pasaFiltro(n: {
+    estado: Necesidad['estado']
+    eliminada_del_mapa?: boolean | null
+  }): boolean {
+    if (!incluirEliminadas && n.eliminada_del_mapa) return false
     if (!filtroEstados || filtroEstados.length === 0) return true
     return filtroEstados.includes(n.estado)
   }
@@ -53,20 +68,49 @@ export function useNecesidades(
         (n) =>
           `${n.id}:${n.estado}:${n.asignado_a ?? ''}:${n.lat ?? ''}:${n.lng ?? ''}:${
             n.eliminada_del_mapa ? 1 : 0
-          }`,
+          }:${n.tipo}`,
       )
       .join('|')
   }
 
   // Solo las necesidades (lo que cambia seguido). Si nada cambió, no toca estado.
-  async function cargar() {
+  function consultaNecesidades() {
     let q = supabase
       .from('necesidades')
       .select(COLS_NECESIDAD)
       .order('creado_en', { ascending: false })
-      .limit(LIMITE)
+    if (!incluirEliminadas) q = q.eq('eliminada_del_mapa', false)
     if (filtroEstados && filtroEstados.length) q = q.in('estado', filtroEstados)
-    const nec = await q
+    return q
+  }
+
+  async function cargar() {
+    if (limite === null) {
+      const todas: Necesidad[] = []
+      for (let desde = 0; ; desde += TAM_PAGINA) {
+        const nec = await consultaNecesidades().range(
+          desde,
+          desde + TAM_PAGINA - 1,
+        )
+        if (nec.error) {
+          setError(nec.error.message)
+          setCargando(false)
+          return
+        }
+        const lote = (nec.data ?? []) as unknown as Necesidad[]
+        todas.push(...lote)
+        if (lote.length < TAM_PAGINA) break
+      }
+      const firma = firmaDe(todas)
+      if (firma !== firmaRef.current) {
+        firmaRef.current = firma
+        setNecesidades(todas)
+      }
+      setCargando(false)
+      return
+    }
+
+    const nec = await consultaNecesidades().limit(limite)
     if (nec.error) setError(nec.error.message)
     else {
       const lista = (nec.data ?? []) as unknown as Necesidad[]
@@ -140,7 +184,7 @@ export function useNecesidades(
       supabase.removeChannel(canal)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filtroEstados), tiempoReal])
+  }, [JSON.stringify(filtroEstados), tiempoReal, incluirEliminadas, limite])
 
   return { necesidades, acopios, cargando, error, recargar: cargar, recargarAcopios: cargarAcopios }
 }
