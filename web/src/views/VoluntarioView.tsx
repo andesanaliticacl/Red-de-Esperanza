@@ -10,7 +10,7 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TextoExpandible from '../components/TextoExpandible'
 import { cargarContactosNecesidad } from '../lib/contactos'
-import { eliminarDelMapa } from '../lib/reportes'
+import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -86,6 +86,7 @@ export default function VoluntarioView() {
     rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
   // Solo líder de voluntarios/admin pueden quitar (o restaurar) del mapa.
   const puedeEliminar = rol === 'lider_voluntarios' || rol === 'admin'
+  const puedeCambiarTipo = rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
   // El aviso sonoro de "nueva necesidad / SOS" lo da el proveedor global de
@@ -108,7 +109,7 @@ export default function VoluntarioView() {
       activas.filter(
         (n) =>
           (n.estado === 'sin_verificar' || n.estado === 'verificada') &&
-          (n.tipo === 'rescate' || n.origen === 'sos'),
+          n.tipo === 'rescate',
       ),
     [activas],
   )
@@ -381,6 +382,18 @@ export default function VoluntarioView() {
     }
   }
 
+  async function cambiarTipoHandler(n: Necesidad, tipo: NecesidadTipo) {
+    if (tipo === n.tipo) return
+    try {
+      await cambiarTipoNecesidad(n.id, tipo)
+      notificar('Tipo de alerta actualizado.', 'exito')
+      await recargar()
+      await cargarMisAsignadas()
+    } catch (e) {
+      notificar('No se pudo cambiar el tipo: ' + (e as Error).message, 'alerta')
+    }
+  }
+
   // Restaurar una solicitud eliminada: vuelve a aparecer en el mapa y las listas.
   async function restaurarDelMapa(n: Necesidad) {
     try {
@@ -400,14 +413,14 @@ export default function VoluntarioView() {
   const abiertas = lista.filter(
     (n) =>
       (n.estado === 'sin_verificar' || n.estado === 'verificada') &&
-      !(n.tipo === 'rescate' || n.origen === 'sos'),
+      n.tipo !== 'rescate',
   )
 
   // Resumen consolidado por tipo (sobre todas las solicitudes activas cargadas).
   // El SOS va aparte (rescate u origen 'sos'), por ser la máxima prioridad.
   const totalSos = useMemo(
     () =>
-      activas.filter((n) => n.tipo === 'rescate' || n.origen === 'sos').length,
+      activas.filter((n) => n.tipo === 'rescate').length,
     [activas],
   )
   const conteoTipos = useMemo(
@@ -602,7 +615,7 @@ export default function VoluntarioView() {
           onMensaje={(n) => setChat(n)}
           onAsignarme={(n) => {
             // Un SOS solo lo puede tomar un rescatista (igual que en la lista).
-            if ((n.tipo === 'rescate' || n.origen === 'sos') && !esRescatista) {
+            if (n.tipo === 'rescate' && !esRescatista) {
               notificar(
                 'Solo los rescatistas pueden tomar una emergencia SOS.',
                 'alerta',
@@ -612,6 +625,7 @@ export default function VoluntarioView() {
             void asignarme(n)
           }}
           onEliminarDelMapa={puedeEliminar ? eliminarDelMapaHandler : undefined}
+          onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
           puedeVerContacto
           ajustarVista
         />
@@ -724,7 +738,7 @@ export default function VoluntarioView() {
                   <div className="flex-1 min-w-0">
                     <div className="font-bold">
                       {TIPO_META[n.tipo].etiqueta}
-                      {(n.tipo === 'rescate' || n.origen === 'sos') && (
+                      {n.tipo === 'rescate' && (
                         <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
                           🆘 SOS
                         </span>

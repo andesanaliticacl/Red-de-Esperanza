@@ -45,7 +45,7 @@ async function calcular(
 
   // --- Necesidad nueva → equipo de campo (menos quien la reportó) ---
   if (p.table === 'necesidades' && p.type === 'INSERT') {
-    const esSOS = r.tipo === 'rescate' || r.origen === 'sos'
+    const esSOS = r.tipo === 'rescate'
     const { data } = await supabase
       .from('perfiles')
       .select('id')

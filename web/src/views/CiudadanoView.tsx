@@ -10,7 +10,7 @@ import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
-import { eliminarDelMapa } from '../lib/reportes'
+import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
@@ -21,6 +21,7 @@ import {
   type Necesidad,
   type CentroAcopio,
   type NecesidadTipo,
+  type NecesidadEstado,
   type NecesidadUrgencia,
   type RolRegistro,
 } from '../lib/types'
@@ -47,6 +48,28 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
 ]
 // Filtro de tipo: necesidad, 'todos', o 'hospital' (subtipo de acopio).
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
+
+const ESTADOS_FILTRO: NecesidadEstado[] = [
+  'sin_verificar',
+  'verificada',
+  'en_proceso',
+  'resuelta',
+  'rechazada',
+]
+
+const ESTADOS_ACTIVOS: NecesidadEstado[] = [
+  'sin_verificar',
+  'verificada',
+  'en_proceso',
+]
+
+const ESTADO_FILTRO_META: Record<NecesidadEstado, string> = {
+  sin_verificar: 'Recibida',
+  verificada: 'Verificada',
+  en_proceso: 'En proceso',
+  resuelta: 'Resuelta',
+  rechazada: 'Rechazada',
+}
 
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
 const COLS_PERSONAS_HOSPITAL =
@@ -344,12 +367,17 @@ function PersonasHospitalModal({
 
 export default function CiudadanoView() {
   const { perfil, session, rol } = useAuth()
+  const esAdmin = rol === 'admin'
   const { necesidades, acopios, recargarAcopios } = useNecesidades(
-    ['sin_verificar', 'verificada', 'en_proceso'],
+    esAdmin ? undefined : ['sin_verificar', 'verificada', 'en_proceso'],
     undefined,
     // Realtime solo para usuarios con sesión (staff). Los anónimos refrescan
     // por sondeo → no abren websocket → escala a miles a la vez.
     !!session,
+    {
+      incluirEliminadas: esAdmin,
+      limite: esAdmin ? null : undefined,
+    },
   )
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
@@ -405,6 +433,7 @@ export default function CiudadanoView() {
   const puedeReportarHospital = rol === 'lider_voluntarios' || rol === 'admin'
   // Solo líder de voluntarios/admin pueden quitar una solicitud del mapa.
   const puedeEliminarDelMapa = rol === 'lider_voluntarios' || rol === 'admin'
+  const puedeCambiarTipo = esAdmin
 
   // Quitar una necesidad del mapa (borrado suave). Realtime la marca como
   // eliminada y el mapa deja de mostrarla al instante.
@@ -417,10 +446,20 @@ export default function CiudadanoView() {
     }
   }
 
+  async function cambiarTipoHandler(n: Necesidad, tipo: NecesidadTipo) {
+    if (tipo === n.tipo) return
+    try {
+      await cambiarTipoNecesidad(n.id, tipo)
+      notificar('Tipo de alerta actualizado.', 'exito')
+    } catch (e) {
+      notificar('No se pudo cambiar el tipo: ' + (e as Error).message, 'alerta')
+    }
+  }
+
   // Tomar una necesidad desde el popup del mapa: la pasa a "en proceso" y le
   // avisa (Realtime) a quien la creó que alguien ya va en camino.
   async function asignarme(n: Necesidad) {
-    if ((n.tipo === 'rescate' || n.origen === 'sos') && !esRescatista) {
+    if (n.tipo === 'rescate' && !esRescatista) {
       notificar('Solo los rescatistas pueden tomar una emergencia SOS.', 'alerta')
       return
     }
@@ -439,6 +478,17 @@ export default function CiudadanoView() {
 
   const [tipoFiltro, setTipoFiltro] = useState<FiltroTipo>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
+  const [estadosFiltro, setEstadosFiltro] =
+    useState<NecesidadEstado[]>(ESTADOS_ACTIVOS)
+  const [soloEliminadas, setSoloEliminadas] = useState(false)
+  function alternarEstadoFiltro(estado: NecesidadEstado) {
+    setSoloEliminadas(false)
+    setEstadosFiltro((prev) =>
+      prev.includes(estado)
+        ? prev.filter((e) => e !== estado)
+        : [...prev, estado],
+    )
+  }
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
   // En móvil, el bloque de roles arranca plegado para no tapar el mapa.
@@ -568,11 +618,27 @@ export default function CiudadanoView() {
       filtrandoCentros
         ? []
         : necesidades.filter((n) => {
+            if (soloEliminadas) return Boolean(n.eliminada_del_mapa)
+            if (n.eliminada_del_mapa) return false
             if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
             if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
+            if (
+              esAdmin &&
+              !estadosFiltro.includes(n.estado)
+            ) {
+              return false
+            }
             return true
           }),
-    [necesidades, tipoFiltro, urgFiltro, filtrandoCentros],
+    [
+      necesidades,
+      tipoFiltro,
+      urgFiltro,
+      filtrandoCentros,
+      esAdmin,
+      estadosFiltro,
+      soloEliminadas,
+    ],
   )
 
   // Los desaparecidos NO se muestran al entrar a la página: quedan ocultos hasta
@@ -596,7 +662,13 @@ export default function CiudadanoView() {
   }, [acopios, tipoFiltro])
   const necesidadesMapa = verDesap ? [] : filtradas
   const acopiosMapa = verDesap ? [] : acopiosVisibles
-  const hayFiltro = tipoFiltro !== 'todos' || urgFiltro !== 'todas'
+  const hayFiltro =
+    tipoFiltro !== 'todos' ||
+    urgFiltro !== 'todas' ||
+    soloEliminadas ||
+    (esAdmin &&
+      (estadosFiltro.length !== ESTADOS_ACTIVOS.length ||
+        ESTADOS_ACTIVOS.some((estado) => !estadosFiltro.includes(estado))))
 
   useEffect(() => {
     if (!modalPersonasHospitalAbierto || !hospitalSeleccionado) {
@@ -670,6 +742,8 @@ export default function CiudadanoView() {
             onEliminarDelMapa={
               puedeEliminarDelMapa ? eliminarDelMapaHandler : undefined
             }
+            onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
+            mostrarEliminadas={esAdmin && soloEliminadas}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}
@@ -804,11 +878,76 @@ export default function CiudadanoView() {
                   <option value="baja">🟢 Urgencia baja</option>
                 </select>
               </div>
+              {esAdmin && (
+                <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-gray-700">
+                      Estado de alerta
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSoloEliminadas(false)
+                          setEstadosFiltro(ESTADOS_ACTIVOS)
+                        }}
+                        className="text-xs font-semibold text-bandera-rojo"
+                      >
+                        Activas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSoloEliminadas(false)
+                          setEstadosFiltro(ESTADOS_FILTRO)
+                        }}
+                        className="text-xs font-semibold text-bandera-azul"
+                      >
+                        Todos
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ESTADOS_FILTRO.map((estado) => {
+                      const activo = !soloEliminadas && estadosFiltro.includes(estado)
+                      return (
+                        <button
+                          key={estado}
+                          type="button"
+                          onClick={() => alternarEstadoFiltro(estado)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                            activo
+                              ? 'border-bandera-azul bg-bandera-azul text-white'
+                              : 'border-gray-200 bg-white text-gray-700'
+                          }`}
+                          aria-pressed={activo}
+                        >
+                          {ESTADO_FILTRO_META[estado]}
+                        </button>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setSoloEliminadas((v) => !v)}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                        soloEliminadas
+                          ? 'border-bandera-rojo bg-bandera-rojo text-white'
+                          : 'border-gray-200 bg-white text-gray-700'
+                      }`}
+                      aria-pressed={soloEliminadas}
+                    >
+                      Eliminadas
+                    </button>
+                  </div>
+                </div>
+              )}
               {hayFiltro && (
                 <button
                   onClick={() => {
                     setTipoFiltro('todos')
                     setUrgFiltro('todas')
+                    setEstadosFiltro(ESTADOS_ACTIVOS)
+                    setSoloEliminadas(false)
                   }}
                   className="mt-2 text-xs text-bandera-rojo font-semibold"
                 >
@@ -821,6 +960,30 @@ export default function CiudadanoView() {
           {/* Buscador de desaparecidos (solo si la capa está visible) */}
           {verDesap && (
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
+              <a
+                href="https://tebusco.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-2 flex items-center gap-3 rounded-2xl border-2 border-bandera-azul/15 bg-white px-3 py-2.5 no-underline shadow-sm hover:border-bandera-azul/30 hover:bg-bandera-azul/5"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bandera-azul text-white text-lg shadow-sm">
+                  🔎
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-extrabold uppercase text-bandera-rojo tracking-wide">
+                    Alianza activa
+                  </span>
+                  <span className="block text-sm font-extrabold text-bandera-azul leading-tight">
+                    Busca tambien en Tebusco.app
+                  </span>
+                  <span className="block text-xs font-medium text-gray-600 leading-snug">
+                    Plataforma aliada para ampliar la busqueda de personas desaparecidas.
+                  </span>
+                </span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-bandera-amarillo text-white text-base font-black" aria-hidden="true">
+                  ↗
+                </span>
+              </a>
               <input
                 type="search"
                 value={busqDesap}

@@ -263,7 +263,7 @@ function AvisosEquipoCercano() {
             if (d > RADIO_AVISO_M) return
           }
 
-          const esSOS = n.tipo === 'rescate' || n.origen === 'sos'
+          const esSOS = n.tipo === 'rescate'
           const accion = { ruta: `/?necesidad=${n.id}`, etiqueta: 'Ver en el mapa' }
           if (esSOS) {
             sonarSOS()
