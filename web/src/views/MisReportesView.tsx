@@ -18,6 +18,7 @@ const ESTADO_META: Record<NecesidadEstado, { etiqueta: string; clase: string }> 
   resuelta: { etiqueta: '✅ Atendido', clase: 'bg-green-100 text-green-700' },
   rechazada: { etiqueta: '✖️ Cerrado', clase: 'bg-red-100 text-red-700' },
 }
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /** Reportes que creó el usuario autenticado, con acceso al chat de cada uno. */
 export default function MisReportesView() {
@@ -64,6 +65,7 @@ export default function MisReportesView() {
         'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en',
       )
       .eq('reportado_por', perfil.id)
+      .gte('creado_en', FECHA_MINIMA_VISIBLE)
       .order('creado_en', { ascending: false })
       .then(({ data }) => {
         const filas = (data ?? []) as Necesidad[]

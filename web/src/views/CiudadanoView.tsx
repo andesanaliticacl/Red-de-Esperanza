@@ -21,7 +21,6 @@ import {
   type Necesidad,
   type CentroAcopio,
   type NecesidadTipo,
-  type NecesidadEstado,
   type NecesidadUrgencia,
   type RolRegistro,
 } from '../lib/types'
@@ -48,28 +47,6 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
 ]
 // Filtro de tipo: necesidad, 'todos', o 'hospital' (subtipo de acopio).
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
-
-const ESTADOS_FILTRO: NecesidadEstado[] = [
-  'sin_verificar',
-  'verificada',
-  'en_proceso',
-  'resuelta',
-  'rechazada',
-]
-
-const ESTADOS_ACTIVOS: NecesidadEstado[] = [
-  'sin_verificar',
-  'verificada',
-  'en_proceso',
-]
-
-const ESTADO_FILTRO_META: Record<NecesidadEstado, string> = {
-  sin_verificar: 'Recibida',
-  verificada: 'Verificada',
-  en_proceso: 'En proceso',
-  resuelta: 'Resuelta',
-  rechazada: 'Rechazada',
-}
 
 const CLAVE_TUTORIAL = 'esperanza.tutorialVisto'
 const COLS_PERSONAS_HOSPITAL =
@@ -369,15 +346,11 @@ export default function CiudadanoView() {
   const { perfil, session, rol } = useAuth()
   const esAdmin = rol === 'admin'
   const { necesidades, acopios, recargarAcopios } = useNecesidades(
-    esAdmin ? undefined : ['sin_verificar', 'verificada', 'en_proceso'],
+    ['sin_verificar', 'verificada', 'en_proceso'],
     undefined,
     // Realtime solo para usuarios con sesión (staff). Los anónimos refrescan
     // por sondeo → no abren websocket → escala a miles a la vez.
     !!session,
-    {
-      incluirEliminadas: esAdmin,
-      limite: esAdmin ? null : undefined,
-    },
   )
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
@@ -478,17 +451,6 @@ export default function CiudadanoView() {
 
   const [tipoFiltro, setTipoFiltro] = useState<FiltroTipo>('todos')
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
-  const [estadosFiltro, setEstadosFiltro] =
-    useState<NecesidadEstado[]>(ESTADOS_ACTIVOS)
-  const [soloEliminadas, setSoloEliminadas] = useState(false)
-  function alternarEstadoFiltro(estado: NecesidadEstado) {
-    setSoloEliminadas(false)
-    setEstadosFiltro((prev) =>
-      prev.includes(estado)
-        ? prev.filter((e) => e !== estado)
-        : [...prev, estado],
-    )
-  }
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
   // En móvil, el bloque de roles arranca plegado para no tapar el mapa.
@@ -618,31 +580,12 @@ export default function CiudadanoView() {
       filtrandoCentros
         ? []
         : necesidades.filter((n) => {
-            if (!esAdmin) {
-              if (n.eliminada_del_mapa) return false
-              if (!ESTADOS_ACTIVOS.includes(n.estado)) return false
-            }
-            if (esAdmin && soloEliminadas) return Boolean(n.eliminada_del_mapa)
             if (n.eliminada_del_mapa) return false
             if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
             if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
-            if (
-              esAdmin &&
-              !estadosFiltro.includes(n.estado)
-            ) {
-              return false
-            }
             return true
           }),
-    [
-      necesidades,
-      tipoFiltro,
-      urgFiltro,
-      filtrandoCentros,
-      esAdmin,
-      estadosFiltro,
-      soloEliminadas,
-    ],
+    [necesidades, tipoFiltro, urgFiltro, filtrandoCentros],
   )
 
   // Los desaparecidos NO se muestran al entrar a la página: quedan ocultos hasta
@@ -668,11 +611,7 @@ export default function CiudadanoView() {
   const acopiosMapa = verDesap ? [] : acopiosVisibles
   const hayFiltro =
     tipoFiltro !== 'todos' ||
-    urgFiltro !== 'todas' ||
-    soloEliminadas ||
-    (esAdmin &&
-      (estadosFiltro.length !== ESTADOS_ACTIVOS.length ||
-        ESTADOS_ACTIVOS.some((estado) => !estadosFiltro.includes(estado))))
+    urgFiltro !== 'todas'
 
   useEffect(() => {
     if (!modalPersonasHospitalAbierto || !hospitalSeleccionado) {
@@ -747,7 +686,6 @@ export default function CiudadanoView() {
               puedeEliminarDelMapa ? eliminarDelMapaHandler : undefined
             }
             onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
-            mostrarEliminadas={esAdmin && soloEliminadas}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}
@@ -882,76 +820,11 @@ export default function CiudadanoView() {
                   <option value="baja">🟢 Urgencia baja</option>
                 </select>
               </div>
-              {esAdmin && (
-                <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-gray-700">
-                      Estado de alerta
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSoloEliminadas(false)
-                          setEstadosFiltro(ESTADOS_ACTIVOS)
-                        }}
-                        className="text-xs font-semibold text-bandera-rojo"
-                      >
-                        Activas
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSoloEliminadas(false)
-                          setEstadosFiltro(ESTADOS_FILTRO)
-                        }}
-                        className="text-xs font-semibold text-bandera-azul"
-                      >
-                        Todos
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ESTADOS_FILTRO.map((estado) => {
-                      const activo = !soloEliminadas && estadosFiltro.includes(estado)
-                      return (
-                        <button
-                          key={estado}
-                          type="button"
-                          onClick={() => alternarEstadoFiltro(estado)}
-                          className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                            activo
-                              ? 'border-bandera-azul bg-bandera-azul text-white'
-                              : 'border-gray-200 bg-white text-gray-700'
-                          }`}
-                          aria-pressed={activo}
-                        >
-                          {ESTADO_FILTRO_META[estado]}
-                        </button>
-                      )
-                    })}
-                    <button
-                      type="button"
-                      onClick={() => setSoloEliminadas((v) => !v)}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                        soloEliminadas
-                          ? 'border-bandera-rojo bg-bandera-rojo text-white'
-                          : 'border-gray-200 bg-white text-gray-700'
-                      }`}
-                      aria-pressed={soloEliminadas}
-                    >
-                      Eliminadas
-                    </button>
-                  </div>
-                </div>
-              )}
               {hayFiltro && (
                 <button
                   onClick={() => {
                     setTipoFiltro('todos')
                     setUrgFiltro('todas')
-                    setEstadosFiltro(ESTADOS_ACTIVOS)
-                    setSoloEliminadas(false)
                   }}
                   className="mt-2 text-xs text-bandera-rojo font-semibold"
                 >

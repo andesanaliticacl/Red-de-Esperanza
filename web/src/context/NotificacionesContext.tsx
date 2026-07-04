@@ -20,6 +20,7 @@ type Tono = 'info' | 'exito' | 'alerta'
 // Radio para considerar "cercano": solo a los voluntarios/rescatistas dentro de
 // esta distancia de la nueva necesidad les llega el aviso. Ajustable.
 const RADIO_AVISO_M = 10000 // 10 km
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /** Acción opcional de un aviso: a dónde llevar al usuario al tocarlo. */
 interface AccionAviso {
@@ -113,6 +114,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       .from('necesidades')
       .select('id, asignado_a')
       .eq('reportado_por', miId)
+      .gte('creado_en', FECHA_MINIMA_VISIBLE)
       .then(({ data }) => {
         for (const r of data ?? [])
           vistos.current.set(r.id, (r as { asignado_a: string | null }).asignado_a)
@@ -307,6 +309,7 @@ function AvisosMensajes() {
       .from('necesidades')
       .select('id, reportado_por, asignado_a')
       .or(`reportado_por.eq.${miId},asignado_a.eq.${miId}`)
+      .gte('creado_en', FECHA_MINIMA_VISIBLE)
       .then(({ data }) => {
         for (const r of data ?? []) misIds.current.add((r as { id: string }).id)
       })

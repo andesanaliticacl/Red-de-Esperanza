@@ -29,10 +29,12 @@ const ROLES: RolUsuario[] = [
 ]
 
 export default function AdminView() {
-  const { necesidades } = useNecesidades(undefined, undefined, true, {
-    incluirEliminadas: true,
-    limite: null,
-  })
+  const { necesidades } = useNecesidades([
+    'sin_verificar',
+    'verificada',
+    'en_proceso',
+    'resuelta',
+  ])
   const [perfiles, setPerfiles] = useState<Perfil[]>([])
   const [visitas, setVisitas] = useState<{ pais: string | null }[]>([])
   // Filtro de usuarios por nombre, correo o teléfono.

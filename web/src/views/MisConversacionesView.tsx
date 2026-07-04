@@ -22,6 +22,7 @@ interface Conversacion {
   ultimo: Mensaje
   otro: OtroPerfil | null
 }
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /** Historial de chats: con quién hablaste, de qué ciudad y el último mensaje. */
 export default function MisConversacionesView() {
@@ -40,6 +41,7 @@ export default function MisConversacionesView() {
         supabase
           .from('necesidades')
           .select('id')
+          .gte('creado_en', FECHA_MINIMA_VISIBLE)
           .or(`reportado_por.eq.${miId},asignado_a.eq.${miId}`),
       ])
       const ids = [
@@ -58,6 +60,7 @@ export default function MisConversacionesView() {
         supabase
           .from('necesidades')
           .select('id, tipo, descripcion, zona, reportado_por, asignado_a')
+          .gte('creado_en', FECHA_MINIMA_VISIBLE)
           .in('id', ids),
         supabase
           .from('mensajes')

@@ -11,6 +11,7 @@ const FMT: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
 }
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /** Historial del usuario: lo que reportó y lo que atendió (si es personal). */
 export default function HistorialView() {
@@ -38,12 +39,14 @@ export default function HistorialView() {
             'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en',
           )
           .eq('reportado_por', perfil!.id)
+          .gte('creado_en', FECHA_MINIMA_VISIBLE)
           .order('creado_en', { ascending: false }),
         esStaff
           ? supabase
               .from('necesidades')
               .select('*')
               .eq('asignado_a', perfil!.id)
+              .gte('creado_en', FECHA_MINIMA_VISIBLE)
               .order('actualizado_en', { ascending: false })
           : Promise.resolve({ data: [] as Necesidad[] }),
       ]
