@@ -40,6 +40,12 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'otro',
 ]
 
+const ESTADOS_ACTIVOS: Necesidad['estado'][] = [
+  'sin_verificar',
+  'verificada',
+  'en_proceso',
+]
+
 // Columnas de necesidad (mismas que el hook): para traer MIS casos asignados.
 const COLS_NECESIDAD =
   'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa'
@@ -100,7 +106,10 @@ export default function VoluntarioView() {
   // todas las secciones normales y de los conteos. Las eliminadas se ven aparte,
   // en su propio registro (filtro "Eliminadas del mapa").
   const activas = useMemo(
-    () => necesidades.filter((n) => !n.eliminada_del_mapa),
+    () =>
+      necesidades.filter(
+        (n) => !n.eliminada_del_mapa && ESTADOS_ACTIVOS.includes(n.estado),
+      ),
     [necesidades],
   )
   // Emergencias SOS: siempre visibles arriba, sin importar los filtros.

@@ -618,7 +618,11 @@ export default function CiudadanoView() {
       filtrandoCentros
         ? []
         : necesidades.filter((n) => {
-            if (soloEliminadas) return Boolean(n.eliminada_del_mapa)
+            if (!esAdmin) {
+              if (n.eliminada_del_mapa) return false
+              if (!ESTADOS_ACTIVOS.includes(n.estado)) return false
+            }
+            if (esAdmin && soloEliminadas) return Boolean(n.eliminada_del_mapa)
             if (n.eliminada_del_mapa) return false
             if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
             if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
