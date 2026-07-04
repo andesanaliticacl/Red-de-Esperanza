@@ -693,14 +693,21 @@ export default function MapaNecesidades({
   const [mapaTelefonos, setMapaTelefonos] = useState<Map<string, string>>(
     new Map(),
   )
+  const [telefonosCargados, setTelefonosCargados] = useState(false)
   useEffect(() => {
-    if (!puedeVerContacto) return
+    if (!puedeVerContacto) {
+      setTelefonosCargados(false)
+      setMapaTelefonos(new Map())
+      return
+    }
     let activo = true
+    setTelefonosCargados(false)
     cargarContactosNecesidad().then((m) => {
       if (!activo) return
       const soloTel = new Map<string, string>()
       for (const [id, c] of m) soloTel.set(id, c.contacto)
       setMapaTelefonos(soloTel)
+      setTelefonosCargados(true)
     })
     return () => {
       activo = false
@@ -858,7 +865,9 @@ export default function MapaNecesidades({
           (n) =>
             n.lat != null &&
             n.lng != null &&
-            (mostrarEliminadas || !n.eliminada_del_mapa),
+            (mostrarEliminadas || !n.eliminada_del_mapa) &&
+            (!puedeVerContacto ||
+              (telefonosCargados && !idsSinTel.has(n.id))),
         )
         .map((n) => (
           <Marker

@@ -29,6 +29,7 @@ interface Conversacion {
 // Mensajes a traer como máximo (la retención es de 3 días, así que el volumen
 // real es acotado). Suficiente para monitorear todas las conversaciones vivas.
 const LIMITE_MENSAJES = 5000
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /**
  * Monitoreo de TODAS las conversaciones (solo admin). Lista cada chat por
@@ -82,6 +83,7 @@ export default function AdminConversacionesView() {
         supabase
           .from('necesidades')
           .select('id, tipo, descripcion, zona, reportado_por, asignado_a')
+          .gte('creado_en', FECHA_MINIMA_VISIBLE)
           .in('id', ids),
         // (los autores se completan abajo con los reportantes/asignados)
         Promise.resolve(null),
@@ -116,6 +118,7 @@ export default function AdminConversacionesView() {
 
       // 4) Armar la lista de conversaciones (solo las que tienen mensajes).
       const lista: Conversacion[] = ids
+        .filter((id) => mapaNec.has(id))
         .map((id) => {
           const e = porNec.get(id)!
           const n = mapaNec.get(id)

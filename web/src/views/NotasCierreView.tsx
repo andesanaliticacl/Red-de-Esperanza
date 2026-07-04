@@ -36,6 +36,7 @@ const FMT: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
 }
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /**
  * Todas las notas de cierre que ha dejado el equipo al cerrar casos. La ven el
@@ -58,7 +59,6 @@ export default function NotasCierreView() {
         .order('creado_en', { ascending: false })
         .limit(2000)
       const filas = (data ?? []) as NotaRow[]
-      setNotas(filas)
 
       const necIds = [...new Set(filas.map((n) => n.necesidad_id))]
       const autorIds = [
@@ -70,6 +70,7 @@ export default function NotasCierreView() {
           ? supabase
               .from('necesidades')
               .select('id, tipo, descripcion, zona, lat, lng')
+              .gte('creado_en', FECHA_MINIMA_VISIBLE)
               .in('id', necIds)
           : Promise.resolve({ data: [] }),
         autorIds.length
@@ -79,9 +80,11 @@ export default function NotasCierreView() {
               .in('id', autorIds)
           : Promise.resolve({ data: [] }),
       ])
-      setNecs(
-        new Map(((necRes.data ?? []) as NecLite[]).map((n) => [n.id, n])),
+      const mapaNecs = new Map(
+        ((necRes.data ?? []) as NecLite[]).map((n) => [n.id, n]),
       )
+      setNecs(mapaNecs)
+      setNotas(filas.filter((n) => mapaNecs.has(n.necesidad_id)))
       setPerfiles(
         new Map(((perfRes.data ?? []) as PerfilLite[]).map((p) => [p.id, p])),
       )
@@ -99,8 +102,9 @@ export default function NotasCierreView() {
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    if (!q) return notas
-    return notas.filter((n) => {
+    const visibles = notas.filter((n) => necs.has(n.necesidad_id))
+    if (!q) return visibles
+    return visibles.filter((n) => {
       const nec = necs.get(n.necesidad_id)
       return (
         n.nota.toLowerCase().includes(q) ||

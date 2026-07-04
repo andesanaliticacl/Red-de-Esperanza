@@ -48,6 +48,8 @@ const COLS_NECESIDAD =
 const COLS_ELIMINADA =
   COLS_NECESIDAD + ', eliminada_en, eliminada_por, motivo_eliminacion'
 
+const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
+
 // Fecha de creación legible (día, mes y hora) — para estimar la prioridad.
 function fechaCorta(iso: string): string {
   return new Date(iso).toLocaleString('es-VE', {
@@ -96,12 +98,42 @@ export default function VoluntarioView() {
     'verificada',
     'en_proceso',
   ])
+  // Telefonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
+  // personal). Se cargan antes de armar los conteos para ocultar los reportes
+  // sin contacto confirmado.
+  const [contactos, setContactos] = useState<Map<string, string>>(new Map())
+  const [contactosCargados, setContactosCargados] = useState(false)
+  // Origen (pais/ciudad desde donde se creo) por necesidad, para el personal.
+  const [origenes, setOrigenes] = useState<
+    Map<string, { pais: string | null; ciudad: string | null }>
+  >(new Map())
+  useEffect(() => {
+    setContactosCargados(false)
+    cargarContactosNecesidad().then((m) => {
+      const cont = new Map<string, string>()
+      const orig = new Map<
+        string,
+        { pais: string | null; ciudad: string | null }
+      >()
+      for (const [id, c] of m) {
+        cont.set(id, c.contacto)
+        orig.set(id, { pais: c.pais_origen, ciudad: c.ciudad_origen })
+      }
+      setContactos(cont)
+      setOrigenes(orig)
+      setContactosCargados(true)
+    })
+  }, [necesidades.length])
   // Necesidades ACTIVAS: excluimos las eliminadas del mapa (borrado suave) de
-  // todas las secciones normales y de los conteos. Las eliminadas se ven aparte,
-  // en su propio registro (filtro "Eliminadas del mapa").
+  // todas las secciones normales y de los conteos. Tambien excluimos las que no
+  // tienen telefono confirmado (las del icono de telefono bloqueado). Las
+  // eliminadas se ven aparte, en su propio registro (filtro "Eliminadas del mapa").
   const activas = useMemo(
-    () => necesidades.filter((n) => !n.eliminada_del_mapa),
-    [necesidades],
+    () =>
+      contactosCargados
+        ? necesidades.filter((n) => !n.eliminada_del_mapa && contactos.has(n.id))
+        : [],
+    [contactos, contactosCargados, necesidades],
   )
   // Emergencias SOS: siempre visibles arriba, sin importar los filtros.
   const sos = useMemo(
@@ -140,6 +172,7 @@ export default function VoluntarioView() {
       .eq('asignado_a', perfil.id)
       .eq('estado', 'en_proceso')
       .eq('eliminada_del_mapa', false)
+      .gte('creado_en', FECHA_MINIMA_VISIBLE)
     setMisAsignadas((data ?? []) as unknown as Necesidad[])
   }
   useEffect(() => {
@@ -156,6 +189,7 @@ export default function VoluntarioView() {
       .from('necesidades')
       .select(COLS_ELIMINADA)
       .eq('eliminada_del_mapa', true)
+      .gte('creado_en', FECHA_MINIMA_VISIBLE)
       .order('eliminada_en', { ascending: false })
       .limit(500)
     setEliminadas((data ?? []) as unknown as Necesidad[])
@@ -165,28 +199,6 @@ export default function VoluntarioView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verEliminadas])
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
-  // Teléfonos de quienes reportaron (tabla privada; la RLS solo deja leerlos al
-  // personal). Una sola consulta para poder llamar/escribir desde cada tarjeta.
-  const [contactos, setContactos] = useState<Map<string, string>>(new Map())
-  // Origen (país/ciudad desde donde se creó) por necesidad, para el personal.
-  const [origenes, setOrigenes] = useState<
-    Map<string, { pais: string | null; ciudad: string | null }>
-  >(new Map())
-  useEffect(() => {
-    cargarContactosNecesidad().then((m) => {
-      const cont = new Map<string, string>()
-      const orig = new Map<
-        string,
-        { pais: string | null; ciudad: string | null }
-      >()
-      for (const [id, c] of m) {
-        cont.set(id, c.contacto)
-        orig.set(id, { pais: c.pais_origen, ciudad: c.ciudad_origen })
-      }
-      setContactos(cont)
-      setOrigenes(orig)
-    })
-  }, [necesidades.length])
   // Cuántas solicitudes hay con el MISMO teléfono (para avisar de duplicados en
   // la lista, igual que se atenúan en el mapa). Clave: solo los dígitos.
   const conteoTelefono = useMemo(() => {
@@ -262,9 +274,12 @@ export default function VoluntarioView() {
   const todas = useMemo(() => {
     const map = new Map<string, Necesidad>()
     for (const n of activas) map.set(n.id, n)
-    for (const n of misAsignadas) if (!map.has(n.id)) map.set(n.id, n)
+    for (const n of misAsignadas) {
+      if (!contactosCargados || !contactos.has(n.id) || map.has(n.id)) continue
+      map.set(n.id, n)
+    }
     return [...map.values()]
-  }, [activas, misAsignadas])
+  }, [activas, contactos, contactosCargados, misAsignadas])
 
   const lista = useMemo(
     () =>
