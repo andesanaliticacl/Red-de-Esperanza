@@ -23,6 +23,7 @@ import {
 
 const TIPOS: NecesidadTipo[] = [
   'rescate',
+  'zona_sin_atender',
   'agua_comida',
   'medicinas',
   'refugio',
