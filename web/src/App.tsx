@@ -15,6 +15,7 @@ const RegistroView = lazy(() => import('./views/RegistroView'))
 const MisReportesView = lazy(() => import('./views/MisReportesView'))
 const CentrosAcopioView = lazy(() => import('./views/CentrosAcopioView'))
 const VoluntarioView = lazy(() => import('./views/VoluntarioView'))
+const PsicologiaView = lazy(() => import('./views/PsicologiaView'))
 const PerfilView = lazy(() => import('./views/PerfilView'))
 const EditarPerfilView = lazy(() => import('./views/EditarPerfilView'))
 const HistorialView = lazy(() => import('./views/HistorialView'))
@@ -106,7 +107,9 @@ export default function App() {
             <Route
               path="/notas-cierre"
               element={
-                <ProtectedRoute roles={['lider_voluntarios', 'admin']}>
+                <ProtectedRoute
+                  roles={['lider_voluntarios', 'lider_psicologo', 'admin']}
+                >
                   <NotasCierreView />
                 </ProtectedRoute>
               }
@@ -120,12 +123,23 @@ export default function App() {
                   roles={[
                     'voluntario',
                     'rescatista',
+                    'psicologo',
                     'lider_voluntarios',
+                    'lider_psicologo',
                     'verificador',
                     'admin',
                   ]}
                 >
                   <VoluntarioView />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/psicologia"
+              element={
+                <ProtectedRoute roles={['psicologo', 'lider_psicologo', 'admin']}>
+                  <PsicologiaView />
                 </ProtectedRoute>
               }
             />

@@ -26,6 +26,8 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
     rol === 'lider_voluntarios' ||
     rol === 'verificador' ||
     rol === 'admin'
+  const esEquipoPsicologia =
+    rol === 'psicologo' || rol === 'lider_psicologo' || rol === 'admin'
 
   const disparador = claro
     ? 'bg-white/95 text-bandera-azul shadow'
@@ -127,6 +129,14 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                   onClick={cerrar}
                 />
               )}
+              {esEquipoPsicologia && (
+                <ItemLink
+                  to="/psicologia"
+                  emoji="🧠"
+                  texto="Atender solicitudes psicológicas"
+                  onClick={cerrar}
+                />
+              )}
               <ItemLink to="/acopios" emoji="📦" texto="Centros de acopio" onClick={cerrar} />
               {/* El admin NO usa el chat en vivo: en su lugar monitorea TODAS
                   las conversaciones (solo lectura). El resto sí ve el chat. */}
@@ -149,7 +159,9 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                   <span className="font-medium">Chat en vivo</span>
                 </button>
               )}
-              {(rol === 'admin' || rol === 'lider_voluntarios') && (
+              {(rol === 'admin' ||
+                rol === 'lider_voluntarios' ||
+                rol === 'lider_psicologo') && (
                 <ItemLink
                   to="/notas-cierre"
                   emoji="📝"

@@ -17,6 +17,11 @@ export default function RolesInfoModal({ onCerrar }: { onCerrar: () => void }) {
       d: 'Como el voluntario, pero enfocado en EMERGENCIAS y rescates. Cuando alguien presiona SOS, te suena una alarma fuerte para responder de inmediato a situaciones de vida o muerte.',
     },
     {
+      emoji: '🧠',
+      t: 'Psicólogo/a',
+      d: 'Atiende solicitudes de atención psicológica. Puede tomar casos, conversar con la persona solicitante y cerrar la atención cuando quede coordinada o finalizada.',
+    },
+    {
       emoji: '📦',
       t: 'Centro de acopio',
       d: 'Registras y gestionas tu centro de donaciones. La gente ve dónde llevar o enviar ayuda y puede comunicarse contigo para coordinar.',

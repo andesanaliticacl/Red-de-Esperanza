@@ -260,6 +260,7 @@ import {
 
 const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'rescate',
+  'atencion_psicologica',
   'zona_sin_atender',
   'agua_comida',
   'medicinas',

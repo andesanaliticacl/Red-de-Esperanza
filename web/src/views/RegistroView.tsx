@@ -25,6 +25,7 @@ const DESCRIPCION_ROL: Record<RolRegistro, string> = {
   ciudadano: 'Reporto necesidades y sigo el mapa.',
   voluntario: 'Ayudo a atender y coordinar reportes.',
   rescatista: 'Atiendo rescates y emergencias en terreno.',
+  psicologo: 'Brindo apoyo emocional y atiendo solicitudes psicológicas.',
   centro_acopio: 'Gestiono donaciones y suministros.',
 }
 
@@ -201,8 +202,13 @@ export default function RegistroView() {
                 setPais(v)
                 // Al cambiar de país, la zona anterior ya no aplica.
                 setEstado('')
-                // Voluntario/rescatista solo en Venezuela: si cambia, reseteamos.
-                if (v !== 'Venezuela' && (rol === 'voluntario' || rol === 'rescatista'))
+                // Roles de atención solo en Venezuela: si cambia, reseteamos.
+                if (
+                  v !== 'Venezuela' &&
+                  (rol === 'voluntario' ||
+                    rol === 'rescatista' ||
+                    rol === 'psicologo')
+                )
                   setRol('ciudadano')
               }}
             />

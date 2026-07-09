@@ -21,6 +21,7 @@ const ROLES_ELEGIBLES: RolRegistro[] = [
   'ciudadano',
   'voluntario',
   'rescatista',
+  'psicologo',
   'centro_acopio',
 ]
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
@@ -58,7 +59,7 @@ export default function EditarPerfilView() {
   const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
-  // Voluntario/rescatista solo en Venezuela.
+  // Roles de atención solo en Venezuela.
   const enVenezuela = pais === 'Venezuela'
   const rolesElegibles: RolRegistro[] = enVenezuela
     ? ROLES_ELEGIBLES
@@ -173,7 +174,9 @@ export default function EditarPerfilView() {
                 setPais(v)
                 if (
                   v !== 'Venezuela' &&
-                  (nuevoRol === 'voluntario' || nuevoRol === 'rescatista')
+                  (nuevoRol === 'voluntario' ||
+                    nuevoRol === 'rescatista' ||
+                    nuevoRol === 'psicologo')
                 )
                   setNuevoRol('ciudadano')
               }}
