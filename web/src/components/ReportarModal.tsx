@@ -29,6 +29,7 @@ import EntradaTelefono, {
 // propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
 const TIPOS: NecesidadTipo[] = [
   'zona_sin_atender',
+  'atencion_psicologica',
   'agua_comida',
   'medicinas',
   'refugio',
@@ -72,6 +73,8 @@ export default function ReportarModal({
   const [paso, setPaso] = useState(1)
   const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
+  const [nombrePaciente, setNombrePaciente] = useState('')
+  const [cedulaPaciente, setCedulaPaciente] = useState('')
   const [nombreHospital, setNombreHospital] = useState('')
   const [hospitalConfirmado, setHospitalConfirmado] =
     useState<HospitalGoogle | null>(null)
@@ -106,7 +109,9 @@ export default function ReportarModal({
 
   const esDerrumbe = tipo === 'derrumbe'
   const esZona = tipo === 'zona_sin_atender'
+  const esAtencionPsicologica = tipo === 'atencion_psicologica'
   const esHospital = tipo === 'hospital'
+  const requiereUbicacion = !esAtencionPsicologica
   const tiposDisponibles: TipoReporte[] = puedeReportarHospital
     ? [...TIPOS, 'hospital']
     : TIPOS
@@ -175,9 +180,13 @@ export default function ReportarModal({
     setTipo(t)
     if (t === 'derrumbe' || t === 'rescate' || t === 'zona_sin_atender')
       setUrgencia('alta')
+    if (t === 'atencion_psicologica') setUrgencia('media')
     // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
     setCoord(
-      t === 'derrumbe' || t === 'zona_sin_atender' || t === 'hospital'
+      t === 'derrumbe' ||
+        t === 'zona_sin_atender' ||
+        t === 'hospital' ||
+        t === 'atencion_psicologica'
         ? null
         : coordAuto,
     )
@@ -236,25 +245,52 @@ export default function ReportarModal({
         throw new Error('Escribe la direccion o referencia del hospital.')
       }
 
-      let lat = coord?.lat ?? null
-      let lng = coord?.lng ?? null
+      if (esAtencionPsicologica && !nombrePaciente.trim()) {
+        throw new Error(
+          'Escribe tu nombre o el nombre de la persona que necesita apoyo.',
+        )
+      }
+      if (esAtencionPsicologica && !cedulaPaciente.trim()) {
+        throw new Error('Escribe la cedula de identidad para identificar el caso.')
+      }
+      if (
+        esAtencionPsicologica &&
+        cedulaPaciente.replace(/\D/g, '').length < 6
+      ) {
+        throw new Error(
+          'La cedula no parece valida. Escribe solo los numeros, por ejemplo 12345678.',
+        )
+      }
+      if (esAtencionPsicologica && !descripcion.trim()) {
+        throw new Error(
+          'Cuentanos brevemente que apoyo necesitas. Puedes escribirlo con tus palabras.',
+        )
+      }
+
+      let lat = esAtencionPsicologica ? null : coord?.lat ?? null
+      let lng = esAtencionPsicologica ? null : coord?.lng ?? null
 
       // Si aún no hay punto pero sí dirección, intentamos geocodificar.
-      if ((lat === null || lng === null) && zona.trim()) {
+      if (!esAtencionPsicologica && (lat === null || lng === null) && zona.trim()) {
         const g = await geocodificarDireccion(zona.trim())
         if (g) {
           lat = g.lat
           lng = g.lng
         }
       }
-      if (lat === null || lng === null) {
+      if (!esAtencionPsicologica && (lat === null || lng === null)) {
         throw new Error(
           'Falta la ubicación. Busca la dirección, arrastra el pin, usa tu ubicación o pega coordenadas.',
         )
       }
 
       // Las necesidades SOLO pueden reportarse dentro de Venezuela.
-      if (!(await estaEnVenezuela(lat, lng))) {
+      if (
+        !esAtencionPsicologica &&
+        lat !== null &&
+        lng !== null &&
+        !(await estaEnVenezuela(lat, lng))
+      ) {
         throw new Error(
           'Las necesidades solo se pueden reportar dentro de Venezuela. El punto está fuera del país: corrige la dirección o mueve el pin.',
         )
@@ -286,8 +322,14 @@ export default function ReportarModal({
       await crearNecesidad({
         tipo: tipo as NecesidadTipo,
         urgencia,
-        descripcion: descripcion.trim() || metaTipo.etiqueta,
-        zona: zona.trim() || null,
+        descripcion: esAtencionPsicologica
+          ? [
+              `Nombre: ${nombrePaciente.trim()}`,
+              `CI: ${cedulaPaciente.replace(/\D/g, '')}`,
+              `Solicitud: ${descripcion.trim()}`,
+            ].join('\n')
+          : descripcion.trim() || metaTipo.etiqueta,
+        zona: esAtencionPsicologica ? null : zona.trim() || null,
         lat,
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
@@ -395,6 +437,54 @@ export default function ReportarModal({
     </div>
   )
 
+  const bloqueDatosPsicologia = (
+    <div className="space-y-3 rounded-2xl border border-purple-100 bg-purple-50/60 p-3">
+      <p className="text-sm text-purple-950">
+        Queremos llamarte por tu nombre y cuidar tu caso con respeto. Estos datos
+        ayudan a que el equipo pueda identificarte y contactarte sin exponerte en
+        el mapa público.
+      </p>
+      <label className="block">
+        <span className="font-bold">
+          ¿Cómo te llamas? <span className="text-bandera-rojo">*</span>
+        </span>
+        <input
+          className="input mt-1"
+          placeholder="Nombre y apellido"
+          value={nombrePaciente}
+          onChange={(e) => setNombrePaciente(e.target.value)}
+        />
+      </label>
+      <label className="block">
+        <span className="font-bold">
+          Cédula de identidad <span className="text-bandera-rojo">*</span>
+        </span>
+        <input
+          className="input mt-1"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="Ej: 12345678"
+          value={cedulaPaciente}
+          onChange={(e) => setCedulaPaciente(e.target.value.replace(/\D/g, ''))}
+        />
+        <span className="text-xs text-gray-500 mt-1 block">
+          Escribe solo números.
+        </span>
+      </label>
+      <div>
+        <p className="font-bold mb-1">
+          Un teléfono donde podamos contactarte{' '}
+          <span className="text-bandera-rojo">*</span>
+        </p>
+        <p className="text-xs text-gray-600 mb-2">
+          Es privado y solo lo verá el equipo psicológico para coordinar el
+          primer contacto contigo.
+        </p>
+        <EntradaTelefono valor={contacto} onChange={setContacto} requerido />
+      </div>
+    </div>
+  )
+
   const selectorUrgencia = (
     <div>
       <p className="font-bold mb-2">Urgencia</p>
@@ -414,6 +504,45 @@ export default function ReportarModal({
     </div>
   )
 
+  const selectorUrgenciaPsicologia = (
+    <div>
+      <p className="font-bold mb-2">¿Cómo te sientes en este momento?</p>
+      <div className="grid gap-2">
+        {[
+          {
+            v: 'alta' as NecesidadUrgencia,
+            t: 'Necesito apoyo lo antes posible',
+            d: 'Me siento en crisis, con mucho miedo, angustia o sin poder calmarme.',
+          },
+          {
+            v: 'media' as NecesidadUrgencia,
+            t: 'Necesito hablar con alguien pronto',
+            d: 'Estoy afectado/a, triste, ansioso/a o con recuerdos difíciles.',
+          },
+          {
+            v: 'baja' as NecesidadUrgencia,
+            t: 'Quiero orientación y acompañamiento',
+            d: 'Puedo esperar, pero necesito apoyo emocional.',
+          },
+        ].map((u) => (
+          <button
+            key={u.v}
+            type="button"
+            onClick={() => setUrgencia(u.v)}
+            className={`text-left rounded-xl border-2 p-3 ${
+              urgencia === u.v
+                ? 'border-bandera-azul bg-blue-50'
+                : 'border-gray-200 bg-white'
+            }`}
+          >
+            <span className="block font-bold text-sm">{u.t}</span>
+            <span className="block text-xs text-gray-600 mt-0.5">{u.d}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   const avisoError = errorMsg && (
     <div className="rounded-xl border-2 border-bandera-rojo bg-red-50 p-3 text-sm font-semibold text-bandera-rojo">
       ⚠️ {errorMsg}
@@ -425,6 +554,8 @@ export default function ReportarModal({
     ? '🏚️ Reporta un edificio o departamento colapsado. Indica la dirección y ajusta el pin al lugar exacto.'
     : esZona
       ? null // la zona lleva su propio aviso con <strong>
+      : esAtencionPsicologica
+        ? '🧠 Si sobreviviste al terremoto, si perdiste a alguien, si tienes miedo, ansiedad, insomnio o solo necesitas hablar, no estás solo/a. Este espacio es para pedir apoyo psicológico con calma, respeto y privacidad.'
       : esHospital
         ? '🏥 Registra un hospital para que aparezca en el mapa y en el filtro de hospitales.'
         : `${metaTipo.emoji} Indica qué necesitas y el lugar exacto. Ajusta el pin si hace falta.`
@@ -448,12 +579,16 @@ export default function ReportarModal({
   const etiquetaDetalle =
     esHospital
       ? 'Información adicional (opcional)'
+      : esAtencionPsicologica
+        ? 'Cuéntanos, con tus palabras, qué estás viviendo'
       : esDerrumbe || esZona ? 'Detalles (opcional)' : '¿Qué necesitas?'
 
   const placeholderDetalle = esDerrumbe
     ? 'Ej: 4 pisos, posible gente atrapada en el 2do'
     : esZona
       ? 'Ej: caseríos incomunicados tras el derrumbe de la vía'
+      : esAtencionPsicologica
+        ? 'Ej: No puedo dormir, siento mucha angustia, perdí a un familiar, necesito hablar con alguien...'
       : esHospital
         ? 'Ej: emergencia, triaje, disponibilidad, referencia de acceso'
         : 'Ej: Familia con 2 niños sin agua desde ayer'
@@ -589,21 +724,25 @@ export default function ReportarModal({
               </div>
             )}
 
-            <div>
-              <p className="font-bold mb-2">{etiquetaDir}</p>
-              <input
-                className={`input ${esHospital ? 'bg-gray-50 text-gray-700' : ''}`}
-                placeholder={placeholderDir}
-                value={zona}
-                readOnly={esHospital}
-                onChange={(e) => setZona(e.target.value)}
-              />
-              {esHospital && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Se completa al seleccionar un hospital confirmado por Google Maps.
-                </p>
-              )}
-            </div>
+            {esAtencionPsicologica && bloqueDatosPsicologia}
+
+            {requiereUbicacion && (
+              <div>
+                <p className="font-bold mb-2">{etiquetaDir}</p>
+                <input
+                  className={`input ${esHospital ? 'bg-gray-50 text-gray-700' : ''}`}
+                  placeholder={placeholderDir}
+                  value={zona}
+                  readOnly={esHospital}
+                  onChange={(e) => setZona(e.target.value)}
+                />
+                {esHospital && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Se completa al seleccionar un hospital confirmado por Google Maps.
+                  </p>
+                )}
+              </div>
+            )}
 
             {esZona && (
               <div>
@@ -626,7 +765,7 @@ export default function ReportarModal({
               </div>
             )}
 
-            {bloqueUbicacionMapa}
+            {requiereUbicacion && bloqueUbicacionMapa}
 
             <div>
               <p className="font-bold mb-2">{etiquetaDetalle}</p>
@@ -638,8 +777,11 @@ export default function ReportarModal({
               />
             </div>
 
-            {!esHospital && selectorUrgencia}
-            {!esHospital && bloqueContacto}
+            {!esHospital &&
+              (esAtencionPsicologica
+                ? selectorUrgenciaPsicologia
+                : selectorUrgencia)}
+            {!esHospital && !esAtencionPsicologica && bloqueContacto}
             {avisoError}
 
             <div className="flex gap-2">

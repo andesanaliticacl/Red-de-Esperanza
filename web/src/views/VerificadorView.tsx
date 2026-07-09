@@ -16,9 +16,12 @@ import {
 
 const TIPOS: NecesidadTipo[] = [
   'rescate',
+  'atencion_psicologica',
+  'zona_sin_atender',
   'agua_comida',
   'medicinas',
   'refugio',
+  'derrumbe',
   'otro',
 ]
 const URGENCIAS: NecesidadUrgencia[] = ['alta', 'media', 'baja']

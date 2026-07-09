@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { nombresPublicos } from '../lib/perfiles'
 import ChatNecesidad from '../components/ChatNecesidad'
+import TextoExpandible from '../components/TextoExpandible'
 import {
   TIPO_META,
   type Necesidad,
@@ -18,7 +19,6 @@ const ESTADO_META: Record<NecesidadEstado, { etiqueta: string; clase: string }> 
   resuelta: { etiqueta: '✅ Atendido', clase: 'bg-green-100 text-green-700' },
   rechazada: { etiqueta: '✖️ Cerrado', clase: 'bg-red-100 text-red-700' },
 }
-const FECHA_MINIMA_VISIBLE = '2026-07-01T00:00:00.000Z'
 
 /** Reportes que creó el usuario autenticado, con acceso al chat de cada uno. */
 export default function MisReportesView() {
@@ -65,7 +65,6 @@ export default function MisReportesView() {
         'id, tipo, urgencia, estado, descripcion, zona, lat, lng, origen, reportado_por, asignado_a, creado_en',
       )
       .eq('reportado_por', perfil.id)
-      .gte('creado_en', FECHA_MINIMA_VISIBLE)
       .order('creado_en', { ascending: false })
       .then(({ data }) => {
         const filas = (data ?? []) as Necesidad[]
@@ -141,9 +140,7 @@ export default function MisReportesView() {
               <div className="text-3xl">{TIPO_META[n.tipo].emoji}</div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold">{TIPO_META[n.tipo].etiqueta}</div>
-                <div className="text-sm text-gray-700 truncate">
-                  {n.descripcion}
-                </div>
+                <TextoExpandible texto={n.descripcion} className="text-sm text-gray-700" />
                 <span
                   className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${
                     ESTADO_META[n.estado].clase

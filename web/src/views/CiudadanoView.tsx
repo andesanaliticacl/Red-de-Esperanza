@@ -11,6 +11,13 @@ import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
+import {
+  esRolPsicologia,
+  esRolRescatista,
+  puedeAtenderNecesidades,
+  puedeGestionarComoLider,
+  puedeVerNecesidad,
+} from '../lib/roles'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
@@ -37,6 +44,7 @@ const ROLES_ACCESO: RolRegistro[] = [
 // y un valor especial 'hospital' (los acopios cuya descripción dice "hospital").
 const TIPOS_FILTRO: NecesidadTipo[] = [
   'rescate',
+  'atencion_psicologica',
   'zona_sin_atender',
   'agua_comida',
   'medicinas',
@@ -396,16 +404,11 @@ export default function CiudadanoView() {
     return () => window.clearTimeout(t)
   }, [resaltadaAcopioId, resaltadaId, setSearchParams])
   // Voluntario/rescatista/admin pueden tomar una necesidad desde el mapa.
-  const puedeAtender =
-    rol === 'voluntario' ||
-    rol === 'rescatista' ||
-    rol === 'lider_voluntarios' ||
-    rol === 'admin'
-  const esRescatista =
-    rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
-  const puedeReportarHospital = rol === 'lider_voluntarios' || rol === 'admin'
+  const puedeAtender = puedeAtenderNecesidades(rol)
+  const esRescatista = esRolRescatista(rol)
+  const puedeReportarHospital = puedeGestionarComoLider(rol)
   // Solo líder de voluntarios/admin pueden quitar una solicitud del mapa.
-  const puedeEliminarDelMapa = rol === 'lider_voluntarios' || rol === 'admin'
+  const puedeEliminarDelMapa = puedeGestionarComoLider(rol)
   const puedeCambiarTipo = esAdmin
 
   // Quitar una necesidad del mapa (borrado suave). Realtime la marca como
@@ -581,11 +584,12 @@ export default function CiudadanoView() {
         ? []
         : necesidades.filter((n) => {
             if (n.eliminada_del_mapa) return false
+            if (!puedeVerNecesidad(n, rol)) return false
             if (tipoFiltro !== 'todos' && n.tipo !== tipoFiltro) return false
             if (urgFiltro !== 'todas' && n.urgencia !== urgFiltro) return false
             return true
           }),
-    [necesidades, tipoFiltro, urgFiltro, filtrandoCentros],
+    [necesidades, tipoFiltro, urgFiltro, filtrandoCentros, rol],
   )
 
   // Los desaparecidos NO se muestran al entrar a la página: quedan ocultos hasta
@@ -800,7 +804,9 @@ export default function CiudadanoView() {
                   onChange={(e) => setTipoFiltro(e.target.value as FiltroTipo)}
                 >
                   <option value="todos">🗂️ Todo tipo de ayuda</option>
-                  {TIPOS_FILTRO.map((t) => (
+                  {TIPOS_FILTRO.filter((t) =>
+                    t === 'atencion_psicologica' ? esRolPsicologia(rol) : true,
+                  ).map((t) => (
                     <option key={t} value={t}>
                       {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
                     </option>
@@ -970,6 +976,14 @@ export default function CiudadanoView() {
           onCerrar={() => setAbrirReporte(false)}
           onCreado={(tipo) => {
             setAbrirReporte(false)
+            notificar(
+              tipo === 'hospital'
+                ? 'Hospital registrado correctamente. Gracias por ayudar a mantener la información actualizada.'
+                : tipo === 'atencion_psicologica'
+                  ? 'Solicitud creada. Gracias por confiar en la red: el equipo psicológico revisará tu caso y te contactará lo antes posible.'
+                  : 'Reporte creado correctamente. Gracias por avisar: el equipo revisará la solicitud y te contactará lo antes posible.',
+              'exito',
+            )
             if (tipo === 'hospital') {
               setTipoFiltro('hospital')
               void recargarAcopios()

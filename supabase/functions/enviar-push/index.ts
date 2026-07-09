@@ -46,10 +46,20 @@ async function calcular(
   // --- Necesidad nueva → equipo de campo (menos quien la reportó) ---
   if (p.table === 'necesidades' && p.type === 'INSERT') {
     const esSOS = r.tipo === 'rescate'
+    const esPsicologia = r.tipo === 'atencion_psicologica'
+    const rolesDestino = esPsicologia
+      ? ['psicologo', 'lider_psicologo', 'admin']
+      : [
+          'voluntario',
+          'rescatista',
+          'psicologo',
+          'lider_voluntarios',
+          'lider_psicologo',
+        ]
     const { data } = await supabase
       .from('perfiles')
       .select('id')
-      .in('rol', ['voluntario', 'rescatista'])
+      .in('rol', rolesDestino)
     const userIds = (data ?? [])
       .map((x) => x.id as string)
       .filter((id) => id !== r.reportado_por)

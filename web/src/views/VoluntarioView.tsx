@@ -11,6 +11,10 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import TextoExpandible from '../components/TextoExpandible'
 import { cargarContactosNecesidad } from '../lib/contactos'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
+import {
+  esRolRescatista,
+  puedeGestionarComoLider,
+} from '../lib/roles'
 import { enlaceComoLlegar } from '../lib/geo'
 import IconoRuta from '../components/IconoRuta'
 import {
@@ -85,10 +89,9 @@ function hace(iso: string): string {
 export default function VoluntarioView() {
   const { perfil, rol } = useAuth()
   const { notificar } = useNotificaciones()
-  const esRescatista =
-    rol === 'rescatista' || rol === 'lider_voluntarios' || rol === 'admin'
+  const esRescatista = esRolRescatista(rol)
   // Solo líder de voluntarios/admin pueden quitar (o restaurar) del mapa.
-  const puedeEliminar = rol === 'lider_voluntarios' || rol === 'admin'
+  const puedeEliminar = puedeGestionarComoLider(rol)
   const puedeCambiarTipo = rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
@@ -132,7 +135,12 @@ export default function VoluntarioView() {
   const activas = useMemo(
     () =>
       contactosCargados
-        ? necesidades.filter((n) => !n.eliminada_del_mapa && contactos.has(n.id))
+        ? necesidades.filter(
+            (n) =>
+              !n.eliminada_del_mapa &&
+              contactos.has(n.id) &&
+              n.tipo !== 'atencion_psicologica',
+          )
         : [],
     [contactos, contactosCargados, necesidades],
   )
@@ -193,12 +201,13 @@ export default function VoluntarioView() {
       .gte('creado_en', FECHA_MINIMA_VISIBLE)
       .order('eliminada_en', { ascending: false })
       .limit(500)
-    setEliminadas((data ?? []) as unknown as Necesidad[])
+    const filas = (data ?? []) as unknown as Necesidad[]
+    setEliminadas(filas.filter((n) => n.tipo !== 'atencion_psicologica'))
   }
   useEffect(() => {
     if (verEliminadas) cargarEliminadas()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verEliminadas])
+  }, [verEliminadas, rol])
   const [nombres, setNombres] = useState<Map<string, PerfilPublico>>(new Map())
   // Cuántas solicitudes hay con el MISMO teléfono (para avisar de duplicados en
   // la lista, igual que se atenúan en el mapa). Clave: solo los dígitos.
@@ -276,7 +285,13 @@ export default function VoluntarioView() {
     const map = new Map<string, Necesidad>()
     for (const n of activas) map.set(n.id, n)
     for (const n of misAsignadas) {
-      if (!contactosCargados || !contactos.has(n.id) || map.has(n.id)) continue
+      if (
+        !contactosCargados ||
+        !contactos.has(n.id) ||
+        n.tipo === 'atencion_psicologica' ||
+        map.has(n.id)
+      )
+        continue
       map.set(n.id, n)
     }
     return [...map.values()]
@@ -593,8 +608,8 @@ export default function VoluntarioView() {
           value={verEliminadas ? 'eliminadas' : 'activas'}
           onChange={(e) => setVerEliminadas(e.target.value === 'eliminadas')}
         >
-          <option value="activas">✅ Solicitudes activas</option>
-          <option value="eliminadas">🗑️ Eliminadas del mapa</option>
+          <option value="activas">Solicitudes activas</option>
+          <option value="eliminadas">Solicitudes atendidas</option>
         </select>
         {!verEliminadas && (
           <>
@@ -733,18 +748,18 @@ export default function VoluntarioView() {
       {verEliminadas && (
         <section>
           <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 mb-3 text-sm text-gray-600">
-            🗑️ <b>Registro de eliminadas del mapa.</b> Estas solicitudes ya no se
-            muestran en el mapa, pero quedan aquí como registro.
+            <b>Solicitudes atendidas.</b> Estas solicitudes no tienen acciones de
+            asignar o contactar mientras esten cerradas.
             {puedeEliminar
-              ? ' Puedes restaurarlas al mapa cuando quieras.'
-              : ' Solo un líder o admin puede restaurarlas.'}
+              ? ' Puedes reabrirlas cuando haga falta.'
+              : ' Solo un lider o admin puede reabrirlas.'}
           </div>
           <h2 className="font-bold text-lg mb-2">
-            Eliminadas del mapa ({eliminadas.length})
+            Solicitudes atendidas ({eliminadas.length})
           </h2>
           {eliminadas.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              No hay solicitudes eliminadas del mapa.
+              No hay solicitudes atendidas.
             </div>
           ) : (
             <div className="space-y-3">
@@ -771,11 +786,7 @@ export default function VoluntarioView() {
                       🕒 Creada: {fechaCorta(n.creado_en)}
                     </div>
                     <div className="text-xs font-semibold text-bandera-rojo mt-0.5">
-                      🗑️ Eliminada
-                      {n.eliminada_en ? ` ${fechaCorta(n.eliminada_en)}` : ''}
-                      {n.eliminada_por
-                        ? ` · por ${nombres.get(n.eliminada_por)?.nombre ?? 'personal'}`
-                        : ''}
+                      Solicitud atendida
                     </div>
                     {n.motivo_eliminacion && (
                       <div className="text-xs text-gray-700 mt-1 bg-red-50 border border-red-100 rounded-lg px-2 py-1">
@@ -789,7 +800,7 @@ export default function VoluntarioView() {
                       onClick={() => restaurarDelMapa(n)}
                       className="btn-azul py-2 px-3 text-sm whitespace-nowrap"
                     >
-                      ♻️ Restaurar
+                      Reabrir solicitud
                     </button>
                   )}
                 </div>

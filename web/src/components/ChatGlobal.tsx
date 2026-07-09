@@ -25,9 +25,11 @@ const COLOR_ROL: Record<RolUsuario, string> = {
   ciudadano: '#475569',
   voluntario: '#002FA7',
   rescatista: '#CC0001',
+  psicologo: '#7C3AED',
   centro_acopio: '#16A34A',
   acopio_admin: '#0891B2',
   lider_voluntarios: '#B45309',
+  lider_psicologo: '#6D28D9',
   verificador: '#7C3AED',
   admin: '#CF9B00',
 }
@@ -81,9 +83,10 @@ function EtiquetaRol({
  */
 export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const { perfil, rol } = useAuth()
-  // Solo los líderes de voluntarios (y admin) pueden ver el teléfono de los
+  // Solo los líderes (y admin) pueden ver el teléfono de los
   // invitados para contactarlos. El resto del chat no lo ve (la RLS lo impide).
-  const esLiderOAdmin = rol === 'lider_voluntarios' || rol === 'admin'
+  const esLiderOAdmin =
+    rol === 'lider_voluntarios' || rol === 'lider_psicologo' || rol === 'admin'
   const esAdmin = rol === 'admin'
   const guardada = leerIdentidad()
   // Si la persona ya inició sesión, su nombre es automático (el de su perfil) y
@@ -371,7 +374,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                 </p>
                 <p className="text-xs text-gray-500 mb-1">
                   📱 <strong>Obligatorio.</strong> Privado: solo un{' '}
-                  <strong>líder de voluntarios</strong> o un{' '}
+                  <strong>líder</strong> o un{' '}
                   <strong>administrador</strong> lo verá y,{' '}
                   <strong className="text-bandera-azul">
                     en caso de ser necesario

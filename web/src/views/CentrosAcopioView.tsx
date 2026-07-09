@@ -51,7 +51,9 @@ export default function CentrosAcopioView() {
   const { perfil, rol } = useAuth()
   const puedeRegistrar =
     rol === 'centro_acopio' ||
+    rol === 'acopio_admin' ||
     rol === 'lider_voluntarios' ||
+    rol === 'lider_psicologo' ||
     rol === 'admin'
   // El admin, el "acopio_admin" y el "líder de voluntarios" pueden editar
   // CUALQUIER centro (agregarle teléfono, red social, corregir dirección…),
@@ -59,6 +61,7 @@ export default function CentrosAcopioView() {
   const puedeEditarTodo =
     rol === 'acopio_admin' ||
     rol === 'lider_voluntarios' ||
+    rol === 'lider_psicologo' ||
     rol === 'admin'
 
   const [centros, setCentros] = useState<CentroAcopio[]>([])
@@ -482,9 +485,13 @@ function FormCentro({
     e.preventDefault()
     setErrorMsg('')
 
-    // El número de contacto es OBLIGATORIO: es el que verá la gente para
-    // coordinar la ayuda (botón "Contactar").
-    if (!esTelefonoVenezuelaValido(contacto)) {
+    // El contacto es opcional. Si el centro esta en Venezuela, validamos el
+    // formato venezolano; para otros paises se permite telefono internacional.
+    if (
+      pais.trim() === 'Venezuela' &&
+      contacto.trim() &&
+      !esTelefonoVenezuelaValido(contacto)
+    ) {
       setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
@@ -649,13 +656,25 @@ function FormCentro({
       />
       <div>
         <p className="text-sm font-semibold mb-1">
-          Contacto del encargado (WhatsApp){' '}
-          <span className="text-bandera-rojo">*</span>
+          Contacto del encargado (WhatsApp opcional)
         </p>
-        <EntradaTelefono valor={contacto} onChange={setContacto} requerido />
+        {pais.trim() === 'Venezuela' ? (
+          <EntradaTelefono valor={contacto} onChange={setContacto} />
+        ) : (
+          <input
+            className="input"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="Ej: +34 600 123 456"
+            value={contacto}
+            onChange={(e) => setContacto(e.target.value)}
+          />
+        )}
         <p className="text-xs text-gray-500 mt-1">
-          <strong>Obligatorio.</strong> Es el número que verá la gente para
-          coordinar la ayuda (botón "💬 Contactar").
+          Si lo agregas, sera el numero que vera la gente para coordinar la ayuda.
+          En Venezuela se valida el formato nacional; en otros paises puedes usar
+          el codigo internacional.
         </p>
       </div>
       <input

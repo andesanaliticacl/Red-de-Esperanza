@@ -5,6 +5,23 @@ import type { NecesidadTipo, NecesidadUrgencia } from './types'
 // Máximo de solicitudes por día con el mismo teléfono (se bloquea la 4.ª).
 const LIMITE_POR_TELEFONO_DIA = 3
 
+function crearIdReporte() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0'))
+  return [
+    hex.slice(0, 4).join(''),
+    hex.slice(4, 6).join(''),
+    hex.slice(6, 8).join(''),
+    hex.slice(8, 10).join(''),
+    hex.slice(10, 16).join(''),
+  ].join('-')
+}
+
 /** Origen (país/ciudad por IP) con un tope de espera para no frenar el reporte. */
 async function origenConTimeout(
   ms = 2500,
@@ -63,34 +80,32 @@ export async function crearNecesidad(r: NuevoReporte) {
   // Si quien reporta está autenticado, guardamos su id para habilitar el chat.
   const { data: auth } = await supabase.auth.getUser()
   const reportado_por = auth?.user?.id ?? null
+  const id = crearIdReporte()
 
-  const { data, error } = await supabase
-    .from('necesidades')
-    .insert({
-      tipo: r.tipo,
-      urgencia: r.urgencia,
-      descripcion: r.descripcion,
-      texto_crudo: r.descripcion,
-      zona: r.zona ?? null,
-      lat: r.lat ?? null,
-      lng: r.lng ?? null,
-      radio_km: r.radio_km ?? null,
-      origen: r.origen ?? 'web',
-      estado: 'sin_verificar',
-      reportado_por,
-    })
-    .select('id')
-    .single()
+  const { error } = await supabase.from('necesidades').insert({
+    id,
+    tipo: r.tipo,
+    urgencia: r.urgencia,
+    descripcion: r.descripcion,
+    texto_crudo: r.descripcion,
+    zona: r.zona ?? null,
+    lat: r.lat ?? null,
+    lng: r.lng ?? null,
+    radio_km: r.radio_km ?? null,
+    origen: r.origen ?? 'web',
+    estado: 'sin_verificar',
+    reportado_por,
+  })
 
   if (error) throw error
 
-  if (r.contacto && data?.id) {
+  if (r.contacto) {
     const origen = (await origenPromesa) ?? { pais: null, ciudad: null }
     // Reintentamos un par de veces por si hay un fallo de red puntual.
     let errContacto = null
     for (let intento = 0; intento < 3; intento++) {
       const res = await supabase.from('contactos_necesidad').insert({
-        necesidad_id: data.id,
+        necesidad_id: id,
         contacto: r.contacto,
         pais_origen: origen.pais,
         ciudad_origen: origen.ciudad,
@@ -101,7 +116,7 @@ export async function crearNecesidad(r: NuevoReporte) {
     if (errContacto) {
       if (r.contactoObligatorio) {
         // No dejamos una solicitud sin teléfono: deshacemos lo creado y avisamos.
-        await supabase.from('necesidades').delete().eq('id', data.id)
+        await supabase.from('necesidades').delete().eq('id', id)
         throw new Error(
           'No pudimos guardar tu número de teléfono. Revisa tu conexión e inténtalo de nuevo: es obligatorio para que puedan contactarte.',
         )
@@ -110,7 +125,7 @@ export async function crearNecesidad(r: NuevoReporte) {
     }
   }
 
-  return data
+  return { id }
 }
 
 /**

@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { distanciaMetros } from '../lib/geo'
+import { esRolPsicologia } from '../lib/roles'
 import { sonarMensaje, sonarAlerta, sonarSOS } from '../lib/sonidos'
 import type { Mensaje } from '../lib/types'
 
@@ -149,12 +150,14 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     return () => {
       void supabase.removeChannel(canal)
     }
-  }, [perfil?.id, notificar])
+  }, [perfil?.id, perfil?.rol, notificar])
 
   const esEquipoCampo =
     perfil?.rol === 'voluntario' ||
     perfil?.rol === 'rescatista' ||
-    perfil?.rol === 'lider_voluntarios'
+    perfil?.rol === 'psicologo' ||
+    perfil?.rol === 'lider_voluntarios' ||
+    perfil?.rol === 'lider_psicologo'
 
   function alAccion(accion: AccionAviso, id: string) {
     marcarLeida(id)
@@ -257,6 +260,9 @@ function AvisosEquipoCercano() {
             lng: number | null
           }
           if (n.reportado_por === miId) return
+          if (n.tipo === 'atencion_psicologica' && !esRolPsicologia(perfil.rol)) {
+            return
+          }
 
           // Filtro de cercanía: si tenemos ambas ubicaciones, descarta lo lejano.
           const yo = coordRef.current
@@ -285,7 +291,7 @@ function AvisosEquipoCercano() {
     return () => {
       void supabase.removeChannel(canal)
     }
-  }, [perfil?.id, notificar])
+  }, [perfil?.id, perfil?.rol, notificar])
 
   return null
 }

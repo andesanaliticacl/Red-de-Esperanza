@@ -2,6 +2,7 @@
 
 export type NecesidadTipo =
   | 'rescate'
+  | 'atencion_psicologica'
   | 'agua_comida'
   | 'medicinas'
   | 'refugio'
@@ -23,14 +24,21 @@ export type RolUsuario =
   | 'ciudadano'
   | 'voluntario'
   | 'rescatista'
+  | 'psicologo'
   | 'centro_acopio'
   | 'acopio_admin'
   | 'lider_voluntarios'
+  | 'lider_psicologo'
   | 'verificador'
   | 'admin'
 
 /** Roles que un usuario puede elegir al registrarse (sin verificador/admin). */
-export type RolRegistro = 'ciudadano' | 'voluntario' | 'rescatista' | 'centro_acopio'
+export type RolRegistro =
+  | 'ciudadano'
+  | 'voluntario'
+  | 'rescatista'
+  | 'psicologo'
+  | 'centro_acopio'
 
 export type TipoDocumento = 'cedula' | 'pasaporte'
 
@@ -165,9 +173,11 @@ export const ROL_META: Record<RolUsuario, { etiqueta: string; emoji: string }> =
   ciudadano: { etiqueta: 'Ciudadano', emoji: '🙋' },
   voluntario: { etiqueta: 'Voluntario', emoji: '🤝' },
   rescatista: { etiqueta: 'Rescatista', emoji: '🚑' },
+  psicologo: { etiqueta: 'Psicólogo/a', emoji: '🧠' },
   centro_acopio: { etiqueta: 'Centro de acopio', emoji: '📦' },
   acopio_admin: { etiqueta: 'Admin de centros de acopio', emoji: '🗂️' },
   lider_voluntarios: { etiqueta: 'Líder de voluntarios', emoji: '⭐' },
+  lider_psicologo: { etiqueta: 'Psicólogo/a líder', emoji: '🧠' },
   verificador: { etiqueta: 'Verificador', emoji: '✅' },
   admin: { etiqueta: 'Administrador', emoji: '🛡️' },
 }
@@ -187,6 +197,11 @@ export const TIPO_META: Record<
   { etiqueta: string; emoji: string; color: string }
 > = {
   rescate: { etiqueta: 'Rescate', emoji: '🆘', color: '#CC0001' },
+  atencion_psicologica: {
+    etiqueta: 'Atención psicológica',
+    emoji: '🧠',
+    color: '#7C3AED',
+  },
   agua_comida: { etiqueta: 'Agua / Comida', emoji: '🥫', color: '#EA580C' },
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
