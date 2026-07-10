@@ -28,6 +28,7 @@ import {
   iconoUsuario,
 } from '../lib/iconos'
 import IconoRuta from './IconoRuta'
+import BotonInstalar from './BotonInstalar'
 
 function IconoCompartir({ className = '' }: { className?: string }) {
   return (
@@ -503,6 +504,10 @@ function ControlesMapa({
 
   return (
     <div className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] flex flex-col items-end gap-2">
+      {/* Instalar app (Android directo; iPhone con instrucciones). Desaparece
+          para siempre al instalar. Permite usar la app sin Internet. */}
+      <BotonInstalar />
+
       <button
         onClick={() => setCompartirAbierto(true)}
         className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"

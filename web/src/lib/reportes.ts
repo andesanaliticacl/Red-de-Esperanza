@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { paisPorIP } from './visitas'
 import type { NecesidadTipo, NecesidadUrgencia } from './types'
+import { encolarReporte, reportesEnCola, quitarDeCola } from './colaOffline'
 
 // Máximo de solicitudes por día con el mismo teléfono (se bloquea la 4.ª).
 const LIMITE_POR_TELEFONO_DIA = 3
@@ -50,37 +51,43 @@ export interface NuevoReporte {
   contactoObligatorio?: boolean
 }
 
-/**
- * Inserta una necesidad y, si hay contacto, lo guarda en la tabla privada
- * `contactos_necesidad` (nunca expuesta al público).
- *
- * El contacto vive en una tabla aparte por privacidad (Realtime entrega la fila
- * completa de `necesidades`, así que el teléfono no puede vivir ahí). Cuando es
- * obligatorio, garantizamos que se guarde: reintentamos y, si aun así falla,
- * borramos la necesidad recién creada y lanzamos error, para que nunca quede una
- * solicitud "fantasma" sin número (era el caso del SOS sin teléfono).
- */
-export async function crearNecesidad(r: NuevoReporte) {
-  // Anti-spam: una persona no puede crear más de LIMITE_POR_TELEFONO_DIA
-  // solicitudes al día con el MISMO teléfono. Se valida ANTES de crear nada.
-  if (r.contacto && r.contactoObligatorio) {
-    const { data: n } = await supabase.rpc('reportes_hoy_por_telefono', {
-      p_tel: r.contacto,
-    })
-    if ((n ?? 0) >= LIMITE_POR_TELEFONO_DIA) {
-      throw new Error(
-        `Ya registraste ${LIMITE_POR_TELEFONO_DIA} solicitudes hoy con este número de teléfono. Por seguridad no se permiten más por hoy; si es una nueva emergencia, contacta a un voluntario o llama al 911.`,
-      )
-    }
-  }
+export interface ResultadoReporte {
+  /** Id de la necesidad (se genera en el cliente, exista o no conexión). */
+  id: string
+  /** true si NO había Internet: quedó en cola y se enviará al reconectar. */
+  offline?: boolean
+}
 
-  // Origen (país/ciudad por IP) de quien crea la solicitud, en paralelo.
+/** ¿El error viene de falta de red (y no de un rechazo del servidor)? */
+function esErrorDeRed(e: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true
+  const m = ((e as Error)?.message ?? '').toLowerCase()
+  return (
+    m.includes('failed to fetch') ||
+    m.includes('networkerror') ||
+    m.includes('load failed') ||
+    m.includes('fetch')
+  )
+}
+
+/**
+ * Inserta la necesidad (con el id dado) y, si hay contacto, lo guarda en la tabla
+ * privada `contactos_necesidad`. No valida el límite diario (eso es solo para el
+ * alta directa con conexión). Lanza si algo falla (red o servidor).
+ *
+ * El contacto vive aparte por privacidad (Realtime entrega la fila completa de
+ * `necesidades`). Cuando es obligatorio, garantizamos que se guarde: reintentamos
+ * y, si aun así falla, borramos la necesidad para no dejar una solicitud sin número.
+ */
+async function insertarReporteEnServidor(
+  id: string,
+  r: NuevoReporte,
+): Promise<void> {
   const origenPromesa = r.contacto ? origenConTimeout() : null
 
   // Si quien reporta está autenticado, guardamos su id para habilitar el chat.
   const { data: auth } = await supabase.auth.getUser()
   const reportado_por = auth?.user?.id ?? null
-  const id = crearIdReporte()
 
   const { error } = await supabase.from('necesidades').insert({
     id,
@@ -101,7 +108,6 @@ export async function crearNecesidad(r: NuevoReporte) {
 
   if (r.contacto) {
     const origen = (await origenPromesa) ?? { pais: null, ciudad: null }
-    // Reintentamos un par de veces por si hay un fallo de red puntual.
     let errContacto = null
     for (let intento = 0; intento < 3; intento++) {
       const res = await supabase.from('contactos_necesidad').insert({
@@ -115,7 +121,6 @@ export async function crearNecesidad(r: NuevoReporte) {
     }
     if (errContacto) {
       if (r.contactoObligatorio) {
-        // No dejamos una solicitud sin teléfono: deshacemos lo creado y avisamos.
         await supabase.from('necesidades').delete().eq('id', id)
         throw new Error(
           'No pudimos guardar tu número de teléfono. Revisa tu conexión e inténtalo de nuevo: es obligatorio para que puedan contactarte.',
@@ -124,8 +129,69 @@ export async function crearNecesidad(r: NuevoReporte) {
       console.error('No se pudo guardar el contacto:', errContacto.message)
     }
   }
+}
 
-  return { id }
+/**
+ * Crea una necesidad. Si NO hay Internet, la guarda en una cola local (en el
+ * teléfono) y se enviará sola al recuperar la conexión: así se puede reportar
+ * offline. Con conexión, valida el límite diario por teléfono e inserta.
+ */
+export async function crearNecesidad(
+  r: NuevoReporte,
+): Promise<ResultadoReporte> {
+  const id = crearIdReporte()
+
+  // Sin Internet: a la cola y salimos. El sincronizador la vaciará al reconectar.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    encolarReporte(id, r)
+    return { id, offline: true }
+  }
+
+  // Anti-spam (solo con conexión): máx. LIMITE por día con el MISMO teléfono.
+  if (r.contacto && r.contactoObligatorio) {
+    const { data: n, error } = await supabase.rpc('reportes_hoy_por_telefono', {
+      p_tel: r.contacto,
+    })
+    if (!error && (n ?? 0) >= LIMITE_POR_TELEFONO_DIA) {
+      throw new Error(
+        `Ya registraste ${LIMITE_POR_TELEFONO_DIA} solicitudes hoy con este número de teléfono. Por seguridad no se permiten más por hoy; si es una nueva emergencia, contacta a un voluntario o llama al 911.`,
+      )
+    }
+  }
+
+  try {
+    await insertarReporteEnServidor(id, r)
+    return { id }
+  } catch (e) {
+    // Si se cayó la red a mitad, no perdemos el reporte: va a la cola.
+    if (esErrorDeRed(e)) {
+      encolarReporte(id, r)
+      return { id, offline: true }
+    }
+    throw e
+  }
+}
+
+/**
+ * Reintenta enviar los reportes que quedaron en cola sin Internet. Devuelve
+ * cuántos se enviaron. Se llama al recuperar la conexión y al abrir la app.
+ */
+export async function sincronizarCola(): Promise<number> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 0
+  let enviados = 0
+  for (const item of reportesEnCola()) {
+    try {
+      await insertarReporteEnServidor(item.id, item.reporte)
+      quitarDeCola(item.id)
+      enviados++
+    } catch (e) {
+      // Sigue sin red: paramos y reintentamos más tarde (no perdemos nada).
+      if (esErrorDeRed(e)) break
+      // Rechazo del servidor (p. ej. validación): lo quitamos para no repetir.
+      quitarDeCola(item.id)
+    }
+  }
+  return enviados
 }
 
 /**

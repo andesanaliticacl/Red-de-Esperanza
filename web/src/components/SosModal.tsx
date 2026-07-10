@@ -24,6 +24,8 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
   const [gps, setGps] = useState<'idle' | 'buscando' | 'error'>('idle')
   const [enviando, setEnviando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  // Si se envió SIN Internet: quedó en cola y saldrá al reconectar.
+  const [enviadoOffline, setEnviadoOffline] = useState(false)
 
   async function usarUbicacion() {
     setGps('buscando')
@@ -53,7 +55,7 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
       .filter(Boolean)
       .join('. ')
     try {
-      await crearNecesidad({
+      const res = await crearNecesidad({
         tipo: 'rescate',
         urgencia: 'alta',
         descripcion: detalle || 'SOS — Necesito rescate',
@@ -63,6 +65,7 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
         contactoObligatorio: true,
         origen: 'sos',
       })
+      setEnviadoOffline(!!res.offline)
       setPaso('enviado')
     } catch (e) {
       setErrorMsg((e as Error).message || 'No se pudo enviar. Intenta de nuevo.')
@@ -98,11 +101,24 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
         {paso === 'enviado' ? (
           <>
             <div className="text-6xl mb-4">🆘</div>
-            <h2 className="text-3xl font-extrabold mb-3">Alerta enviada</h2>
-            <p className="text-lg mb-2">
-              Avisamos a los rescatistas y voluntarios cercanos. Mantén el
-              teléfono contigo.
-            </p>
+            <h2 className="text-3xl font-extrabold mb-3">
+              {enviadoOffline ? 'SOS guardado' : 'Alerta enviada'}
+            </h2>
+            {enviadoOffline ? (
+              <div className="mb-3 w-full rounded-xl bg-white/15 border border-white/30 p-3 text-left">
+                <p className="text-base font-bold">📴 Estás sin Internet</p>
+                <p className="text-sm text-white/90 mt-1">
+                  Tu SOS quedó guardado en el teléfono y se enviará
+                  automáticamente en cuanto recuperes la conexión. Si es de vida
+                  o muerte, llama también al {NUMERO_EMERGENCIA}.
+                </p>
+              </div>
+            ) : (
+              <p className="text-lg mb-2">
+                Avisamos a los rescatistas y voluntarios cercanos. Mantén el
+                teléfono contigo.
+              </p>
+            )}
             <p className="text-base mb-6 text-white/90">
               Si es una emergencia de vida o muerte, llama también a emergencias:
             </p>
