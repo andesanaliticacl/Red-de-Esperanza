@@ -210,7 +210,7 @@ export const TIPO_META: Record<
 > = {
   rescate: { etiqueta: 'Rescate', emoji: '🆘', color: '#CC0001' },
   atencion_psicologica: {
-    etiqueta: 'Atención psicológica',
+    etiqueta: 'Apoyo emocional',
     emoji: '🧠',
     color: '#7C3AED',
   },
