@@ -1,8 +1,13 @@
 # Chat con validacion de IP
 
 Esta funcion es obligatoria para que el chat no pueda escribirse saltandose el
-frontend. Valida la IP en servidor y solo inserta mensajes si el pais detectado
-es Venezuela.
+frontend. Valida la IP en servidor y solo inserta el mensaje si el pais
+detectado coincide con el pais dueño de la sala (`ciudad`) a la que se
+escribe: Venezuela (salas = solo el nombre del estado, sin prefijo, para no
+romper el historial anterior al selector de pais) o Chile (salas
+`chile/<region>`). Agregar un pais nuevo implica sumarlo tanto aqui
+(`REGIONES_CHILE`/`ESTADOS_VENEZUELA` y `paisEsperadoDeSala`) como en
+`web/src/lib/regionesChat.ts` — deben quedar sincronizados.
 
 ## 1) Desplegar la Edge Function
 
@@ -63,3 +68,16 @@ VITE_CHAT_DEV_BYPASS_TOKEN=un-token-largo-y-random
 
 Este bypass solo se envia desde builds de desarrollo de Vite y la Edge Function
 solo lo acepta si el `Origin` es `localhost`, `127.0.0.1` o `::1`.
+
+## 5) Redesplegar tras cambios en index.ts
+
+Cada vez que se edite `index.ts` (como al sumar Chile) hay que volver a correr:
+
+```bash
+supabase functions deploy enviar-chat --no-verify-jwt
+```
+
+El frontend por si solo NO alcanza: la validacion de pais/sala vive en el
+servidor. Sin este redeploy, los mensajes desde Chile seguiran siendo
+rechazados con el error viejo aunque el mapa y el resto de la app ya esten
+actualizados.
