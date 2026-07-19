@@ -499,11 +499,15 @@ export default function ReportarModal({
   )
 
   // Fecha corta de creación de una catástrofe (para la lista del selector).
+  // timeZone: 'UTC' evita que la fecha "salte" un día atrás para quien mira
+  // desde un huso horario negativo (Venezuela, Chile...): la medianoche UTC
+  // sembrada en la migración debe verse siempre como el mismo día calendario.
   const fechaCatastrofe = (iso: string) =>
     new Date(iso).toLocaleDateString('es-VE', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+      timeZone: 'UTC',
     })
 
   const bloqueCatastrofe = (
