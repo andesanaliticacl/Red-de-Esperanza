@@ -9,11 +9,27 @@ import { esLiderPsicologia } from '../lib/roles'
 import ChatNecesidad from '../components/ChatNecesidad'
 import TextoExpandible from '../components/TextoExpandible'
 import {
+  listarSeguimientos,
+  ultimosSeguimientos,
+  crearSeguimiento,
+  type SeguimientoPsicologia,
+} from '../lib/seguimientos'
+import {
   TIPO_META,
   URGENCIA_META,
   type Necesidad,
   type PerfilPublico,
 } from '../lib/types'
+
+// Fecha corta (día/mes) para el próximo contacto agendado.
+function fechaCortaDia(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('es-VE', {
+    day: '2-digit',
+    month: 'short',
+  })
+}
+
+const HOY_ISO = () => new Date().toISOString().slice(0, 10)
 
 const COLS_NECESIDAD =
   'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa'
@@ -60,6 +76,10 @@ export default function PsicologiaView() {
   const [aCerrar, setACerrar] = useState<Necesidad | null>(null)
   const [notaCierre, setNotaCierre] = useState('')
   const [cargando, setCargando] = useState(true)
+  const [seguimiento, setSeguimiento] = useState<Necesidad | null>(null)
+  const [ultimos, setUltimos] = useState<Map<string, SeguimientoPsicologia>>(
+    new Map(),
+  )
 
   async function cargar() {
     setCargando(true)
@@ -108,6 +128,15 @@ export default function PsicologiaView() {
     nombresPublicos(ids).then(setNombres)
   }, [necesidades])
 
+  useEffect(() => {
+    const abiertas = necesidades
+      .filter((n) => !n.eliminada_del_mapa && n.estado !== 'resuelta')
+      .map((n) => n.id)
+    ultimosSeguimientos(abiertas)
+      .then(setUltimos)
+      .catch(() => setUltimos(new Map()))
+  }, [necesidades])
+
   const stats = useMemo(() => {
     const activas = necesidades.filter((n) => !n.eliminada_del_mapa)
     const abiertas = activas.filter(
@@ -116,8 +145,17 @@ export default function PsicologiaView() {
     const enProceso = activas.filter((n) => n.estado === 'en_proceso').length
     const mias = activas.filter((n) => n.asignado_a === perfil?.id).length
     const resueltas = activas.filter((n) => n.estado === 'resuelta').length
-    return { total: necesidades.length, abiertas, enProceso, mias, resueltas }
-  }, [necesidades, perfil?.id])
+    // Seguimiento atrasado: casos en proceso sin ningún seguimiento aún, o con
+    // un próximo contacto ya vencido. Ayuda a no perder pacientes de vista.
+    const hoy = HOY_ISO()
+    const atrasados = activas.filter((n) => {
+      if (n.estado !== 'en_proceso') return false
+      const u = ultimos.get(n.id)
+      if (!u) return true
+      return !!u.proximo_contacto && u.proximo_contacto < hoy
+    }).length
+    return { total: necesidades.length, abiertas, enProceso, mias, resueltas, atrasados }
+  }, [necesidades, perfil?.id, ultimos])
 
   const lista = useMemo(
     () =>
@@ -224,12 +262,13 @@ export default function PsicologiaView() {
 
       <section className="card">
         <h2 className="font-bold text-sm text-gray-600 mb-2">Dashboard</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
           <Stat etiqueta="Total" n={stats.total} color="#7C3AED" />
           <Stat etiqueta="Abiertas" n={stats.abiertas} color="#CC0001" />
           <Stat etiqueta="En seguimiento" n={stats.enProceso} color="#002FA7" />
           <Stat etiqueta="Asignadas a mí" n={stats.mias} color="#16A34A" />
           <Stat etiqueta="Finalizadas" n={stats.resueltas} color="#475569" />
+          <Stat etiqueta="Seguimiento atrasado" n={stats.atrasados} color="#EA580C" />
         </div>
       </section>
 
@@ -279,9 +318,11 @@ export default function PsicologiaView() {
               esLider={esLider}
               trabajando={trabajando === n.id}
               puedeCerrar={esLider || n.asignado_a === perfil?.id}
+              ultimoSeguimiento={ultimos.get(n.id)}
               onAsignarme={() => void asignarme(n)}
               onAsignar={(id) => void asignar(n, id)}
               onChat={() => setChat(n)}
+              onSeguimiento={() => setSeguimiento(n)}
               onReabrir={() => void reabrirSolicitud(n)}
               onCerrar={() => {
                 setNotaCierre('')
@@ -342,6 +383,23 @@ export default function PsicologiaView() {
           </div>
         </div>
       )}
+
+      {seguimiento && (
+        <ModalSeguimiento
+          n={seguimiento}
+          autorId={perfil?.id ?? null}
+          onCerrar={() => setSeguimiento(null)}
+          onGuardado={() => {
+            ultimosSeguimientos(
+              necesidades
+                .filter((x) => !x.eliminada_del_mapa && x.estado !== 'resuelta')
+                .map((x) => x.id),
+            )
+              .then(setUltimos)
+              .catch(() => {})
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -366,9 +424,11 @@ function SolicitudPsicologica({
   esLider,
   trabajando,
   puedeCerrar,
+  ultimoSeguimiento,
   onAsignarme,
   onAsignar,
   onChat,
+  onSeguimiento,
   onReabrir,
   onCerrar,
 }: {
@@ -380,14 +440,22 @@ function SolicitudPsicologica({
   esLider: boolean
   trabajando: boolean
   puedeCerrar: boolean
+  ultimoSeguimiento?: SeguimientoPsicologia
   onAsignarme: () => void
   onAsignar: (id: string | null) => void
   onChat: () => void
+  onSeguimiento: () => void
   onReabrir: () => void
   onCerrar: () => void
 }) {
   const abierta = n.estado === 'sin_verificar' || n.estado === 'verificada'
   const atendida = n.estado === 'resuelta'
+  const enProceso = n.estado === 'en_proceso'
+  const atrasado =
+    enProceso &&
+    (!ultimoSeguimiento ||
+      (!!ultimoSeguimiento.proximo_contacto &&
+        ultimoSeguimiento.proximo_contacto < HOY_ISO()))
   return (
     <div className={`card flex items-start gap-3 ${atendida ? 'bg-gray-50 opacity-90' : ''}`}>
       <span className="shrink-0 w-7 h-7 grid place-items-center rounded-full bg-bandera-azul text-white text-xs font-bold">
@@ -420,6 +488,27 @@ function SolicitudPsicologica({
         <div className="text-xs font-semibold text-bandera-azul">
           Atiende: {asignado?.nombre ?? 'Sin asignar'}
         </div>
+        {enProceso && (
+          <div
+            className={`text-xs font-semibold ${atrasado ? 'text-bandera-rojo' : 'text-gray-600'}`}
+          >
+            {ultimoSeguimiento ? (
+              <>
+                📝 Último seguimiento: {fechaCorta(ultimoSeguimiento.creado_en)}
+                {ultimoSeguimiento.proximo_contacto && (
+                  <>
+                    {' '}
+                    · Próximo contacto:{' '}
+                    {fechaCortaDia(ultimoSeguimiento.proximo_contacto)}
+                    {atrasado && ' (atrasado)'}
+                  </>
+                )}
+              </>
+            ) : (
+              '⚠️ Sin seguimiento registrado todavía'
+            )}
+          </div>
+        )}
         {atendida && (
           <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700">
             Solicitud atendida. No se puede asignar ni contactar mientras esté
@@ -486,6 +575,16 @@ function SolicitudPsicologica({
         <button onClick={onChat} className="btn-gris py-2 px-3 text-sm">
           Contactar
         </button>
+        <button
+          onClick={onSeguimiento}
+          className={`py-2 px-3 text-sm rounded-2xl font-bold border-2 ${
+            atrasado
+              ? 'border-bandera-rojo text-bandera-rojo'
+              : 'border-bandera-azul text-bandera-azul'
+          }`}
+        >
+          📝 Seguimiento
+        </button>
         {puedeCerrar && n.estado !== 'resuelta' && (
           <button
             onClick={onCerrar}
@@ -496,6 +595,149 @@ function SolicitudPsicologica({
           </button>
         )}
           </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Bitácora de seguimiento de UN caso: historial (más reciente primero) +
+ * formulario para agregar nota y agendar el próximo contacto. Privado del
+ * equipo psicológico (lo exige la RLS de seguimientos_psicologia).
+ */
+function ModalSeguimiento({
+  n,
+  autorId,
+  onCerrar,
+  onGuardado,
+}: {
+  n: Necesidad
+  autorId: string | null
+  onCerrar: () => void
+  onGuardado: () => void
+}) {
+  const [historial, setHistorial] = useState<SeguimientoPsicologia[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [nota, setNota] = useState('')
+  const [proximoContacto, setProximoContacto] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  async function cargar() {
+    setCargando(true)
+    try {
+      setHistorial(await listarSeguimientos(n.id))
+    } catch (e) {
+      setErrorMsg((e as Error).message)
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  useEffect(() => {
+    void cargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n.id])
+
+  async function guardar() {
+    setGuardando(true)
+    setErrorMsg('')
+    try {
+      await crearSeguimiento({
+        necesidadId: n.id,
+        autor: autorId,
+        nota,
+        proximoContacto: proximoContacto || null,
+      })
+      setNota('')
+      setProximoContacto('')
+      await cargar()
+      onGuardado()
+    } catch (e) {
+      setErrorMsg((e as Error).message)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[2600] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onCerrar}
+    >
+      <div
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-5 max-h-[92vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-extrabold text-bandera-azul">
+            📝 Seguimiento del caso
+          </h2>
+          <button
+            onClick={onCerrar}
+            className="text-2xl text-gray-400 leading-none"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+        <TextoExpandible texto={n.descripcion} className="text-sm text-gray-600 mb-3" />
+
+        <div className="space-y-2 mb-4">
+          <label className="block">
+            <span className="font-bold text-sm">Nota de la sesión / contacto</span>
+            <textarea
+              className="input mt-1 min-h-[80px]"
+              placeholder="¿Qué se habló? ¿Cómo sigue la persona?"
+              maxLength={2000}
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="font-bold text-sm">Próximo contacto (opcional)</span>
+            <input
+              type="date"
+              className="input mt-1"
+              value={proximoContacto}
+              onChange={(e) => setProximoContacto(e.target.value)}
+            />
+          </label>
+          {errorMsg && (
+            <p className="text-sm font-semibold text-bandera-rojo">{errorMsg}</p>
+          )}
+          <button
+            onClick={() => void guardar()}
+            disabled={guardando || !nota.trim()}
+            className="btn-azul w-full disabled:opacity-60"
+          >
+            {guardando ? 'Guardando…' : 'Guardar seguimiento'}
+          </button>
+        </div>
+
+        <h3 className="font-bold text-sm text-gray-600 mb-2">Historial</h3>
+        {cargando ? (
+          <p className="text-sm text-gray-500">Cargando…</p>
+        ) : historial.length === 0 ? (
+          <p className="text-sm text-gray-500">Aún no hay seguimientos registrados.</p>
+        ) : (
+          <ul className="space-y-2">
+            {historial.map((s) => (
+              <li
+                key={s.id}
+                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2"
+              >
+                <div className="text-xs text-gray-500">
+                  {fechaCorta(s.creado_en)}
+                  {s.proximo_contacto && (
+                    <> · Próximo contacto: {fechaCortaDia(s.proximo_contacto)}</>
+                  )}
+                </div>
+                <div className="text-sm text-gray-800 whitespace-pre-wrap">{s.nota}</div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
