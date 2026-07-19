@@ -10,6 +10,7 @@ import EntradaTelefono, {
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
+import { validarDocumentoPsicologo } from '../lib/documentos'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -59,11 +60,13 @@ export default function EditarPerfilView() {
   const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
-  // Roles de atención solo en Venezuela.
+  // Voluntario/rescatista requieren estar en Venezuela; psicólogo/a es
+  // remoto y queda disponible desde cualquier país (igual que en el
+  // registro), aunque su documento solo se valida para Venezuela/Chile.
   const enVenezuela = pais === 'Venezuela'
   const rolesElegibles: RolRegistro[] = enVenezuela
     ? ROLES_ELEGIBLES
-    : ['ciudadano', 'centro_acopio']
+    : ['ciudadano', 'psicologo', 'centro_acopio']
 
   async function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -101,6 +104,23 @@ export default function EditarPerfilView() {
     if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
       setErrorMsg(mensajeTelefonoVenezuela())
       return
+    }
+    // Psicólogo/a exige documento válido. Solo re-validamos si algo de eso
+    // cambió: así no bloqueamos a quien ya era psicólogo/a antes de esta
+    // regla y solo quiere editar, por ejemplo, su foto.
+    const yaEraPsicologo = rol === 'psicologo'
+    const documentoCambio =
+      nuevoRol === 'psicologo' &&
+      (!yaEraPsicologo ||
+        pais !== (perfil?.pais ?? 'Venezuela') ||
+        tipoDoc !== (perfil?.tipo_documento ?? 'cedula') ||
+        documento.trim() !== (perfil?.documento ?? ''))
+    if (documentoCambio) {
+      const check = validarDocumentoPsicologo(pais, tipoDoc, documento)
+      if (!check.valido) {
+        setErrorMsg(check.mensaje)
+        return
+      }
     }
     setGuardando(true)
     setErrorMsg('')
@@ -174,16 +194,15 @@ export default function EditarPerfilView() {
                 setPais(v)
                 if (
                   v !== 'Venezuela' &&
-                  (nuevoRol === 'voluntario' ||
-                    nuevoRol === 'rescatista' ||
-                    nuevoRol === 'psicologo')
+                  (nuevoRol === 'voluntario' || nuevoRol === 'rescatista')
                 )
                   setNuevoRol('ciudadano')
               }}
             />
             {!enVenezuela && (
               <p className="text-xs text-gray-500 mt-1">
-                Fuera de Venezuela solo puedes ser ciudadano o centro de acopio.
+                Fuera de Venezuela puedes ser ciudadano, psicólogo/a o centro
+                de acopio.
               </p>
             )}
           </div>
@@ -251,7 +270,11 @@ export default function EditarPerfilView() {
                     : 'border-gray-200 text-gray-500'
                 }`}
               >
-                {t === 'cedula' ? 'Cédula' : 'Pasaporte'}
+                {t === 'cedula'
+                  ? pais === 'Chile'
+                    ? 'RUT'
+                    : 'Cédula'
+                  : 'Pasaporte'}
               </button>
             ))}
           </div>
@@ -259,8 +282,20 @@ export default function EditarPerfilView() {
             className="input"
             value={documento}
             onChange={(e) => setDocumento(e.target.value)}
-            placeholder={tipoDoc === 'cedula' ? 'Ej: V-12345678' : 'N.º de pasaporte'}
+            placeholder={
+              tipoDoc === 'cedula'
+                ? pais === 'Chile'
+                  ? 'Ej: 12.345.678-5'
+                  : 'Ej: V-12345678'
+                : 'N.º de pasaporte'
+            }
           />
+          {nuevoRol === 'psicologo' && (
+            <p className="text-xs text-gray-500 mt-1">
+              Como psicólogo/a, tu documento se valida: cédula/pasaporte
+              venezolano o RUT/pasaporte chileno.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2">

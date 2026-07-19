@@ -9,6 +9,7 @@ import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
 import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
+import { validarDocumentoPsicologo } from '../lib/documentos'
 import {
   ROL_META,
   type RolRegistro,
@@ -116,6 +117,16 @@ export default function RegistroView() {
     if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
       setErrorMsg(mensajeTelefonoVenezuela())
       return
+    }
+    // Psicólogo/a exige un documento válido (cédula/pasaporte venezolano o
+    // RUT/pasaporte chileno): es quien atiende casos sensibles de salud
+    // mental, así que el equipo necesita verificar identidad real.
+    if (rol === 'psicologo') {
+      const check = validarDocumentoPsicologo(pais, tipoDoc, documento)
+      if (!check.valido) {
+        setErrorMsg(check.mensaje)
+        return
+      }
     }
     setEnviando(true)
     try {
@@ -278,19 +289,33 @@ export default function RegistroView() {
                       : 'border-gray-200 text-gray-500'
                   }`}
                 >
-                  {t === 'cedula' ? 'Cédula' : 'Pasaporte'}
+                  {t === 'cedula'
+                    ? pais === 'Chile'
+                      ? 'RUT'
+                      : 'Cédula'
+                    : 'Pasaporte'}
                 </button>
               ))}
             </div>
             <input
               className="input"
               placeholder={
-                tipoDoc === 'cedula' ? 'Ej: V-12345678' : 'N.º de pasaporte'
+                tipoDoc === 'cedula'
+                  ? pais === 'Chile'
+                    ? 'Ej: 12.345.678-5'
+                    : 'Ej: V-12345678'
+                  : 'N.º de pasaporte'
               }
               required
               value={documento}
               onChange={(e) => setDocumento(e.target.value)}
             />
+            {rol === 'psicologo' && (
+              <p className="text-xs text-gray-500 mt-1">
+                Como psicólogo/a, tu documento se valida: cédula/pasaporte
+                venezolano o RUT/pasaporte chileno.
+              </p>
+            )}
           </div>
 
           {/* Zona (se adapta al país: Estado / Región / Provincia…) + ciudad */}
