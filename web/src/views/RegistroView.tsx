@@ -60,6 +60,7 @@ const ROLES_VALIDOS: RolRegistro[] = [
   'ciudadano',
   'voluntario',
   'rescatista',
+  'psicologo',
   'centro_acopio',
 ]
 
@@ -91,11 +92,13 @@ export default function RegistroView() {
   // Ciudades sugeridas según la zona elegida (autocompletar, no obligatorio).
   const ciudadesSugeridas = ciudadesDeZona(isoPais, estado)
 
-  // Voluntario/rescatista solo para quienes están en Venezuela.
+  // Voluntario/rescatista requieren estar en el terreno: solo Venezuela. El
+  // apoyo emocional es remoto (teléfono/chat), así que psicólogo/a está
+  // disponible desde cualquier país, igual que ciudadano y centro de acopio.
   const enVenezuela = pais === 'Venezuela'
   const rolesDisponibles: RolRegistro[] = enVenezuela
-    ? ['ciudadano', 'voluntario', 'rescatista', 'centro_acopio']
-    : ['ciudadano', 'centro_acopio']
+    ? ['ciudadano', 'voluntario', 'rescatista', 'psicologo', 'centro_acopio']
+    : ['ciudadano', 'psicologo', 'centro_acopio']
 
   const [verPass, setVerPass] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -187,8 +190,8 @@ export default function RegistroView() {
           Crear cuenta
         </h1>
         <p className="text-gray-600 mb-5 text-sm">
-          Para participar como ciudadano, voluntario, rescatista o centro de
-          acopio.
+          Para participar como ciudadano, voluntario, rescatista, psicólogo/a
+          o centro de acopio.
         </p>
 
         <form onSubmit={registrar} className="space-y-4">
@@ -202,20 +205,20 @@ export default function RegistroView() {
                 setPais(v)
                 // Al cambiar de país, la zona anterior ya no aplica.
                 setEstado('')
-                // Roles de atención solo en Venezuela: si cambia, reseteamos.
+                // Voluntario/rescatista requieren estar en Venezuela: si el
+                // país cambia, reseteamos. Psicólogo/a sí viaja entre países
+                // (apoyo remoto).
                 if (
                   v !== 'Venezuela' &&
-                  (rol === 'voluntario' ||
-                    rol === 'rescatista' ||
-                    rol === 'psicologo')
+                  (rol === 'voluntario' || rol === 'rescatista')
                 )
                   setRol('ciudadano')
               }}
             />
             {!enVenezuela && (
               <p className="text-xs text-gray-500 mt-1">
-                Fuera de Venezuela puedes participar como ciudadano o centro de
-                acopio.
+                Fuera de Venezuela puedes participar como ciudadano, psicólogo/a
+                o centro de acopio.
               </p>
             )}
           </div>

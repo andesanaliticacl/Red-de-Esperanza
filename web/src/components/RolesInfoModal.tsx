@@ -19,7 +19,7 @@ export default function RolesInfoModal({ onCerrar }: { onCerrar: () => void }) {
     {
       emoji: '🧠',
       t: 'Psicólogo/a',
-      d: 'Atiende solicitudes de atención psicológica. Puede tomar casos, conversar con la persona solicitante y cerrar la atención cuando quede coordinada o finalizada.',
+      d: 'Atiende solicitudes de apoyo emocional. Puede tomar casos, conversar con la persona solicitante, hacer seguimiento y cerrar la atención cuando quede coordinada o finalizada. Disponible desde cualquier país: el acompañamiento es remoto.',
     },
     {
       emoji: '📦',
