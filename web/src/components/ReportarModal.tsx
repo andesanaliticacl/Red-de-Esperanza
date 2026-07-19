@@ -809,8 +809,9 @@ export default function ReportarModal({
             preguntas + contacto directo con el equipo aliado (Praxis). */}
         {paso > 1 && esAtencionPsicologica && !perfilPsico && (
           <div className="space-y-3">
-            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-              ⚠️ Si tu vida está en riesgo o piensas en hacerte daño, llama{' '}
+            <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-sm text-purple-900">
+              💙 En estos momentos de incertidumbre te queremos acompañar. Si
+              sientes que es una emergencia inmediata, llama{' '}
               <strong>ahora</strong> a los servicios de emergencia de tu país
               (911 en Venezuela, 131 en Chile). Esta red no reemplaza una
               atención de urgencia.
