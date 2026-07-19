@@ -479,6 +479,12 @@ export default function CiudadanoView() {
   )
   const [desaparecidoSeleccionadoId, setDesaparecidoSeleccionadoId] =
     useState<string | null>(null)
+  // Fecha de la última carga de datos de desaparecidos (scraper_runs). La
+  // fuente puso autenticador y el scraper quedó pausado: esto avisa que los
+  // datos son un histórico y no se actualizan en vivo.
+  const [ultimaCargaDesap, setUltimaCargaDesap] = useState<string | null>(
+    null,
+  )
   const [abrirReporte, setAbrirReporte] = useState(false)
   const [abrirSos, setAbrirSos] = useState(false)
   const [chatNec, setChatNec] = useState<Necesidad | null>(null)
@@ -599,6 +605,30 @@ export default function CiudadanoView() {
   // tapan las necesidades a primera vista.
   const verDesap = verDesapManual ?? false
   const desapConCoords = totalDesap ?? 0
+
+  // Se consulta UNA sola vez, la primera vez que se abre la capa (no en cada
+  // toggle). El scraper (Python, fuera de la web) está PAUSADO: la fuente
+  // puso autenticador y no debe volver a correrse; esto solo lee el registro
+  // de su última corrida exitosa para avisar que el dato es histórico.
+  useEffect(() => {
+    if (!verDesap || ultimaCargaDesap !== null) return
+    supabase
+      .from('scraper_runs')
+      .select('finalizado_en, iniciado_en')
+      .eq('tipo', 'personas')
+      .eq('estado', 'ok')
+      .order('finalizado_en', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        setUltimaCargaDesap(
+          (data?.finalizado_en as string | undefined) ??
+            (data?.iniciado_en as string | undefined) ??
+            '',
+        )
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verDesap])
 
   // Centros visibles según el filtro:
   //  · 'todos'    → todos los centros (acopios + hospitales)
@@ -869,6 +899,18 @@ export default function CiudadanoView() {
                   ↗
                 </span>
               </a>
+              {ultimaCargaDesap && (
+                <p className="mb-2 text-[11px] text-gray-500 text-center">
+                  Datos históricos al{' '}
+                  {new Date(ultimaCargaDesap).toLocaleDateString('es-VE', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                  . La fuente ahora exige acceso autenticado: verifica en el
+                  sitio oficial si buscas información más reciente.
+                </p>
+              )}
               <input
                 type="search"
                 value={busqDesap}
