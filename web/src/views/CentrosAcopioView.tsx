@@ -46,6 +46,8 @@ import SelectorBandera, {
 } from '../components/SelectorBandera'
 import { type CentroAcopio } from '../lib/types'
 import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
+import { estaVencida } from '../lib/vida'
+import VidaRestante from '../components/VidaRestante'
 
 export default function CentrosAcopioView() {
   const { perfil, rol } = useAuth()
@@ -85,7 +87,11 @@ export default function CentrosAcopioView() {
       .select('*')
       .order('pais', { ascending: true })
       .limit(10000)
-    setCentros((data ?? []) as CentroAcopio[])
+    // Ciclo de vida de 4 días: los centros vencidos se OCULTAN al público
+    // (siguen en la base). Los hospitales no vencen. Quien puede editar todo
+    // (admins/líderes) los sigue viendo para poder renovarlos o depurarlos.
+    const todos = (data ?? []) as CentroAcopio[]
+    setCentros(puedeEditarTodo ? todos : todos.filter((c) => !estaVencida(c)))
     setCargando(false)
   }
 
@@ -336,6 +342,14 @@ export default function CentrosAcopioView() {
                       a ~{(distanciaMetros(yo.lat, yo.lng, c.lat, c.lng) / 1000).toFixed(1)} km
                     </div>
                   )}
+                  {/* Ciclo de vida de 4 días: contador + renovar. Si ya venció
+                      (solo lo ven los admins), renovarlo lo vuelve a publicar. */}
+                  {estaVencida(c) && (
+                    <div className="text-xs font-bold text-bandera-rojo mt-1">
+                      ⚠️ Oculto del mapa por falta de renovación
+                    </div>
+                  )}
+                  <VidaRestante item={c} esCentro />
                 </div>
                 <div className="flex flex-col gap-2">
                   <a

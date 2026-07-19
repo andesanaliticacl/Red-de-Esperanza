@@ -6,6 +6,9 @@ const CLAVE = 'esperanza.identidad'
 export interface Identidad {
   nombre: string
   estado: string
+  /** País de la sala elegida (Venezuela, Chile...). Opcional por compatibilidad
+   *  con identidades guardadas antes del selector de país (eran de Venezuela). */
+  pais?: string
   /** Teléfono del invitado (registro express), opcional. */
   telefono?: string
 }

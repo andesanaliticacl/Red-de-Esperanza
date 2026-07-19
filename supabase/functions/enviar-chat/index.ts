@@ -33,6 +33,30 @@ const ESTADOS_VENEZUELA = [
   'Zulia',
 ]
 
+// Chat multi-pais (Fase Red Global): Venezuela conserva su sala SIN prefijo
+// (solo el nombre del estado) para no romper el historial de chat que ya
+// existia antes de que hubiera selector de pais. Los paises nuevos usan el
+// esquema "pais/region" (ver web/src/lib/regionesChat.ts, que debe reflejar
+// exactamente esta misma lista).
+const REGIONES_CHILE = [
+  'Arica y Parinacota',
+  'Tarapaca',
+  'Antofagasta',
+  'Atacama',
+  'Coquimbo',
+  'Valparaiso',
+  'Metropolitana de Santiago',
+  "Libertador General Bernardo O'Higgins",
+  'Maule',
+  'Nuble',
+  'Biobio',
+  'La Araucania',
+  'Los Rios',
+  'Los Lagos',
+  'Aysen del General Carlos Ibanez del Campo',
+  'Magallanes y de la Antartica Chilena',
+]
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -124,17 +148,34 @@ async function paisPorIP(ip: string): Promise<{ pais: string | null; codigo: str
   return { pais: null, codigo: null }
 }
 
-function esVenezuela(geo: { pais: string | null; codigo: string | null }): boolean {
-  return (
-    geo.codigo?.toUpperCase() === 'VE' ||
-    geo.pais?.trim().toLowerCase() === 'venezuela'
-  )
+// Codigo ISO del pais dueño de una sala, segun su formato: Venezuela = solo
+// el nombre del estado; el resto = "pais/region". Null si la sala no es
+// valida en ningun pais soportado.
+function paisEsperadoDeSala(ciudad: string): 'VE' | 'CL' | null {
+  const sala = normalizarParaComparar(ciudad)
+  if (ESTADOS_VENEZUELA.some((e) => normalizarParaComparar(e) === sala)) {
+    return 'VE'
+  }
+  if (sala.startsWith('chile/')) {
+    const region = sala.slice('chile/'.length)
+    if (REGIONES_CHILE.some((r) => normalizarParaComparar(r) === region)) {
+      return 'CL'
+    }
+  }
+  return null
 }
 
-function ciudadValida(ciudad: string): boolean {
-  const sala = normalizarParaComparar(ciudad)
-  return ESTADOS_VENEZUELA.some(
-    (estado) => normalizarParaComparar(estado) === sala,
+function geoCoincideConPais(
+  geo: { pais: string | null; codigo: string | null },
+  esperado: 'VE' | 'CL',
+): boolean {
+  const nombrePorCodigo: Record<'VE' | 'CL', string> = {
+    VE: 'venezuela',
+    CL: 'chile',
+  }
+  return (
+    geo.codigo?.toUpperCase() === esperado ||
+    geo.pais?.trim().toLowerCase() === nombrePorCodigo[esperado]
   )
 }
 
@@ -158,30 +199,6 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'Solicitud invalida' }, { status: 400 })
   }
 
-  const permiteBypassDev = bypassDevPermitido(req, body.dev_bypass_token)
-  if (!permiteBypassDev) {
-    const ip = ipDeRequest(req)
-    if (!ip) {
-      return json(
-        { ok: false, error: 'No pudimos confirmar tu ubicacion. El chat queda en solo lectura.' },
-        { status: 403 },
-      )
-    }
-
-    const geo = await paisPorIP(ip)
-    if (!esVenezuela(geo)) {
-      return json(
-        {
-          ok: false,
-          error: geo.pais
-            ? `Solo se puede escribir desde Venezuela. Tu conexion se detecta desde ${geo.pais}.`
-            : 'Solo se puede escribir desde Venezuela. No pudimos confirmar tu ubicacion.',
-        },
-        { status: 403 },
-      )
-    }
-  }
-
   const ciudad = typeof body.ciudad === 'string' ? body.ciudad.trim() : ''
   const nombre = typeof body.nombre === 'string' ? body.nombre.trim().slice(0, 40) : ''
   const cuerpo = typeof body.cuerpo === 'string' ? body.cuerpo.trim().slice(0, 500) : ''
@@ -199,11 +216,40 @@ Deno.serve(async (req) => {
       ? body.respuesta_cuerpo.trim().slice(0, 180)
       : null
 
-  if (!ciudadValida(ciudad)) {
-    return json({ ok: false, error: 'Elige un estado de Venezuela valido.' }, { status: 400 })
+  const paisEsperado = paisEsperadoDeSala(ciudad)
+  if (!paisEsperado) {
+    return json(
+      { ok: false, error: 'Elige un estado o region valido para escribir.' },
+      { status: 400 },
+    )
   }
   if (nombre.length < 1 || cuerpo.length < 1) {
     return json({ ok: false, error: 'Nombre y mensaje son obligatorios.' }, { status: 400 })
+  }
+
+  const permiteBypassDev = bypassDevPermitido(req, body.dev_bypass_token)
+  if (!permiteBypassDev) {
+    const ip = ipDeRequest(req)
+    if (!ip) {
+      return json(
+        { ok: false, error: 'No pudimos confirmar tu ubicacion. El chat queda en solo lectura.' },
+        { status: 403 },
+      )
+    }
+
+    const geo = await paisPorIP(ip)
+    if (!geoCoincideConPais(geo, paisEsperado)) {
+      const nombrePais = paisEsperado === 'VE' ? 'Venezuela' : 'Chile'
+      return json(
+        {
+          ok: false,
+          error: geo.pais
+            ? `Esta sala es de ${nombrePais}. Tu conexion se detecta desde ${geo.pais}.`
+            : `Esta sala es de ${nombrePais}. No pudimos confirmar tu ubicacion.`,
+        },
+        { status: 403 },
+      )
+    }
   }
 
   const autor = await autorDesdeJWT(req)

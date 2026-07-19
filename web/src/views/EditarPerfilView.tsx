@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
@@ -9,7 +9,12 @@ import EntradaTelefono, {
 } from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
+import SolicitarPsicologoModal from '../components/SolicitarPsicologoModal'
 import { PAISES_MUNDO } from '../lib/paises'
+import {
+  misSolicitudesPsicologo,
+  type SolicitudPsicologo,
+} from '../lib/solicitudesPsicologo'
 import {
   ESTADOS_VENEZUELA,
   ROL_META,
@@ -17,11 +22,12 @@ import {
   type TipoDocumento,
 } from '../lib/types'
 
-const ROLES_ELEGIBLES: RolRegistro[] = [
+// 'psicologo' NO se autoasigna: lo otorga el equipo tras revisar una
+// solicitud (ver SolicitarPsicologoModal / lib/solicitudesPsicologo.ts).
+const ROLES_ELEGIBLES: Exclude<RolRegistro, 'psicologo'>[] = [
   'ciudadano',
   'voluntario',
   'rescatista',
-  'psicologo',
   'centro_acopio',
 ]
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
@@ -46,9 +52,9 @@ export default function EditarPerfilView() {
   const [estado, setEstado] = useState(perfil?.estado ?? '')
   const [pais, setPais] = useState(perfil?.pais ?? 'Venezuela')
   const [fotoUrl, setFotoUrl] = useState(perfil?.foto_url ?? '')
-  const [nuevoRol, setNuevoRol] = useState<RolRegistro | null>(
+  const [nuevoRol, setNuevoRol] = useState<Exclude<RolRegistro, 'psicologo'> | null>(
     rol && (ROLES_ELEGIBLES as string[]).includes(rol)
-      ? (rol as RolRegistro)
+      ? (rol as Exclude<RolRegistro, 'psicologo'>)
       : null,
   )
 
@@ -59,11 +65,26 @@ export default function EditarPerfilView() {
   const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
-  // Roles de atención solo en Venezuela.
+  // Voluntario/rescatista requieren estar en Venezuela.
   const enVenezuela = pais === 'Venezuela'
-  const rolesElegibles: RolRegistro[] = enVenezuela
+  const rolesElegibles: Exclude<RolRegistro, 'psicologo'>[] = enVenezuela
     ? ROLES_ELEGIBLES
     : ['ciudadano', 'centro_acopio']
+
+  // "Quiero ser psicólogo/a": solicitud aparte, no un rol autoasignable.
+  // Solo tiene sentido ofrecerla a quien todavía no es del equipo.
+  const puedeSolicitarPsicologo =
+    rol != null && rol !== 'psicologo' && rol !== 'lider_psicologo' && rol !== 'admin'
+  const [solicitudPsico, setSolicitudPsico] = useState<SolicitudPsicologo | null>(null)
+  const [abrirSolicitudPsico, setAbrirSolicitudPsico] = useState(false)
+
+  useEffect(() => {
+    if (!puedeSolicitarPsicologo) return
+    misSolicitudesPsicologo()
+      .then((lista) => setSolicitudPsico(lista[0] ?? null))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeSolicitarPsicologo])
 
   async function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -174,16 +195,14 @@ export default function EditarPerfilView() {
                 setPais(v)
                 if (
                   v !== 'Venezuela' &&
-                  (nuevoRol === 'voluntario' ||
-                    nuevoRol === 'rescatista' ||
-                    nuevoRol === 'psicologo')
+                  (nuevoRol === 'voluntario' || nuevoRol === 'rescatista')
                 )
                   setNuevoRol('ciudadano')
               }}
             />
             {!enVenezuela && (
               <p className="text-xs text-gray-500 mt-1">
-                Fuera de Venezuela solo puedes ser ciudadano o centro de acopio.
+                Fuera de Venezuela puedes ser ciudadano o centro de acopio.
               </p>
             )}
           </div>
@@ -251,7 +270,11 @@ export default function EditarPerfilView() {
                     : 'border-gray-200 text-gray-500'
                 }`}
               >
-                {t === 'cedula' ? 'Cédula' : 'Pasaporte'}
+                {t === 'cedula'
+                  ? pais === 'Chile'
+                    ? 'RUT'
+                    : 'Cédula'
+                  : 'Pasaporte'}
               </button>
             ))}
           </div>
@@ -259,7 +282,13 @@ export default function EditarPerfilView() {
             className="input"
             value={documento}
             onChange={(e) => setDocumento(e.target.value)}
-            placeholder={tipoDoc === 'cedula' ? 'Ej: V-12345678' : 'N.º de pasaporte'}
+            placeholder={
+              tipoDoc === 'cedula'
+                ? pais === 'Chile'
+                  ? 'Ej: 12.345.678-5'
+                  : 'Ej: V-12345678'
+                : 'N.º de pasaporte'
+            }
           />
         </div>
 
@@ -290,6 +319,43 @@ export default function EditarPerfilView() {
           </label>
         </div>
 
+        {/* Solicitud aparte: el rol psicólogo lo otorga el equipo, no se
+            autoasigna aquí. */}
+        {puedeSolicitarPsicologo && (
+          <div className="rounded-2xl border-2 border-purple-100 bg-purple-50/60 p-3">
+            {solicitudPsico?.estado === 'pendiente' ? (
+              <p className="text-sm text-purple-900">
+                🧠 Tu solicitud para ser psicólogo/a está en revisión. El
+                equipo te contactará por teléfono.
+              </p>
+            ) : solicitudPsico?.estado === 'rechazada' ? (
+              <div className="space-y-2">
+                <p className="text-sm text-purple-900">
+                  🧠 Tu solicitud anterior no fue aprobada
+                  {solicitudPsico.nota_revision
+                    ? `: ${solicitudPsico.nota_revision}`
+                    : '.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAbrirSolicitudPsico(true)}
+                  className="text-sm font-bold text-bandera-azul"
+                >
+                  Volver a solicitar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAbrirSolicitudPsico(true)}
+                className="text-sm font-bold text-bandera-azul"
+              >
+                🧠 ¿Quieres ser psicólogo/a? Solicítalo aquí
+              </button>
+            )}
+          </div>
+        )}
+
         {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
 
         <div className="flex gap-2">
@@ -310,6 +376,20 @@ export default function EditarPerfilView() {
         </div>
       </form>
       {verRoles && <RolesInfoModal onCerrar={() => setVerRoles(false)} />}
+      {abrirSolicitudPsico && (
+        <SolicitarPsicologoModal
+          nombreInicial={nombre}
+          telefonoInicial={telefono}
+          paisInicial={pais}
+          onCerrar={() => setAbrirSolicitudPsico(false)}
+          onEnviada={() => {
+            setAbrirSolicitudPsico(false)
+            misSolicitudesPsicologo()
+              .then((lista) => setSolicitudPsico(lista[0] ?? null))
+              .catch(() => {})
+          }}
+        />
+      )}
     </div>
   )
 }

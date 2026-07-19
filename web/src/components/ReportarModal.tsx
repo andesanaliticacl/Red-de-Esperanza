@@ -5,6 +5,11 @@ import {
   type NecesidadUrgencia,
 } from '../lib/types'
 import { crearNecesidad } from '../lib/reportes'
+import {
+  listarCatastrofes,
+  crearCatastrofe,
+  type Catastrofe,
+} from '../lib/catastrofes'
 import { supabase } from '../lib/supabase'
 import {
   buscarHospitalesGoogle,
@@ -16,13 +21,12 @@ import {
   obtenerUbicacion,
   geocodificarDireccion,
   parsearCoordenadas,
-  estaEnVenezuela,
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
 import EntradaTelefono, {
-  esTelefonoVenezuelaValido,
-  mensajeTelefonoVenezuela,
+  esTelefonoValido,
+  mensajeTelefono,
 } from './EntradaTelefono'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
@@ -34,6 +38,8 @@ const TIPOS: NecesidadTipo[] = [
   'medicinas',
   'refugio',
   'derrumbe',
+  'inundacion',
+  'incendio',
   'otro',
 ]
 type TipoReporte = NecesidadTipo | 'hospital'
@@ -45,6 +51,25 @@ const HOSPITAL_META = {
 // Tamaños (DIÁMETRO aprox.) de una "zona sin atender", en km. Por defecto 3.
 // Guardamos el radio = diámetro / 2 para que el círculo sea fino y proporcional.
 const TAMANOS_ZONA = [1, 3, 5]
+
+// ===== Ayuda emocional =====
+// Contacto directo del equipo aliado, para quien no quiera esperar.
+const PRAXIS_NOMBRE = 'Praxis Grupos Operativos'
+const PRAXIS_TELEFONO = '+52 1 55 3320 0457'
+const PRAXIS_DESCRIPCION =
+  'Psicólogos · Salud y bienestar · Salud y seguridad ocupacional'
+
+// Perfil del caso: con quién estamos hablando. Le da contexto al equipo
+// psicológico ANTES del primer contacto.
+type PerfilPsicologico = 'rescatista' | 'a_distancia' | 'en_zona' | ''
+const PERFIL_PSICO_META: Record<
+  Exclude<PerfilPsicologico, ''>,
+  { etiqueta: string }
+> = {
+  rescatista: { etiqueta: 'Rescatista / voluntario con desgaste emocional' },
+  a_distancia: { etiqueta: 'Afectado/a fuera de la zona del desastre' },
+  en_zona: { etiqueta: 'Afectado/a en la zona del desastre' },
+}
 const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
   { v: 'alta', etiqueta: 'Alta', clase: 'btn-rojo' },
   { v: 'media', etiqueta: 'Media', clase: 'btn-amber' },
@@ -74,7 +99,10 @@ export default function ReportarModal({
   const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
   const [nombrePaciente, setNombrePaciente] = useState('')
+  const [edadPaciente, setEdadPaciente] = useState('')
   const [cedulaPaciente, setCedulaPaciente] = useState('')
+  // Perfil del caso psicológico (elegido en las tarjetas de ayuda emocional).
+  const [perfilPsico, setPerfilPsico] = useState<PerfilPsicologico>('')
   const [nombreHospital, setNombreHospital] = useState('')
   const [hospitalConfirmado, setHospitalConfirmado] =
     useState<HospitalGoogle | null>(null)
@@ -106,6 +134,13 @@ export default function ReportarModal({
   const [coordsTexto, setCoordsTexto] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  // Catástrofe (evento) opcional a la que pertenece el reporte.
+  const [catastrofes, setCatastrofes] = useState<Catastrofe[]>([])
+  const [catastrofeId, setCatastrofeId] = useState('')
+  const [creandoCatastrofe, setCreandoCatastrofe] = useState(false)
+  const [nombreCatastrofe, setNombreCatastrofe] = useState('')
+  const [paisCatastrofe, setPaisCatastrofe] = useState('')
+  const [guardandoCatastrofe, setGuardandoCatastrofe] = useState(false)
 
   const esDerrumbe = tipo === 'derrumbe'
   const esZona = tipo === 'zona_sin_atender'
@@ -135,6 +170,31 @@ export default function ReportarModal({
     if (!coordInicial) actualizarUbicacion()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Catástrofes disponibles (para etiquetar el reporte). Si falla, se sigue
+  // sin la lista: el campo es opcional y no debe frenar un reporte.
+  useEffect(() => {
+    listarCatastrofes()
+      .then(setCatastrofes)
+      .catch(() => setCatastrofes([]))
+  }, [])
+
+  async function crearCatastrofeNueva() {
+    setGuardandoCatastrofe(true)
+    setErrorMsg('')
+    try {
+      const nueva = await crearCatastrofe(nombreCatastrofe, paisCatastrofe)
+      setCatastrofes((prev) => [nueva, ...prev])
+      setCatastrofeId(nueva.id)
+      setCreandoCatastrofe(false)
+      setNombreCatastrofe('')
+      setPaisCatastrofe('')
+    } catch (e) {
+      setErrorMsg((e as Error).message)
+    } finally {
+      setGuardandoCatastrofe(false)
+    }
+  }
 
   useEffect(() => {
     if (!esHospital) return
@@ -178,9 +238,18 @@ export default function ReportarModal({
 
   function elegirTipo(t: TipoReporte) {
     setTipo(t)
-    if (t === 'derrumbe' || t === 'rescate' || t === 'zona_sin_atender')
+    if (
+      t === 'derrumbe' ||
+      t === 'rescate' ||
+      t === 'zona_sin_atender' ||
+      t === 'incendio' ||
+      t === 'inundacion'
+    )
       setUrgencia('alta')
-    if (t === 'atencion_psicologica') setUrgencia('media')
+    if (t === 'atencion_psicologica') {
+      setUrgencia('media')
+      setPerfilPsico('') // vuelve a mostrar las tarjetas de ayuda emocional
+    }
     // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
     setCoord(
       t === 'derrumbe' ||
@@ -232,8 +301,8 @@ export default function ReportarModal({
     setErrorMsg('')
     try {
       // El teléfono es OBLIGATORIO: sin él, nadie puede contactar a la persona.
-      if (!esHospital && !esTelefonoVenezuelaValido(contacto)) {
-        throw new Error(mensajeTelefonoVenezuela())
+      if (!esHospital && !esTelefonoValido(contacto)) {
+        throw new Error(mensajeTelefono())
       }
       if (esHospital && !nombreHospital.trim()) {
         throw new Error('Escribe el nombre del hospital.')
@@ -250,16 +319,22 @@ export default function ReportarModal({
           'Escribe tu nombre o el nombre de la persona que necesita apoyo.',
         )
       }
-      if (esAtencionPsicologica && !cedulaPaciente.trim()) {
-        throw new Error('Escribe la cedula de identidad para identificar el caso.')
-      }
+      // La cédula es OPCIONAL (fuera de Venezuela no aplica), pero si la
+      // escriben debe verse razonable.
       if (
         esAtencionPsicologica &&
+        cedulaPaciente.trim() &&
         cedulaPaciente.replace(/\D/g, '').length < 6
       ) {
         throw new Error(
-          'La cedula no parece valida. Escribe solo los numeros, por ejemplo 12345678.',
+          'La cedula no parece valida. Escribe solo los numeros, por ejemplo 12345678, o dejala vacia.',
         )
+      }
+      if (esAtencionPsicologica && edadPaciente.trim()) {
+        const edad = Number(edadPaciente)
+        if (!Number.isFinite(edad) || edad < 1 || edad > 120) {
+          throw new Error('La edad no parece valida. Escribe solo el numero.')
+        }
       }
       if (esAtencionPsicologica && !descripcion.trim()) {
         throw new Error(
@@ -284,17 +359,8 @@ export default function ReportarModal({
         )
       }
 
-      // Las necesidades SOLO pueden reportarse dentro de Venezuela.
-      if (
-        !esAtencionPsicologica &&
-        lat !== null &&
-        lng !== null &&
-        !(await estaEnVenezuela(lat, lng))
-      ) {
-        throw new Error(
-          'Las necesidades solo se pueden reportar dentro de Venezuela. El punto está fuera del país: corrige la dirección o mueve el pin.',
-        )
-      }
+      // La red es global: ya no se restringe el país del reporte (antes solo
+      // se aceptaban puntos dentro de Venezuela).
 
       if (esHospital) {
         const hospital = hospitalConfirmado
@@ -325,14 +391,23 @@ export default function ReportarModal({
         descripcion: esAtencionPsicologica
           ? [
               `Nombre: ${nombrePaciente.trim()}`,
-              `CI: ${cedulaPaciente.replace(/\D/g, '')}`,
+              edadPaciente.trim() ? `Edad: ${edadPaciente.trim()}` : '',
+              cedulaPaciente.trim()
+                ? `CI: ${cedulaPaciente.replace(/\D/g, '')}`
+                : '',
+              perfilPsico
+                ? `Perfil: ${PERFIL_PSICO_META[perfilPsico].etiqueta}`
+                : '',
               `Solicitud: ${descripcion.trim()}`,
-            ].join('\n')
+            ]
+              .filter(Boolean)
+              .join('\n')
           : descripcion.trim() || metaTipo.etiqueta,
         zona: esAtencionPsicologica ? null : zona.trim() || null,
         lat,
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
+        catastrofe_id: catastrofeId || null,
         contacto,
         contactoObligatorio: true,
         origen: 'web',
@@ -423,6 +498,88 @@ export default function ReportarModal({
     </div>
   )
 
+  // Fecha corta de creación de una catástrofe (para la lista del selector).
+  // timeZone: 'UTC' evita que la fecha "salte" un día atrás para quien mira
+  // desde un huso horario negativo (Venezuela, Chile...): la medianoche UTC
+  // sembrada en la migración debe verse siempre como el mismo día calendario.
+  const fechaCatastrofe = (iso: string) =>
+    new Date(iso).toLocaleDateString('es-VE', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+
+  const bloqueCatastrofe = (
+    <div>
+      <p className="font-bold mb-1">Catástrofe / evento (opcional)</p>
+      <p className="text-xs text-gray-500 mb-2">
+        ¿Este reporte pertenece a una emergencia con nombre? Ayuda a filtrar la
+        ayuda por catástrofe.
+      </p>
+      <select
+        className="input"
+        value={catastrofeId}
+        onChange={(e) => setCatastrofeId(e.target.value)}
+      >
+        <option value="">Sin catástrofe específica</option>
+        {catastrofes.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nombre}
+            {c.pais ? ` · ${c.pais}` : ''} · creada el {fechaCatastrofe(c.creado_en)}
+          </option>
+        ))}
+      </select>
+      {creandoCatastrofe ? (
+        <div className="mt-2 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <input
+            className="input text-sm"
+            placeholder="Nombre. Ej: Temporal de lluvias Chile"
+            maxLength={80}
+            value={nombreCatastrofe}
+            onChange={(e) => setNombreCatastrofe(e.target.value)}
+          />
+          <input
+            className="input text-sm"
+            placeholder="País (opcional). Ej: Chile"
+            maxLength={40}
+            value={paisCatastrofe}
+            onChange={(e) => setPaisCatastrofe(e.target.value)}
+          />
+          <p className="text-[11px] text-gray-500">
+            La fecha de creación se registra automáticamente. Se necesita tener
+            sesión iniciada.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCreandoCatastrofe(false)}
+              className="btn-gris flex-1 py-2 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void crearCatastrofeNueva()}
+              disabled={guardandoCatastrofe || nombreCatastrofe.trim().length < 3}
+              className="btn-azul flex-1 py-2 text-sm disabled:opacity-60"
+            >
+              {guardandoCatastrofe ? 'Creando…' : 'Crear'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setCreandoCatastrofe(true)}
+          className="text-xs text-bandera-azul font-semibold mt-1"
+        >
+          ➕ ¿No está en la lista? Crear catástrofe nueva
+        </button>
+      )}
+    </div>
+  )
+
   const bloqueContacto = (
     <div>
       <p className="font-bold mb-1">
@@ -456,9 +613,22 @@ export default function ReportarModal({
         />
       </label>
       <label className="block">
-        <span className="font-bold">
-          Cédula de identidad <span className="text-bandera-rojo">*</span>
+        <span className="font-bold">Tu edad</span>
+        <input
+          className="input mt-1"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={3}
+          placeholder="Ej: 34"
+          value={edadPaciente}
+          onChange={(e) => setEdadPaciente(e.target.value.replace(/\D/g, ''))}
+        />
+        <span className="text-xs text-gray-500 mt-1 block">
+          Ayuda al equipo a preparar mejor el acompañamiento.
         </span>
+      </label>
+      <label className="block">
+        <span className="font-bold">Cédula o documento (opcional)</span>
         <input
           className="input mt-1"
           inputMode="numeric"
@@ -468,7 +638,7 @@ export default function ReportarModal({
           onChange={(e) => setCedulaPaciente(e.target.value.replace(/\D/g, ''))}
         />
         <span className="text-xs text-gray-500 mt-1 block">
-          Escribe solo números.
+          Solo números. Si estás fuera de Venezuela puedes dejarla vacía.
         </span>
       </label>
       <div>
@@ -635,8 +805,101 @@ export default function ReportarModal({
           </div>
         )}
 
+        {/* AYUDA EMOCIONAL — antes del formulario: ¿quién eres? Dos grandes
+            preguntas + contacto directo con el equipo aliado (Praxis). */}
+        {paso > 1 && esAtencionPsicologica && !perfilPsico && (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+              ⚠️ Si tu vida está en riesgo o piensas en hacerte daño, llama{' '}
+              <strong>ahora</strong> a los servicios de emergencia de tu país
+              (911 en Venezuela, 131 en Chile). Esta red no reemplaza una
+              atención de urgencia.
+            </div>
+
+            <p className="font-bold">¿Con cuál situación te identificas?</p>
+
+            <button
+              type="button"
+              onClick={() => setPerfilPsico('rescatista')}
+              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+            >
+              <span className="block text-2xl mb-1">🚑</span>
+              <span className="block font-extrabold text-purple-950">
+                ¿Eres rescatista o voluntario y sientes frustración, culpa o
+                agotamiento por no poder ayudar más?
+              </span>
+              <span className="block text-sm text-purple-900 mt-1">
+                Déjanos ayudarte a ti también. Notifícalo aquí y una psicóloga
+                te contactará.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPerfilPsico('a_distancia')}
+              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+            >
+              <span className="block text-2xl mb-1">🌎</span>
+              <span className="block font-extrabold text-purple-950">
+                ¿Estás fuera del lugar afectado y sientes que te cuesta dormir,
+                trabajar o hacer tu día a día?
+              </span>
+              <span className="block text-sm text-purple-900 mt-1">
+                Haznos saber y serás contactado/a por una profesional.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPerfilPsico('en_zona')}
+              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+            >
+              <span className="block text-2xl mb-1">🫂</span>
+              <span className="block font-extrabold text-purple-950">
+                Estoy en la zona afectada: sobreviví, perdí a alguien o tengo
+                miedo, ansiedad o insomnio.
+              </span>
+              <span className="block text-sm text-purple-900 mt-1">
+                No estás solo/a. Pide apoyo con calma, respeto y privacidad.
+              </span>
+            </button>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-bold text-gray-800">
+                ¿Prefieres hablar ya con alguien?
+              </p>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {PRAXIS_NOMBRE} · {PRAXIS_DESCRIPCION}
+              </p>
+              <p className="text-sm font-bold text-bandera-azul mt-1">
+                📞 {PRAXIS_TELEFONO}
+              </p>
+              <div className="flex gap-2 mt-2">
+                <a
+                  href={`tel:${PRAXIS_TELEFONO.replace(/[^\d+]/g, '')}`}
+                  className="btn-azul flex-1 py-2 text-sm text-center no-underline"
+                >
+                  📞 Llamar
+                </a>
+                <a
+                  href={`https://wa.me/${PRAXIS_TELEFONO.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-verde flex-1 py-2 text-sm text-center no-underline"
+                >
+                  💬 WhatsApp
+                </a>
+              </div>
+            </div>
+
+            <button onClick={() => setPaso(1)} className="btn-gris w-full">
+              ← Atrás
+            </button>
+          </div>
+        )}
+
         {/* PASO 2: TODO en una sola pantalla, con mini-mapa */}
-        {paso > 1 && (
+        {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
           <div className="space-y-4">
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
               {esZona ? (
@@ -781,11 +1044,19 @@ export default function ReportarModal({
               (esAtencionPsicologica
                 ? selectorUrgenciaPsicologia
                 : selectorUrgencia)}
+            {!esHospital && bloqueCatastrofe}
             {!esHospital && !esAtencionPsicologica && bloqueContacto}
             {avisoError}
 
             <div className="flex gap-2">
-              <button onClick={() => setPaso(1)} className="btn-gris flex-1">
+              <button
+                onClick={() =>
+                  esAtencionPsicologica && perfilPsico
+                    ? setPerfilPsico('')
+                    : setPaso(1)
+                }
+                className="btn-gris flex-1"
+              >
                 ← Atrás
               </button>
               <button

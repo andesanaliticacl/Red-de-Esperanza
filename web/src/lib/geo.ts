@@ -62,6 +62,18 @@ async function _buscarNominatim(
   return null
 }
 
+/**
+ * Centro aproximado de un país completo (para el buscador "Selecciona país"
+ * del mapa). Restringe la búsqueda de Nominatim al código ISO del país, así
+ * que el resultado es el país en sí, no una ciudad homónima en otro lugar.
+ */
+export async function geocodificarPais(
+  nombrePais: string,
+  iso: string,
+): Promise<{ lat: number; lng: number } | null> {
+  return _buscarNominatim(nombrePais, iso.toLowerCase())
+}
+
 export async function geocodificarDireccion(
   texto: string,
   opciones: { pais?: string; cc?: string } = {},

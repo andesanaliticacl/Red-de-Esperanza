@@ -1,9 +1,10 @@
 // Edge Function: enviar-push
 // Envía notificaciones push (Web Push / VAPID) cuando ocurre algo en la base.
 // Se dispara con Database Webhooks de Supabase (Database → Webhooks):
-//   · INSERT en `necesidades`  → avisa al equipo de campo (voluntario/rescatista)
-//   · UPDATE en `necesidades`  → si se asignó, avisa a quien reportó
-//   · INSERT en `mensajes`     → avisa a los participantes de la conversación
+//   · INSERT en `necesidades`         → avisa al equipo de campo (voluntario/rescatista)
+//   · UPDATE en `necesidades`         → si se asignó, avisa a quien reportó
+//   · INSERT en `mensajes`            → avisa a los participantes de la conversación
+//   · INSERT en `solicitudes_psicologo` → avisa a admin y lider_psicologo
 //
 // Secretos necesarios (Project Settings → Edge Functions → Secrets):
 //   VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (ej. mailto:tucorreo@dominio.com)
@@ -92,6 +93,26 @@ async function calcular(
       }
     }
     return null
+  }
+
+  // --- Alguien pide SER psicólogo/a → admin y lider_psicologo (revisan y
+  //     aprueban/rechazan; ver migración 48 y RPC revisar_solicitud_psicologo) ---
+  if (p.table === 'solicitudes_psicologo' && p.type === 'INSERT') {
+    const { data } = await supabase
+      .from('perfiles')
+      .select('id')
+      .in('rol', ['admin', 'lider_psicologo'])
+    const userIds = (data ?? []).map((x) => x.id as string)
+    if (userIds.length === 0) return null
+    return {
+      userIds,
+      aviso: {
+        title: '🧠 Nueva solicitud de psicólogo/a',
+        body: `${(r.nombre as string) ?? 'Alguien'} quiere ser psicólogo/a. Revísala.`,
+        url: '/psicologia',
+        tag: 'solicitud-psicologo',
+      },
+    }
   }
 
   // --- Mensaje nuevo → participantes de la conversación (menos el autor) ---

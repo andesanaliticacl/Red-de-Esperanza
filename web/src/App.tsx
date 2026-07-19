@@ -15,6 +15,7 @@ const RegistroView = lazy(() => import('./views/RegistroView'))
 const MisReportesView = lazy(() => import('./views/MisReportesView'))
 const CentrosAcopioView = lazy(() => import('./views/CentrosAcopioView'))
 const VoluntarioView = lazy(() => import('./views/VoluntarioView'))
+const HistoricoSosView = lazy(() => import('./views/HistoricoSosView'))
 const PsicologiaView = lazy(() => import('./views/PsicologiaView'))
 const PerfilView = lazy(() => import('./views/PerfilView'))
 const EditarPerfilView = lazy(() => import('./views/EditarPerfilView'))
@@ -131,6 +132,23 @@ export default function App() {
                   ]}
                 >
                   <VoluntarioView />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/voluntario/historico-sos"
+              element={
+                <ProtectedRoute
+                  roles={[
+                    'voluntario',
+                    'rescatista',
+                    'lider_voluntarios',
+                    'verificador',
+                    'admin',
+                  ]}
+                >
+                  <HistoricoSosView />
                 </ProtectedRoute>
               }
             />
