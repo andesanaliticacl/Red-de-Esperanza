@@ -250,7 +250,10 @@ import {
   ZOOM_INICIAL,
   enlaceComoLlegar,
   dentroDelRecuadroVE,
+  geocodificarPais,
 } from '../lib/geo'
+import { PAISES_MUNDO } from '../lib/paises'
+import SelectorBandera from './SelectorBandera'
 import {
   TIPO_META,
   URGENCIA_META,
@@ -493,6 +496,14 @@ function ModalCompartir({
   )
 }
 
+// Opciones del buscador de país del mapa (mismo listado que registro/perfil).
+const OPCIONES_PAIS_MAPA = PAISES_MUNDO.map((p) => ({
+  value: p.nombre,
+  iso: p.iso,
+  etiqueta: p.nombre,
+  etiquetaCorta: p.nombre,
+}))
+
 function ControlesMapa({
   miUbicacion,
 }: {
@@ -503,6 +514,33 @@ function ControlesMapa({
   const urlCompartir =
     typeof window !== 'undefined' ? window.location.origin : ''
   const tituloCompartir = 'Red de Esperanza'
+
+  // Buscador de país: reemplaza el antiguo botón fijo "Ver Venezuela". Deja
+  // volar el mapa a CUALQUIER país (no solo Venezuela), geocodificando su
+  // nombre restringido a su propio código ISO (Nominatim), como el resto de
+  // la app hace con direcciones.
+  const [paisMapa, setPaisMapa] = useState('')
+  const [buscandoPais, setBuscandoPais] = useState(false)
+  const [errorPais, setErrorPais] = useState('')
+
+  async function irAPais(nombrePais: string) {
+    setPaisMapa(nombrePais)
+    setErrorPais('')
+    const info = PAISES_MUNDO.find((p) => p.nombre === nombrePais)
+    if (!info) return
+    if (nombrePais === 'Venezuela') {
+      map.setView(CENTRO_VENEZUELA, 6)
+      return
+    }
+    setBuscandoPais(true)
+    const punto = await geocodificarPais(nombrePais, info.iso)
+    setBuscandoPais(false)
+    if (punto) {
+      map.setView([punto.lat, punto.lng], 5)
+    } else {
+      setErrorPais(`No pudimos ubicar ${nombrePais} en el mapa.`)
+    }
+  }
 
   return (
     <div className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] flex flex-col items-end gap-2">
@@ -516,17 +554,20 @@ function ControlesMapa({
         <span className="whitespace-nowrap">Compartir</span>
       </button>
 
-      <button
-        onClick={() => map.setView(CENTRO_VENEZUELA, 6)}
-        className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
-        title="Ver las emergencias reportadas en Venezuela"
-        aria-label="Ver Venezuela"
-      >
-        <span className="text-base leading-none">🇻🇪</span>
-        <span className="whitespace-nowrap">
-          Ver <span className="hidden sm:inline">emergencias en </span>Venezuela
-        </span>
-      </button>
+      <div className="flex flex-col items-end gap-1">
+        <SelectorBandera
+          opciones={OPCIONES_PAIS_MAPA}
+          valor={paisMapa}
+          onChange={(v) => void irAPais(v)}
+          placeholder={buscandoPais ? 'Buscando…' : '🌍 Selección país'}
+          className="w-40 sm:w-48"
+        />
+        {errorPais && (
+          <span className="bg-white text-bandera-rojo text-[11px] font-semibold rounded-lg shadow px-2 py-1 max-w-[200px] text-right">
+            {errorPais}
+          </span>
+        )}
+      </div>
 
       {miUbicacion && (
         <button

@@ -15,6 +15,11 @@ import {
   type SeguimientoPsicologia,
 } from '../lib/seguimientos'
 import {
+  listarSolicitudesPsicologo,
+  revisarSolicitudPsicologo,
+  type SolicitudPsicologo,
+} from '../lib/solicitudesPsicologo'
+import {
   TIPO_META,
   URGENCIA_META,
   type Necesidad,
@@ -260,6 +265,10 @@ export default function PsicologiaView() {
         </h1>
       </div>
 
+      {/* Gente que pide SER psicólogo/a: no es un caso de atención, es una
+          solicitud de rol. Solo admin/lider_psicologo pueden aprobarla. */}
+      {esLider && <PanelSolicitudesPsicologo />}
+
       <section className="card">
         <h2 className="font-bold text-sm text-gray-600 mb-2">Dashboard</h2>
         <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
@@ -401,6 +410,135 @@ export default function PsicologiaView() {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * Solicitudes de personas que quieren SER psicólogo/a (no casos de
+ * atención). Solo admin/lider_psicologo las ven y las aprueban/rechazan
+ * (lo exige también la RLS y la función revisar_solicitud_psicologo).
+ * Aprobar otorga el rol 'psicologo' en el mismo movimiento.
+ */
+function PanelSolicitudesPsicologo() {
+  const { notificar } = useNotificaciones()
+  const [solicitudes, setSolicitudes] = useState<SolicitudPsicologo[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [trabajando, setTrabajando] = useState<string | null>(null)
+
+  async function cargar() {
+    try {
+      setSolicitudes(await listarSolicitudesPsicologo())
+    } catch (e) {
+      notificar('No se pudieron cargar las solicitudes de psicólogo/a: ' + (e as Error).message, 'alerta')
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  useEffect(() => {
+    void cargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const pendientes = solicitudes.filter((s) => s.estado === 'pendiente')
+
+  async function revisar(s: SolicitudPsicologo, aprobar: boolean) {
+    if (!aprobar) {
+      const motivo = window.prompt(
+        'Motivo del rechazo (opcional, se lo mostramos a la persona):',
+        '',
+      )
+      if (motivo === null) return // canceló el prompt
+      setTrabajando(s.id)
+      try {
+        await revisarSolicitudPsicologo(s.id, false, motivo)
+        notificar(`Solicitud de ${s.nombre} rechazada.`, 'info')
+        await cargar()
+      } catch (e) {
+        notificar('No se pudo rechazar: ' + (e as Error).message, 'alerta')
+      } finally {
+        setTrabajando(null)
+      }
+      return
+    }
+    setTrabajando(s.id)
+    try {
+      await revisarSolicitudPsicologo(s.id, true)
+      notificar(`✅ ${s.nombre} ahora es psicólogo/a.`, 'exito')
+      await cargar()
+    } catch (e) {
+      notificar('No se pudo aprobar: ' + (e as Error).message, 'alerta')
+    } finally {
+      setTrabajando(null)
+    }
+  }
+
+  if (cargando || pendientes.length === 0) return null
+
+  return (
+    <section className="card border-2 border-purple-200 bg-purple-50/40">
+      <h2 className="font-bold text-purple-900 mb-2">
+        🧠 Solicitudes para ser psicólogo/a
+        <span className="ml-2 text-xs font-normal text-purple-700">
+          ({pendientes.length} pendiente{pendientes.length === 1 ? '' : 's'})
+        </span>
+      </h2>
+      <div className="space-y-2">
+        {pendientes.map((s) => (
+          <div key={s.id} className="rounded-xl bg-white border border-purple-100 p-3">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div className="min-w-0">
+                <div className="font-bold">{s.nombre}</div>
+                <div className="text-xs text-gray-500">
+                  {[s.pais, s.tipo_documento && `${s.tipo_documento}: ${s.documento}`]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+                <div className="text-xs font-semibold text-bandera-azul mt-0.5 break-all">
+                  📞 {s.telefono}
+                </div>
+                {s.mensaje && (
+                  <TextoExpandible texto={s.mensaje} className="text-sm text-gray-700 mt-1" />
+                )}
+                <div className="text-[11px] text-gray-400 mt-1">
+                  {fechaCorta(s.creado_en)} · {hace(s.creado_en)}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5 shrink-0">
+                <a
+                  href={`tel:${s.telefono.replace(/[^\d+]/g, '')}`}
+                  className="text-xs bg-bandera-azul !text-white font-semibold px-2.5 py-1 rounded-lg no-underline text-center"
+                >
+                  📞 Llamar
+                </a>
+                <a
+                  href={`https://wa.me/${s.telefono.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs bg-green-600 !text-white font-semibold px-2.5 py-1 rounded-lg no-underline text-center"
+                >
+                  WhatsApp
+                </a>
+                <button
+                  onClick={() => void revisar(s, true)}
+                  disabled={trabajando === s.id}
+                  className="text-xs btn-verde py-1.5 px-2.5 disabled:opacity-60"
+                >
+                  ✓ Aprobar
+                </button>
+                <button
+                  onClick={() => void revisar(s, false)}
+                  disabled={trabajando === s.id}
+                  className="text-xs btn-rojo py-1.5 px-2.5 disabled:opacity-60"
+                >
+                  ✕ Rechazar
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 

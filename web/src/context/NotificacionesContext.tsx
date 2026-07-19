@@ -182,6 +182,11 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
       {perfil?.id && <AvisosMensajes />}
       {/* Avisos de nuevas necesidades: solo al equipo de campo cercano. */}
       {esEquipoCampo && <AvisosEquipoCercano />}
+      {/* Avisos de "quiero ser psicólogo/a": solo admin y líder de psicología
+          (son quienes pueden aprobar/rechazar). */}
+      {(perfil?.rol === 'admin' || perfil?.rol === 'lider_psicologo') && (
+        <AvisosSolicitudesPsicologo />
+      )}
 
       {/* Pila de toasts (arriba y centrado, por encima del mapa). */}
       <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[3000] flex flex-col gap-2 w-[92%] max-w-sm pointer-events-none">
@@ -292,6 +297,40 @@ function AvisosEquipoCercano() {
       void supabase.removeChannel(canal)
     }
   }, [perfil?.id, perfil?.rol, notificar])
+
+  return null
+}
+
+/**
+ * Avisa a admin/lider_psicologo cuando alguien pide SER psicólogo/a (no es
+ * un caso de atención). Lleva directo al panel de solicitudes en
+ * /psicologia. Solo se monta para esos dos roles (ver arriba).
+ */
+function AvisosSolicitudesPsicologo() {
+  const { notificar } = useNotificaciones()
+
+  useEffect(() => {
+    const canal = supabase
+      .channel(`avisos-solicitudes-psicologo:${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'solicitudes_psicologo' },
+        (payload) => {
+          const s = payload.new as { nombre?: string }
+          sonarAlerta()
+          notificar(
+            `🧠 ${s.nombre ?? 'Alguien'} quiere ser psicólogo/a. Revisa la solicitud.`,
+            'info',
+            { ruta: '/psicologia', etiqueta: 'Ver solicitud' },
+          )
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(canal)
+    }
+  }, [notificar])
 
   return null
 }

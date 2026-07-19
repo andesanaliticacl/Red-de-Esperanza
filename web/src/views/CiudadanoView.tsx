@@ -791,6 +791,16 @@ export default function CiudadanoView() {
                       {ROL_META[r].etiqueta}
                     </button>
                   ))}
+                  {/* Psicólogo/a NO es un rol que se autoasigne al entrar: es
+                      una solicitud que revisa el equipo. Por eso va aparte y
+                      lleva directo al registro con el pedido preactivado. */}
+                  <button
+                    onClick={() => navigate('/registro?psicologo=1')}
+                    className="flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-2 py-2 bg-purple-100 text-purple-800 hover:bg-purple-200 active:scale-95 transition"
+                  >
+                    <span className="text-base leading-none">🧠</span>
+                    Psicólogo/a
+                  </button>
                 </div>
               )}
             </div>

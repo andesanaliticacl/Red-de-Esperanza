@@ -22,11 +22,10 @@ const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   etiqueta: p.nombre,
 }))
 
-const DESCRIPCION_ROL: Record<RolRegistro, string> = {
+const DESCRIPCION_ROL: Record<Exclude<RolRegistro, 'psicologo'>, string> = {
   ciudadano: 'Reporto necesidades y sigo el mapa.',
   voluntario: 'Ayudo a atender y coordinar reportes.',
   rescatista: 'Atiendo rescates y emergencias en terreno.',
-  psicologo: 'Brindo apoyo emocional y atiendo solicitudes psicológicas.',
   centro_acopio: 'Gestiono donaciones y suministros.',
 }
 
@@ -57,11 +56,12 @@ function mensajeDeError(error: unknown): string {
   return crudo || 'Ocurrió un error inesperado al crear la cuenta. Revisa la consola (F12) para más detalle.'
 }
 
-const ROLES_VALIDOS: RolRegistro[] = [
+// 'psicologo' NO es un rol autoasignable: se otorga tras revisar una
+// solicitud (ver lib/solicitudesPsicologo.ts). No va en esta lista.
+const ROLES_VALIDOS: Exclude<RolRegistro, 'psicologo'>[] = [
   'ciudadano',
   'voluntario',
   'rescatista',
-  'psicologo',
   'centro_acopio',
 ]
 
@@ -70,14 +70,20 @@ export default function RegistroView() {
   const [searchParams] = useSearchParams()
   // Rol preseleccionado si vino desde un acceso directo del inicio.
   const rolInicial = searchParams.get('rol')
+  // Acceso rápido "Psicólogo/a" del mapa: preactiva el pedido de revisión.
+  const psicologoInicial = searchParams.get('psicologo') === '1'
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rol, setRol] = useState<RolRegistro>(
-    ROLES_VALIDOS.includes(rolInicial as RolRegistro)
-      ? (rolInicial as RolRegistro)
+  const [rol, setRol] = useState<Exclude<RolRegistro, 'psicologo'>>(
+    ROLES_VALIDOS.includes(rolInicial as (typeof ROLES_VALIDOS)[number])
+      ? (rolInicial as (typeof ROLES_VALIDOS)[number])
       : 'ciudadano',
   )
+  // "Quiero ser psicólogo/a": NO es el rol de la cuenta (esa sigue siendo
+  // ciudadano/voluntario/...), es un pedido aparte que revisa el equipo de
+  // psicología antes de otorgar el rol.
+  const [quierePsicologo, setQuierePsicologo] = useState(psicologoInicial)
   const [pais, setPais] = useState('Venezuela')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
   const [documento, setDocumento] = useState('')
@@ -93,13 +99,11 @@ export default function RegistroView() {
   // Ciudades sugeridas según la zona elegida (autocompletar, no obligatorio).
   const ciudadesSugeridas = ciudadesDeZona(isoPais, estado)
 
-  // Voluntario/rescatista requieren estar en el terreno: solo Venezuela. El
-  // apoyo emocional es remoto (teléfono/chat), así que psicólogo/a está
-  // disponible desde cualquier país, igual que ciudadano y centro de acopio.
+  // Voluntario/rescatista requieren estar en el terreno: solo Venezuela.
   const enVenezuela = pais === 'Venezuela'
-  const rolesDisponibles: RolRegistro[] = enVenezuela
-    ? ['ciudadano', 'voluntario', 'rescatista', 'psicologo', 'centro_acopio']
-    : ['ciudadano', 'psicologo', 'centro_acopio']
+  const rolesDisponibles: Exclude<RolRegistro, 'psicologo'>[] = enVenezuela
+    ? ['ciudadano', 'voluntario', 'rescatista', 'centro_acopio']
+    : ['ciudadano', 'centro_acopio']
 
   const [verPass, setVerPass] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -114,14 +118,23 @@ export default function RegistroView() {
       setErrorMsg('La contraseña debe tener al menos 6 caracteres.')
       return
     }
+    // El teléfono es obligatorio si se pide ser psicólogo/a (es cómo el
+    // equipo contacta y verifica); si no, sigue siendo opcional.
+    if (quierePsicologo && !telefono.trim()) {
+      setErrorMsg(
+        'El teléfono es obligatorio para solicitar ser psicólogo/a: es cómo te contactará el equipo.',
+      )
+      return
+    }
     if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
       setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
     // Psicólogo/a exige un documento válido (cédula/pasaporte venezolano o
-    // RUT/pasaporte chileno): es quien atiende casos sensibles de salud
-    // mental, así que el equipo necesita verificar identidad real.
-    if (rol === 'psicologo') {
+    // RUT/pasaporte chileno): es quien atendería casos sensibles de salud
+    // mental, así que el equipo necesita verificar identidad real antes de
+    // otorgar el rol.
+    if (quierePsicologo) {
       const check = validarDocumentoPsicologo(pais, tipoDoc, documento)
       if (!check.valido) {
         setErrorMsg(check.mensaje)
@@ -144,6 +157,10 @@ export default function RegistroView() {
             telefono: telefono.trim(),
             ciudad: ciudad.trim(),
             estado,
+            // El servidor crea la solicitud de psicólogo/a automáticamente
+            // (handle_new_user, migración 48) con estos mismos datos: el
+            // rol NO se autoasigna, lo otorga el equipo tras revisarla.
+            quiere_psicologo: quierePsicologo ? 'true' : 'false',
           },
         },
       })
@@ -186,6 +203,12 @@ export default function RegistroView() {
             Te enviamos un enlace a <b>{email}</b> para confirmar tu cuenta.
             Ábrelo y luego inicia sesión.
           </p>
+          {quierePsicologo && (
+            <p className="text-sm text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-3">
+              🧠 Tu solicitud para ser psicólogo/a ya quedó registrada. El
+              equipo de psicología la revisará y te contactará por teléfono.
+            </p>
+          )}
           <Link to="/login" className="btn-azul w-full mt-5">
             Ir a iniciar sesión
           </Link>
@@ -201,8 +224,9 @@ export default function RegistroView() {
           Crear cuenta
         </h1>
         <p className="text-gray-600 mb-5 text-sm">
-          Para participar como ciudadano, voluntario, rescatista, psicólogo/a
-          o centro de acopio.
+          Para participar como ciudadano, voluntario, rescatista o centro de
+          acopio. También puedes solicitar ser psicólogo/a: el equipo lo
+          revisa antes de otorgar el rol.
         </p>
 
         <form onSubmit={registrar} className="space-y-4">
@@ -228,8 +252,9 @@ export default function RegistroView() {
             />
             {!enVenezuela && (
               <p className="text-xs text-gray-500 mt-1">
-                Fuera de Venezuela puedes participar como ciudadano, psicólogo/a
-                o centro de acopio.
+                Fuera de Venezuela puedes participar como ciudadano o centro
+                de acopio (voluntario/rescatista requieren estar en el
+                terreno, en Venezuela).
               </p>
             )}
           </div>
@@ -266,6 +291,38 @@ export default function RegistroView() {
               ))}
             </div>
           </div>
+
+          {/* Solicitud aparte: NO es un rol que se autoasigne, el equipo de
+              psicología revisa y otorga el rol después de contactar. */}
+          <button
+            type="button"
+            onClick={() => setQuierePsicologo((v) => !v)}
+            className={`w-full text-left rounded-2xl border-2 p-3 ${
+              quierePsicologo
+                ? 'border-purple-400 bg-purple-50'
+                : 'border-gray-200 bg-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-5 w-5 shrink-0 rounded-md border-2 flex items-center justify-center ${
+                  quierePsicologo
+                    ? 'bg-purple-600 border-purple-600 text-white'
+                    : 'border-gray-300'
+                }`}
+              >
+                {quierePsicologo && '✓'}
+              </span>
+              <span className="font-bold text-sm">
+                🧠 También quiero ser psicólogo/a
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1 ml-7">
+              Tu cuenta se crea con el rol de arriba. El equipo de psicología
+              revisará tu solicitud, te contactará por teléfono y, si
+              corresponde, te otorgará el rol.
+            </p>
+          </button>
 
           <input
             className="input"
@@ -310,10 +367,10 @@ export default function RegistroView() {
               value={documento}
               onChange={(e) => setDocumento(e.target.value)}
             />
-            {rol === 'psicologo' && (
+            {quierePsicologo && (
               <p className="text-xs text-gray-500 mt-1">
-                Como psicólogo/a, tu documento se valida: cédula/pasaporte
-                venezolano o RUT/pasaporte chileno.
+                Para tu solicitud de psicólogo/a, el documento se valida:
+                cédula/pasaporte venezolano o RUT/pasaporte chileno.
               </p>
             )}
           </div>
@@ -387,8 +444,20 @@ export default function RegistroView() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold mb-1">Teléfono (opcional)</p>
-            <EntradaTelefono valor={telefono} onChange={setTelefono} />
+            <p className="text-sm font-semibold mb-1">
+              Teléfono {quierePsicologo ? '(obligatorio)' : '(opcional)'}
+            </p>
+            {quierePsicologo && (
+              <p className="text-xs text-gray-500 mb-1">
+                Es cómo el equipo de psicología te contactará para revisar tu
+                solicitud.
+              </p>
+            )}
+            <EntradaTelefono
+              valor={telefono}
+              onChange={setTelefono}
+              requerido={quierePsicologo}
+            />
           </div>
 
           <hr className="border-gray-100" />
