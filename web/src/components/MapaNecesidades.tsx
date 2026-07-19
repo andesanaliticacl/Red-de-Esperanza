@@ -16,6 +16,7 @@ import {
 // el teléfono): no se descarga hasta que se activa la capa de desaparecidos.
 const MarkerClusterGroup = lazy(() => import('react-leaflet-cluster'))
 import { useDesaparecidosMapa, type ZonaMapa } from '../hooks/useDesaparecidos'
+import VidaRestante from './VidaRestante'
 import {
   iconoDesaparecido,
   iconoNecesidad,
@@ -934,6 +935,10 @@ export default function MapaNecesidades({
                     🕒 {formatearFecha(n.creado_en)}
                   </div>
                 )}
+                {/* Ciclo de vida de 4 días: contador + renovar (cualquiera). */}
+                {n.estado !== 'resuelta' && !n.eliminada_del_mapa && (
+                  <VidaRestante item={n} />
+                )}
                 {(n.estado === 'en_proceso' || n.estado === 'resuelta') && (
                   <div className="text-xs font-semibold">
                     {n.estado === 'en_proceso' ? '🔵 En proceso' : '✅ Resuelta'}
@@ -1112,6 +1117,11 @@ export default function MapaNecesidades({
               {[a.ciudad, a.pais].filter(Boolean).join(', ')}
             </div>
             {a.descripcion && <div className="text-sm">{a.descripcion}</div>}
+            {/* Ciclo de vida de 4 días (los hospitales nunca vencen). */}
+            <VidaRestante
+              item={{ ...a, es_hospital: a.es_hospital || esHospital }}
+              esCentro
+            />
             {/* Contacto: solo si el centro tiene un número cargado. Permite
                 llamar o escribir por WhatsApp directamente. */}
             {a.contacto && a.contacto.replace(/\D/g, '').length >= 8 && (

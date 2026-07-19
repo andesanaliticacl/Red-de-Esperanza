@@ -59,6 +59,11 @@ export interface Necesidad {
   reportado_por: string | null
   asignado_a: string | null
   creado_en: string
+  /** Ciclo de vida de 4 días: última renovación y cuántas veces se renovó. */
+  ultimo_refresco?: string | null
+  refrescos?: number
+  /** Catástrofe (evento) a la que pertenece el reporte. Opcional. */
+  catastrofe_id?: string | null
   // Borrado suave: un líder/admin la quitó del mapa (spam, duplicado, etc.).
   // Sigue en la base para dejar registro; deja de verse en el mapa público.
   eliminada_del_mapa?: boolean
@@ -152,6 +157,11 @@ export interface CentroAcopio {
   creado_en: string
   /** Id en la web de origen: si está, vino del scraping (mostrar la fuente). */
   id_fuente: string | null
+  /** Ciclo de vida de 4 días: última renovación y cuántas veces se renovó. */
+  ultimo_refresco?: string | null
+  refrescos?: number
+  /** Los hospitales viven en esta tabla pero NUNCA vencen. */
+  es_hospital?: boolean
 }
 
 export interface Perfil {
