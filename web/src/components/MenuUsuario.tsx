@@ -129,6 +129,14 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                   onClick={cerrar}
                 />
               )}
+              {esStaff && (
+                <ItemLink
+                  to="/voluntario/historico-sos"
+                  emoji="🆘"
+                  texto="Histórico de SOS"
+                  onClick={cerrar}
+                />
+              )}
               {esEquipoPsicologia && (
                 <ItemLink
                   to="/psicologia"
