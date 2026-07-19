@@ -51,6 +51,25 @@ const HOSPITAL_META = {
 // Tamaños (DIÁMETRO aprox.) de una "zona sin atender", en km. Por defecto 3.
 // Guardamos el radio = diámetro / 2 para que el círculo sea fino y proporcional.
 const TAMANOS_ZONA = [1, 3, 5]
+
+// ===== Ayuda emocional =====
+// Contacto directo del equipo aliado, para quien no quiera esperar.
+const PRAXIS_NOMBRE = 'Praxis Grupos Operativos'
+const PRAXIS_TELEFONO = '+52 1 55 3320 0457'
+const PRAXIS_DESCRIPCION =
+  'Psicólogos · Salud y bienestar · Salud y seguridad ocupacional'
+
+// Perfil del caso: con quién estamos hablando. Le da contexto al equipo
+// psicológico ANTES del primer contacto.
+type PerfilPsicologico = 'rescatista' | 'a_distancia' | 'en_zona' | ''
+const PERFIL_PSICO_META: Record<
+  Exclude<PerfilPsicologico, ''>,
+  { etiqueta: string }
+> = {
+  rescatista: { etiqueta: 'Rescatista / voluntario con desgaste emocional' },
+  a_distancia: { etiqueta: 'Afectado/a fuera de la zona del desastre' },
+  en_zona: { etiqueta: 'Afectado/a en la zona del desastre' },
+}
 const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
   { v: 'alta', etiqueta: 'Alta', clase: 'btn-rojo' },
   { v: 'media', etiqueta: 'Media', clase: 'btn-amber' },
@@ -80,7 +99,10 @@ export default function ReportarModal({
   const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
   const [nombrePaciente, setNombrePaciente] = useState('')
+  const [edadPaciente, setEdadPaciente] = useState('')
   const [cedulaPaciente, setCedulaPaciente] = useState('')
+  // Perfil del caso psicológico (elegido en las tarjetas de ayuda emocional).
+  const [perfilPsico, setPerfilPsico] = useState<PerfilPsicologico>('')
   const [nombreHospital, setNombreHospital] = useState('')
   const [hospitalConfirmado, setHospitalConfirmado] =
     useState<HospitalGoogle | null>(null)
@@ -224,7 +246,10 @@ export default function ReportarModal({
       t === 'inundacion'
     )
       setUrgencia('alta')
-    if (t === 'atencion_psicologica') setUrgencia('media')
+    if (t === 'atencion_psicologica') {
+      setUrgencia('media')
+      setPerfilPsico('') // vuelve a mostrar las tarjetas de ayuda emocional
+    }
     // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
     setCoord(
       t === 'derrumbe' ||
@@ -294,16 +319,22 @@ export default function ReportarModal({
           'Escribe tu nombre o el nombre de la persona que necesita apoyo.',
         )
       }
-      if (esAtencionPsicologica && !cedulaPaciente.trim()) {
-        throw new Error('Escribe la cedula de identidad para identificar el caso.')
-      }
+      // La cédula es OPCIONAL (fuera de Venezuela no aplica), pero si la
+      // escriben debe verse razonable.
       if (
         esAtencionPsicologica &&
+        cedulaPaciente.trim() &&
         cedulaPaciente.replace(/\D/g, '').length < 6
       ) {
         throw new Error(
-          'La cedula no parece valida. Escribe solo los numeros, por ejemplo 12345678.',
+          'La cedula no parece valida. Escribe solo los numeros, por ejemplo 12345678, o dejala vacia.',
         )
+      }
+      if (esAtencionPsicologica && edadPaciente.trim()) {
+        const edad = Number(edadPaciente)
+        if (!Number.isFinite(edad) || edad < 1 || edad > 120) {
+          throw new Error('La edad no parece valida. Escribe solo el numero.')
+        }
       }
       if (esAtencionPsicologica && !descripcion.trim()) {
         throw new Error(
@@ -360,9 +391,17 @@ export default function ReportarModal({
         descripcion: esAtencionPsicologica
           ? [
               `Nombre: ${nombrePaciente.trim()}`,
-              `CI: ${cedulaPaciente.replace(/\D/g, '')}`,
+              edadPaciente.trim() ? `Edad: ${edadPaciente.trim()}` : '',
+              cedulaPaciente.trim()
+                ? `CI: ${cedulaPaciente.replace(/\D/g, '')}`
+                : '',
+              perfilPsico
+                ? `Perfil: ${PERFIL_PSICO_META[perfilPsico].etiqueta}`
+                : '',
               `Solicitud: ${descripcion.trim()}`,
-            ].join('\n')
+            ]
+              .filter(Boolean)
+              .join('\n')
           : descripcion.trim() || metaTipo.etiqueta,
         zona: esAtencionPsicologica ? null : zona.trim() || null,
         lat,
@@ -570,9 +609,22 @@ export default function ReportarModal({
         />
       </label>
       <label className="block">
-        <span className="font-bold">
-          Cédula de identidad <span className="text-bandera-rojo">*</span>
+        <span className="font-bold">Tu edad</span>
+        <input
+          className="input mt-1"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={3}
+          placeholder="Ej: 34"
+          value={edadPaciente}
+          onChange={(e) => setEdadPaciente(e.target.value.replace(/\D/g, ''))}
+        />
+        <span className="text-xs text-gray-500 mt-1 block">
+          Ayuda al equipo a preparar mejor el acompañamiento.
         </span>
+      </label>
+      <label className="block">
+        <span className="font-bold">Cédula o documento (opcional)</span>
         <input
           className="input mt-1"
           inputMode="numeric"
@@ -582,7 +634,7 @@ export default function ReportarModal({
           onChange={(e) => setCedulaPaciente(e.target.value.replace(/\D/g, ''))}
         />
         <span className="text-xs text-gray-500 mt-1 block">
-          Escribe solo números.
+          Solo números. Si estás fuera de Venezuela puedes dejarla vacía.
         </span>
       </label>
       <div>
@@ -749,8 +801,101 @@ export default function ReportarModal({
           </div>
         )}
 
+        {/* AYUDA EMOCIONAL — antes del formulario: ¿quién eres? Dos grandes
+            preguntas + contacto directo con el equipo aliado (Praxis). */}
+        {paso > 1 && esAtencionPsicologica && !perfilPsico && (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+              ⚠️ Si tu vida está en riesgo o piensas en hacerte daño, llama{' '}
+              <strong>ahora</strong> a los servicios de emergencia de tu país
+              (911 en Venezuela, 131 en Chile). Esta red no reemplaza una
+              atención de urgencia.
+            </div>
+
+            <p className="font-bold">¿Con cuál situación te identificas?</p>
+
+            <button
+              type="button"
+              onClick={() => setPerfilPsico('rescatista')}
+              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+            >
+              <span className="block text-2xl mb-1">🚑</span>
+              <span className="block font-extrabold text-purple-950">
+                ¿Eres rescatista o voluntario y sientes frustración, culpa o
+                agotamiento por no poder ayudar más?
+              </span>
+              <span className="block text-sm text-purple-900 mt-1">
+                Déjanos ayudarte a ti también. Notifícalo aquí y una psicóloga
+                te contactará.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPerfilPsico('a_distancia')}
+              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+            >
+              <span className="block text-2xl mb-1">🌎</span>
+              <span className="block font-extrabold text-purple-950">
+                ¿Estás fuera del lugar afectado y sientes que te cuesta dormir,
+                trabajar o hacer tu día a día?
+              </span>
+              <span className="block text-sm text-purple-900 mt-1">
+                Haznos saber y serás contactado/a por una profesional.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPerfilPsico('en_zona')}
+              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+            >
+              <span className="block text-2xl mb-1">🫂</span>
+              <span className="block font-extrabold text-purple-950">
+                Estoy en la zona afectada: sobreviví, perdí a alguien o tengo
+                miedo, ansiedad o insomnio.
+              </span>
+              <span className="block text-sm text-purple-900 mt-1">
+                No estás solo/a. Pide apoyo con calma, respeto y privacidad.
+              </span>
+            </button>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-bold text-gray-800">
+                ¿Prefieres hablar ya con alguien?
+              </p>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {PRAXIS_NOMBRE} · {PRAXIS_DESCRIPCION}
+              </p>
+              <p className="text-sm font-bold text-bandera-azul mt-1">
+                📞 {PRAXIS_TELEFONO}
+              </p>
+              <div className="flex gap-2 mt-2">
+                <a
+                  href={`tel:${PRAXIS_TELEFONO.replace(/[^\d+]/g, '')}`}
+                  className="btn-azul flex-1 py-2 text-sm text-center no-underline"
+                >
+                  📞 Llamar
+                </a>
+                <a
+                  href={`https://wa.me/${PRAXIS_TELEFONO.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-verde flex-1 py-2 text-sm text-center no-underline"
+                >
+                  💬 WhatsApp
+                </a>
+              </div>
+            </div>
+
+            <button onClick={() => setPaso(1)} className="btn-gris w-full">
+              ← Atrás
+            </button>
+          </div>
+        )}
+
         {/* PASO 2: TODO en una sola pantalla, con mini-mapa */}
-        {paso > 1 && (
+        {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
           <div className="space-y-4">
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
               {esZona ? (
@@ -900,7 +1045,14 @@ export default function ReportarModal({
             {avisoError}
 
             <div className="flex gap-2">
-              <button onClick={() => setPaso(1)} className="btn-gris flex-1">
+              <button
+                onClick={() =>
+                  esAtencionPsicologica && perfilPsico
+                    ? setPerfilPsico('')
+                    : setPaso(1)
+                }
+                className="btn-gris flex-1"
+              >
                 ← Atrás
               </button>
               <button
