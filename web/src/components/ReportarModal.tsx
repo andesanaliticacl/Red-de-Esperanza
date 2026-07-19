@@ -5,6 +5,11 @@ import {
   type NecesidadUrgencia,
 } from '../lib/types'
 import { crearNecesidad } from '../lib/reportes'
+import {
+  listarCatastrofes,
+  crearCatastrofe,
+  type Catastrofe,
+} from '../lib/catastrofes'
 import { supabase } from '../lib/supabase'
 import {
   buscarHospitalesGoogle,
@@ -16,13 +21,12 @@ import {
   obtenerUbicacion,
   geocodificarDireccion,
   parsearCoordenadas,
-  estaEnVenezuela,
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
 import EntradaTelefono, {
-  esTelefonoVenezuelaValido,
-  mensajeTelefonoVenezuela,
+  esTelefonoValido,
+  mensajeTelefono,
 } from './EntradaTelefono'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
@@ -34,6 +38,8 @@ const TIPOS: NecesidadTipo[] = [
   'medicinas',
   'refugio',
   'derrumbe',
+  'inundacion',
+  'incendio',
   'otro',
 ]
 type TipoReporte = NecesidadTipo | 'hospital'
@@ -106,6 +112,13 @@ export default function ReportarModal({
   const [coordsTexto, setCoordsTexto] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  // Catástrofe (evento) opcional a la que pertenece el reporte.
+  const [catastrofes, setCatastrofes] = useState<Catastrofe[]>([])
+  const [catastrofeId, setCatastrofeId] = useState('')
+  const [creandoCatastrofe, setCreandoCatastrofe] = useState(false)
+  const [nombreCatastrofe, setNombreCatastrofe] = useState('')
+  const [paisCatastrofe, setPaisCatastrofe] = useState('')
+  const [guardandoCatastrofe, setGuardandoCatastrofe] = useState(false)
 
   const esDerrumbe = tipo === 'derrumbe'
   const esZona = tipo === 'zona_sin_atender'
@@ -135,6 +148,31 @@ export default function ReportarModal({
     if (!coordInicial) actualizarUbicacion()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Catástrofes disponibles (para etiquetar el reporte). Si falla, se sigue
+  // sin la lista: el campo es opcional y no debe frenar un reporte.
+  useEffect(() => {
+    listarCatastrofes()
+      .then(setCatastrofes)
+      .catch(() => setCatastrofes([]))
+  }, [])
+
+  async function crearCatastrofeNueva() {
+    setGuardandoCatastrofe(true)
+    setErrorMsg('')
+    try {
+      const nueva = await crearCatastrofe(nombreCatastrofe, paisCatastrofe)
+      setCatastrofes((prev) => [nueva, ...prev])
+      setCatastrofeId(nueva.id)
+      setCreandoCatastrofe(false)
+      setNombreCatastrofe('')
+      setPaisCatastrofe('')
+    } catch (e) {
+      setErrorMsg((e as Error).message)
+    } finally {
+      setGuardandoCatastrofe(false)
+    }
+  }
 
   useEffect(() => {
     if (!esHospital) return
@@ -178,7 +216,13 @@ export default function ReportarModal({
 
   function elegirTipo(t: TipoReporte) {
     setTipo(t)
-    if (t === 'derrumbe' || t === 'rescate' || t === 'zona_sin_atender')
+    if (
+      t === 'derrumbe' ||
+      t === 'rescate' ||
+      t === 'zona_sin_atender' ||
+      t === 'incendio' ||
+      t === 'inundacion'
+    )
       setUrgencia('alta')
     if (t === 'atencion_psicologica') setUrgencia('media')
     // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
@@ -232,8 +276,8 @@ export default function ReportarModal({
     setErrorMsg('')
     try {
       // El teléfono es OBLIGATORIO: sin él, nadie puede contactar a la persona.
-      if (!esHospital && !esTelefonoVenezuelaValido(contacto)) {
-        throw new Error(mensajeTelefonoVenezuela())
+      if (!esHospital && !esTelefonoValido(contacto)) {
+        throw new Error(mensajeTelefono())
       }
       if (esHospital && !nombreHospital.trim()) {
         throw new Error('Escribe el nombre del hospital.')
@@ -284,17 +328,8 @@ export default function ReportarModal({
         )
       }
 
-      // Las necesidades SOLO pueden reportarse dentro de Venezuela.
-      if (
-        !esAtencionPsicologica &&
-        lat !== null &&
-        lng !== null &&
-        !(await estaEnVenezuela(lat, lng))
-      ) {
-        throw new Error(
-          'Las necesidades solo se pueden reportar dentro de Venezuela. El punto está fuera del país: corrige la dirección o mueve el pin.',
-        )
-      }
+      // La red es global: ya no se restringe el país del reporte (antes solo
+      // se aceptaban puntos dentro de Venezuela).
 
       if (esHospital) {
         const hospital = hospitalConfirmado
@@ -333,6 +368,7 @@ export default function ReportarModal({
         lat,
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
+        catastrofe_id: catastrofeId || null,
         contacto,
         contactoObligatorio: true,
         origen: 'web',
@@ -420,6 +456,84 @@ export default function ReportarModal({
           En Google Maps: mantén pulsado el lugar → copia los números que salen.
         </p>
       </details>
+    </div>
+  )
+
+  // Fecha corta de creación de una catástrofe (para la lista del selector).
+  const fechaCatastrofe = (iso: string) =>
+    new Date(iso).toLocaleDateString('es-VE', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+
+  const bloqueCatastrofe = (
+    <div>
+      <p className="font-bold mb-1">Catástrofe / evento (opcional)</p>
+      <p className="text-xs text-gray-500 mb-2">
+        ¿Este reporte pertenece a una emergencia con nombre? Ayuda a filtrar la
+        ayuda por catástrofe.
+      </p>
+      <select
+        className="input"
+        value={catastrofeId}
+        onChange={(e) => setCatastrofeId(e.target.value)}
+      >
+        <option value="">Sin catástrofe específica</option>
+        {catastrofes.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nombre}
+            {c.pais ? ` · ${c.pais}` : ''} · creada el {fechaCatastrofe(c.creado_en)}
+          </option>
+        ))}
+      </select>
+      {creandoCatastrofe ? (
+        <div className="mt-2 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <input
+            className="input text-sm"
+            placeholder="Nombre. Ej: Temporal de lluvias Chile"
+            maxLength={80}
+            value={nombreCatastrofe}
+            onChange={(e) => setNombreCatastrofe(e.target.value)}
+          />
+          <input
+            className="input text-sm"
+            placeholder="País (opcional). Ej: Chile"
+            maxLength={40}
+            value={paisCatastrofe}
+            onChange={(e) => setPaisCatastrofe(e.target.value)}
+          />
+          <p className="text-[11px] text-gray-500">
+            La fecha de creación se registra automáticamente. Se necesita tener
+            sesión iniciada.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCreandoCatastrofe(false)}
+              className="btn-gris flex-1 py-2 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void crearCatastrofeNueva()}
+              disabled={guardandoCatastrofe || nombreCatastrofe.trim().length < 3}
+              className="btn-azul flex-1 py-2 text-sm disabled:opacity-60"
+            >
+              {guardandoCatastrofe ? 'Creando…' : 'Crear'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setCreandoCatastrofe(true)}
+          className="text-xs text-bandera-azul font-semibold mt-1"
+        >
+          ➕ ¿No está en la lista? Crear catástrofe nueva
+        </button>
+      )}
     </div>
   )
 
@@ -781,6 +895,7 @@ export default function ReportarModal({
               (esAtencionPsicologica
                 ? selectorUrgenciaPsicologia
                 : selectorUrgencia)}
+            {!esHospital && bloqueCatastrofe}
             {!esHospital && !esAtencionPsicologica && bloqueContacto}
             {avisoError}
 

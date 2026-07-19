@@ -266,6 +266,8 @@ const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'medicinas',
   'refugio',
   'derrumbe',
+  'inundacion',
+  'incendio',
   'otro',
 ]
 

@@ -42,6 +42,8 @@ export interface NuevoReporte {
   lat?: number | null
   lng?: number | null
   radio_km?: number | null // solo para zonas (tipo zona_sin_atender)
+  /** Catástrofe (evento) a la que pertenece el reporte. Opcional. */
+  catastrofe_id?: string | null
   origen?: string
   contacto?: string | null // se guarda en tabla privada aparte
   // Cuando true (SOS y reportes normales), el teléfono DEBE guardarse: si su
@@ -92,6 +94,7 @@ export async function crearNecesidad(r: NuevoReporte) {
     lat: r.lat ?? null,
     lng: r.lng ?? null,
     radio_km: r.radio_km ?? null,
+    catastrofe_id: r.catastrofe_id ?? null,
     origen: r.origen ?? 'web',
     estado: 'sin_verificar',
     reportado_por,

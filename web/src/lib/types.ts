@@ -7,6 +7,8 @@ export type NecesidadTipo =
   | 'medicinas'
   | 'refugio'
   | 'derrumbe'
+  | 'inundacion'
+  | 'incendio'
   | 'zona_sin_atender'
   | 'otro'
   | 'acopio'
@@ -206,6 +208,8 @@ export const TIPO_META: Record<
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
   derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
+  inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
+  incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
