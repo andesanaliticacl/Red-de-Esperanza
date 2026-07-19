@@ -261,7 +261,7 @@ export default function PsicologiaView() {
           ← Volver al mapa
         </Link>
         <h1 className="text-2xl font-extrabold text-bandera-azul mt-1">
-          🧠 Atender solicitudes psicológicas
+          💙 Atender solicitudes psicológicas
         </h1>
       </div>
 
@@ -599,7 +599,7 @@ function SolicitudPsicologica({
       <span className="shrink-0 w-7 h-7 grid place-items-center rounded-full bg-bandera-azul text-white text-xs font-bold">
         {numero}
       </span>
-      <div className="text-3xl">🧠</div>
+      <div className="text-3xl">💙</div>
       <div className="flex-1 min-w-0 space-y-1">
         <div className="font-bold">
           Apoyo emocional

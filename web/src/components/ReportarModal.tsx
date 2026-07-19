@@ -725,7 +725,7 @@ export default function ReportarModal({
     : esZona
       ? null // la zona lleva su propio aviso con <strong>
       : esAtencionPsicologica
-        ? '🧠 Si sobreviviste al terremoto, si perdiste a alguien, si tienes miedo, ansiedad, insomnio o solo necesitas hablar, no estás solo/a. Este espacio es para pedir apoyo psicológico con calma, respeto y privacidad.'
+        ? '💙 Si sobreviviste al terremoto, si perdiste a alguien, si tienes miedo, ansiedad, insomnio o solo necesitas hablar, no estás solo/a. Este espacio es para pedir apoyo psicológico con calma, respeto y privacidad.'
       : esHospital
         ? '🏥 Registra un hospital para que aparezca en el mapa y en el filtro de hospitales.'
         : `${metaTipo.emoji} Indica qué necesitas y el lugar exacto. Ajusta el pin si hace falta.`
