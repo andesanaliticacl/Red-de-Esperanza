@@ -28,6 +28,7 @@ import EntradaTelefono, {
   esTelefonoValido,
   mensajeTelefono,
 } from './EntradaTelefono'
+import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
 // propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
@@ -273,7 +274,9 @@ export default function ReportarModal({
     }
     setErrorMsg('')
     setGeoEstado('buscando')
-    const g = await geocodificarDireccion(dir)
+    // Sin restricción de país: la red ya es global y este formulario no
+    // tiene un selector de país propio para saber a cuál restringir.
+    const g = await geocodificarDireccion(dir, { pais: '', cc: '' })
     setGeoEstado('idle')
     if (g) {
       setCoord(g)
@@ -319,16 +322,19 @@ export default function ReportarModal({
           'Escribe tu nombre o el nombre de la persona que necesita apoyo.',
         )
       }
-      // La cédula es OPCIONAL (fuera de Venezuela no aplica), pero si la
-      // escriben debe verse razonable.
-      if (
-        esAtencionPsicologica &&
-        cedulaPaciente.trim() &&
-        cedulaPaciente.replace(/\D/g, '').length < 6
-      ) {
-        throw new Error(
-          'La cedula no parece valida. Escribe solo los numeros, por ejemplo 12345678, o dejala vacia.',
-        )
+      // La cédula/RUT es OBLIGATORIA: acepta cédula venezolana o RUT chileno.
+      if (esAtencionPsicologica) {
+        const doc = cedulaPaciente.trim()
+        if (!doc) {
+          throw new Error(
+            'Escribe tu cédula (Venezuela) o RUT (Chile) para poder identificar tu caso.',
+          )
+        }
+        if (!esCedulaVenezolanaValida(doc) && !esRutChilenoValido(doc)) {
+          throw new Error(
+            'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678) o un RUT chileno (ej. 12.345.678-5).',
+          )
+        }
       }
       if (esAtencionPsicologica && edadPaciente.trim()) {
         const edad = Number(edadPaciente)
@@ -346,8 +352,9 @@ export default function ReportarModal({
       let lng = esAtencionPsicologica ? null : coord?.lng ?? null
 
       // Si aún no hay punto pero sí dirección, intentamos geocodificar.
+      // Sin restricción de país (red global, sin selector de país propio).
       if (!esAtencionPsicologica && (lat === null || lng === null) && zona.trim()) {
-        const g = await geocodificarDireccion(zona.trim())
+        const g = await geocodificarDireccion(zona.trim(), { pais: '', cc: '' })
         if (g) {
           lat = g.lat
           lng = g.lng
@@ -392,9 +399,7 @@ export default function ReportarModal({
           ? [
               `Nombre: ${nombrePaciente.trim()}`,
               edadPaciente.trim() ? `Edad: ${edadPaciente.trim()}` : '',
-              cedulaPaciente.trim()
-                ? `CI: ${cedulaPaciente.replace(/\D/g, '')}`
-                : '',
+              `Documento: ${cedulaPaciente.trim()}`,
               perfilPsico
                 ? `Perfil: ${PERFIL_PSICO_META[perfilPsico].etiqueta}`
                 : '',
@@ -628,17 +633,18 @@ export default function ReportarModal({
         </span>
       </label>
       <label className="block">
-        <span className="font-bold">Cédula o documento (opcional)</span>
+        <span className="font-bold">
+          Cédula (Venezuela) o RUT (Chile){' '}
+          <span className="text-bandera-rojo">*</span>
+        </span>
         <input
           className="input mt-1"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          placeholder="Ej: 12345678"
+          placeholder="Ej: V-12345678 o 12.345.678-5"
           value={cedulaPaciente}
-          onChange={(e) => setCedulaPaciente(e.target.value.replace(/\D/g, ''))}
+          onChange={(e) => setCedulaPaciente(e.target.value)}
         />
         <span className="text-xs text-gray-500 mt-1 block">
-          Solo números. Si estás fuera de Venezuela puedes dejarla vacía.
+          Ayuda al equipo a verificar e identificar tu caso.
         </span>
       </label>
       <div>
