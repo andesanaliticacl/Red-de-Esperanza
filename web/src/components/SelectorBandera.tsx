@@ -9,6 +9,12 @@ export interface OpcionBandera {
   etiquetaCorta?: string
 }
 
+// Atajo: sin escribir nada, el panel muestra solo estos países (los dos
+// donde opera la red) en vez de la lista completa de ~190. En el teléfono,
+// desplazarse por la lista entera para llegar a "Venezuela" o "Chile" era
+// muy incómodo. Escribir sigue buscando en TODOS los países normalmente.
+const ISO_DESTACADOS = ['ve', 'cl']
+
 /**
  * Dropdown personalizado que muestra banderas como imágenes (a diferencia de un
  * <select> nativo, que en Windows no puede mostrar imágenes en las opciones).
@@ -76,7 +82,8 @@ export default function SelectorBandera({
           o.etiqueta.toLowerCase().includes(q) ||
           o.value.toLowerCase().includes(q),
       )
-    : opciones
+    : opciones.filter((o) => ISO_DESTACADOS.includes(o.iso))
+  const sinBusqueda = !q
 
   function abrir() {
     setBusqueda('')
@@ -128,6 +135,11 @@ export default function SelectorBandera({
               />
             </div>
             <ul className="overflow-y-auto py-1">
+              {sinBusqueda && (
+                <li className="px-3 pt-1.5 pb-1 text-[11px] text-gray-400">
+                  Escribe para buscar otro país
+                </li>
+              )}
               {filtradas.length === 0 ? (
                 <li className="px-3 py-2 text-sm text-gray-400">
                   Sin coincidencias
