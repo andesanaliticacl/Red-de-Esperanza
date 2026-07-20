@@ -23,6 +23,12 @@ export function distanciaMetros(
 export const CENTRO_VENEZUELA: [number, number] = [10.48, -66.9]
 export const ZOOM_INICIAL = 11
 
+// Vista inicial para quien entra desde Chile (detectado por IP): Chile es
+// muy alargado norte-sur, así que hace falta un zoom bien alejado ("vista
+// alta") para que se vea una buena porción del país de un vistazo.
+export const CENTRO_CHILE: [number, number] = [-33.45, -70.65] // Santiago
+export const ZOOM_INICIAL_CHILE = 5
+
 /**
  * Enlace de navegación hacia un punto. Abre Google Maps con la ruta y el
  * tiempo estimado desde la ubicación actual del usuario (turn-by-turn).

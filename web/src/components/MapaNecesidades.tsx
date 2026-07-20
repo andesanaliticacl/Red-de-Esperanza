@@ -93,6 +93,32 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
   return null
 }
 
+/**
+ * Vista inicial según el país de quien visita (detectado por IP): a quien
+ * entra desde Chile, el mapa le abre en una vista alta de Chile en vez de
+ * Venezuela (el país es tan alargado que conviene un zoom bien alejado).
+ * Para cualquier otro país, se queda con el centro de Venezuela de siempre.
+ * Se corre UNA sola vez al montar el mapa; si la persona ya se movió o usó
+ * "Selección país", esto no la interrumpe (solo corre al cargar la página).
+ */
+function CentroSegunPais() {
+  const map = useMap()
+  useEffect(() => {
+    let activo = true
+    paisPorIP().then(({ pais }) => {
+      if (!activo || !pais) return
+      if (pais.trim().toLowerCase() === 'chile') {
+        map.setView(CENTRO_CHILE, ZOOM_INICIAL_CHILE)
+      }
+    })
+    return () => {
+      activo = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return null
+}
+
 function CentrarPopupAbierto() {
   const map = useMap()
 
@@ -245,9 +271,12 @@ function RastreadorVista({
   return null
 }
 
+import { paisPorIP } from '../lib/visitas'
 import {
   CENTRO_VENEZUELA,
   ZOOM_INICIAL,
+  CENTRO_CHILE,
+  ZOOM_INICIAL_CHILE,
   enlaceComoLlegar,
   dentroDelRecuadroVE,
   geocodificarPais,
@@ -861,6 +890,7 @@ export default function MapaNecesidades({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <CentrarPopupAbierto />
+      <CentroSegunPais />
 
       {ajustarVista && <AjustarVista puntos={puntos} />}
 
