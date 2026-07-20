@@ -34,6 +34,7 @@ const TIPOS: NecesidadTipo[] = [
   'derrumbe',
   'inundacion',
   'incendio',
+  'sacos_arena',
   'otro',
 ]
 
@@ -42,6 +43,7 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'derrumbe',
   'inundacion',
   'incendio',
+  'sacos_arena',
   'zona_sin_atender',
   'agua_comida',
   'medicinas',

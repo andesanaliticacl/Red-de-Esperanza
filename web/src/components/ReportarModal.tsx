@@ -41,6 +41,7 @@ const TIPOS: NecesidadTipo[] = [
   'derrumbe',
   'inundacion',
   'incendio',
+  'sacos_arena',
   'otro',
 ]
 type TipoReporte = NecesidadTipo | 'hospital'

@@ -52,6 +52,7 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
   'derrumbe',
   'inundacion',
   'incendio',
+  'sacos_arena',
   'otro',
   'acopio',
 ]

@@ -9,6 +9,7 @@ export type NecesidadTipo =
   | 'derrumbe'
   | 'inundacion'
   | 'incendio'
+  | 'sacos_arena'
   | 'zona_sin_atender'
   | 'otro'
   | 'acopio'
@@ -220,6 +221,7 @@ export const TIPO_META: Record<
   derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
   inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
+  sacos_arena: { etiqueta: 'Sacos de arena', emoji: '🧱', color: '#92400E' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },

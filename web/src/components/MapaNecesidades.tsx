@@ -272,6 +272,7 @@ const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'derrumbe',
   'inundacion',
   'incendio',
+  'sacos_arena',
   'otro',
 ]
 
