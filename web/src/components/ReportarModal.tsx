@@ -674,45 +674,6 @@ export default function ReportarModal({
     </div>
   )
 
-  const selectorUrgenciaPsicologia = (
-    <div>
-      <p className="font-bold mb-2">¿Cómo te sientes en este momento?</p>
-      <div className="grid gap-2">
-        {[
-          {
-            v: 'alta' as NecesidadUrgencia,
-            t: 'Necesito apoyo lo antes posible',
-            d: 'Me siento en crisis, con mucho miedo, angustia o sin poder calmarme.',
-          },
-          {
-            v: 'media' as NecesidadUrgencia,
-            t: 'Necesito hablar con alguien pronto',
-            d: 'Estoy afectado/a, triste, ansioso/a o con recuerdos difíciles.',
-          },
-          {
-            v: 'baja' as NecesidadUrgencia,
-            t: 'Quiero orientación y acompañamiento',
-            d: 'Puedo esperar, pero necesito apoyo emocional.',
-          },
-        ].map((u) => (
-          <button
-            key={u.v}
-            type="button"
-            onClick={() => setUrgencia(u.v)}
-            className={`text-left rounded-xl border-2 p-3 ${
-              urgencia === u.v
-                ? 'border-bandera-azul bg-blue-50'
-                : 'border-gray-200 bg-white'
-            }`}
-          >
-            <span className="block font-bold text-sm">{u.t}</span>
-            <span className="block text-xs text-gray-600 mt-0.5">{u.d}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-
   const avisoError = errorMsg && (
     <div className="rounded-xl border-2 border-bandera-rojo bg-red-50 p-3 text-sm font-semibold text-bandera-rojo">
       ⚠️ {errorMsg}
@@ -1041,10 +1002,7 @@ export default function ReportarModal({
               />
             </div>
 
-            {!esHospital &&
-              (esAtencionPsicologica
-                ? selectorUrgenciaPsicologia
-                : selectorUrgencia)}
+            {!esHospital && !esAtencionPsicologica && selectorUrgencia}
             {!esHospital && bloqueCatastrofe}
             {!esHospital && !esAtencionPsicologica && bloqueContacto}
             {avisoError}
