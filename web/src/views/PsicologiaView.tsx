@@ -23,6 +23,7 @@ import {
   TIPO_META,
   URGENCIA_META,
   type Necesidad,
+  type NecesidadUrgencia,
   type PerfilPublico,
 } from '../lib/types'
 
@@ -209,6 +210,20 @@ export default function PsicologiaView() {
     await asignar(n, perfil.id)
   }
 
+  // Solo el líder de psicología (o admin) puede reclasificar la urgencia de
+  // un caso: la persona que reporta ya no la elige (se sacó esa pregunta del
+  // formulario), así que el equipo la ajusta según lo que lea en el caso.
+  async function cambiarUrgencia(n: Necesidad, urgencia: NecesidadUrgencia) {
+    setTrabajando(n.id)
+    const { error } = await supabase
+      .from('necesidades')
+      .update({ urgencia })
+      .eq('id', n.id)
+    if (error) notificar('No se pudo cambiar la urgencia: ' + error.message, 'alerta')
+    else await cargar()
+    setTrabajando(null)
+  }
+
   async function cerrarCaso() {
     const n = aCerrar
     if (!n) return
@@ -330,6 +345,7 @@ export default function PsicologiaView() {
               ultimoSeguimiento={ultimos.get(n.id)}
               onAsignarme={() => void asignarme(n)}
               onAsignar={(id) => void asignar(n, id)}
+              onCambiarUrgencia={(u) => void cambiarUrgencia(n, u)}
               onChat={() => setChat(n)}
               onSeguimiento={() => setSeguimiento(n)}
               onReabrir={() => void reabrirSolicitud(n)}
@@ -565,6 +581,7 @@ function SolicitudPsicologica({
   ultimoSeguimiento,
   onAsignarme,
   onAsignar,
+  onCambiarUrgencia,
   onChat,
   onSeguimiento,
   onReabrir,
@@ -581,6 +598,7 @@ function SolicitudPsicologica({
   ultimoSeguimiento?: SeguimientoPsicologia
   onAsignarme: () => void
   onAsignar: (id: string | null) => void
+  onCambiarUrgencia: (u: NecesidadUrgencia) => void
   onChat: () => void
   onSeguimiento: () => void
   onReabrir: () => void
@@ -619,9 +637,31 @@ function SolicitudPsicologica({
         </div>
         <TextoExpandible texto={n.descripcion} className="text-sm text-gray-700" />
         {n.zona && <div className="text-xs text-gray-500">📍 {n.zona}</div>}
-        <div className="text-xs font-semibold text-gray-600">
-          🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)} ·{' '}
-          {URGENCIA_META[n.urgencia].etiqueta}
+        <div className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 flex-wrap">
+          <span>
+            🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
+          </span>
+          {esLider && !atendida ? (
+            <label className="flex items-center gap-1">
+              <span>· Urgencia:</span>
+              <select
+                value={n.urgencia}
+                disabled={trabajando}
+                onChange={(e) =>
+                  onCambiarUrgencia(e.target.value as NecesidadUrgencia)
+                }
+                className="rounded-md border px-1.5 py-0.5 text-xs font-semibold"
+              >
+                {(['alta', 'media', 'baja'] as NecesidadUrgencia[]).map((u) => (
+                  <option key={u} value={u}>
+                    {URGENCIA_META[u].etiqueta}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <span>· {URGENCIA_META[n.urgencia].etiqueta}</span>
+          )}
         </div>
         <div className="text-xs font-semibold text-bandera-azul">
           Atiende: {asignado?.nombre ?? 'Sin asignar'}
