@@ -116,7 +116,11 @@ export default function EditarPerfilView() {
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
     if (!perfil?.id) return
-    if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
+    if (!telefono.trim()) {
+      setErrorMsg('El teléfono es obligatorio.')
+      return
+    }
+    if (!esTelefonoVenezuelaValido(telefono)) {
       setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
@@ -236,8 +240,10 @@ export default function EditarPerfilView() {
         </label>
 
         <div>
-          <p className="text-sm font-semibold mb-1">Teléfono</p>
-          <EntradaTelefono valor={telefono} onChange={setTelefono} />
+          <p className="text-sm font-semibold mb-1">
+            Teléfono <span className="text-bandera-rojo">*</span>
+          </p>
+          <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
         </div>
 
         {/* Documento: cédula o pasaporte */}

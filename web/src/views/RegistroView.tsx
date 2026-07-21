@@ -121,15 +121,13 @@ export default function RegistroView() {
       setErrorMsg('La contraseña debe tener al menos 6 caracteres.')
       return
     }
-    // El teléfono es obligatorio si se pide ser psicólogo/a (es cómo el
-    // equipo contacta y verifica); si no, sigue siendo opcional.
-    if (quierePsicologo && !telefono.trim()) {
-      setErrorMsg(
-        'El teléfono es obligatorio para solicitar ser psicólogo/a: es cómo te contactará el equipo.',
-      )
+    // El teléfono es obligatorio para cualquier rol: es cómo el equipo (o
+    // quien reporta/atiende) puede contactar a la persona.
+    if (!telefono.trim()) {
+      setErrorMsg('El teléfono es obligatorio para crear tu cuenta.')
       return
     }
-    if (telefono.trim() && !esTelefonoVenezuelaValido(telefono)) {
+    if (!esTelefonoVenezuelaValido(telefono)) {
       setErrorMsg(mensajeTelefonoVenezuela())
       return
     }
@@ -433,19 +431,14 @@ export default function RegistroView() {
 
           <div>
             <p className="text-sm font-semibold mb-1">
-              Teléfono {quierePsicologo ? '(obligatorio)' : '(opcional)'}
+              Teléfono <span className="text-bandera-rojo">*</span>
             </p>
-            {quierePsicologo && (
-              <p className="text-xs text-gray-500 mb-1">
-                Es cómo el equipo de psicología te contactará para revisar tu
-                solicitud.
-              </p>
-            )}
-            <EntradaTelefono
-              valor={telefono}
-              onChange={setTelefono}
-              requerido={quierePsicologo}
-            />
+            <p className="text-xs text-gray-500 mb-1">
+              {quierePsicologo
+                ? 'Es cómo el equipo de psicología te contactará para revisar tu solicitud.'
+                : 'Es cómo otras personas de la red pueden contactarte si haces falta.'}
+            </p>
+            <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
           </div>
 
           <hr className="border-gray-100" />
