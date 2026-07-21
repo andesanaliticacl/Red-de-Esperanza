@@ -65,11 +65,8 @@ export default function EditarPerfilView() {
   const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
-  // Voluntario/rescatista requieren estar en Venezuela.
-  const enVenezuela = pais === 'Venezuela'
-  const rolesElegibles: Exclude<RolRegistro, 'psicologo'>[] = enVenezuela
-    ? ROLES_ELEGIBLES
-    : ['ciudadano', 'centro_acopio']
+  // Todos los roles autoasignables están disponibles desde cualquier país.
+  const rolesElegibles: Exclude<RolRegistro, 'psicologo'>[] = ROLES_ELEGIBLES
 
   // "Quiero ser psicólogo/a": solicitud aparte, no un rol autoasignable.
   // Solo tiene sentido ofrecerla a quien todavía no es del equipo.
@@ -184,27 +181,15 @@ export default function EditarPerfilView() {
           </button>
         </div>
 
-        {/* País (define qué roles puedes elegir) */}
+        {/* País */}
         {puedeCambiarRol && (
           <div>
             <p className="text-sm font-semibold mb-1">¿En qué país estás?</p>
             <SelectorBandera
               opciones={OPCIONES_PAIS}
               valor={pais}
-              onChange={(v) => {
-                setPais(v)
-                if (
-                  v !== 'Venezuela' &&
-                  (nuevoRol === 'voluntario' || nuevoRol === 'rescatista')
-                )
-                  setNuevoRol('ciudadano')
-              }}
+              onChange={(v) => setPais(v)}
             />
-            {!enVenezuela && (
-              <p className="text-xs text-gray-500 mt-1">
-                Fuera de Venezuela puedes ser ciudadano o centro de acopio.
-              </p>
-            )}
           </div>
         )}
 

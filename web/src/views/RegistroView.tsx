@@ -99,11 +99,14 @@ export default function RegistroView() {
   // Ciudades sugeridas según la zona elegida (autocompletar, no obligatorio).
   const ciudadesSugeridas = ciudadesDeZona(isoPais, estado)
 
-  // Voluntario/rescatista requieren estar en el terreno: solo Venezuela.
-  const enVenezuela = pais === 'Venezuela'
-  const rolesDisponibles: Exclude<RolRegistro, 'psicologo'>[] = enVenezuela
-    ? ['ciudadano', 'voluntario', 'rescatista', 'centro_acopio']
-    : ['ciudadano', 'centro_acopio']
+  // Todos los roles autoasignables están disponibles desde cualquier país
+  // (la red ya opera en más de un país, no solo Venezuela).
+  const rolesDisponibles: Exclude<RolRegistro, 'psicologo'>[] = [
+    'ciudadano',
+    'voluntario',
+    'rescatista',
+    'centro_acopio',
+  ]
 
   const [verPass, setVerPass] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -230,7 +233,7 @@ export default function RegistroView() {
         </p>
 
         <form onSubmit={registrar} className="space-y-4">
-          {/* País donde estás (define qué roles puedes elegir) */}
+          {/* País donde estás */}
           <div>
             <p className="font-bold text-sm mb-2">¿En qué país estás?</p>
             <SelectorBandera
@@ -240,23 +243,8 @@ export default function RegistroView() {
                 setPais(v)
                 // Al cambiar de país, la zona anterior ya no aplica.
                 setEstado('')
-                // Voluntario/rescatista requieren estar en Venezuela: si el
-                // país cambia, reseteamos. Psicólogo/a sí viaja entre países
-                // (apoyo remoto).
-                if (
-                  v !== 'Venezuela' &&
-                  (rol === 'voluntario' || rol === 'rescatista')
-                )
-                  setRol('ciudadano')
               }}
             />
-            {!enVenezuela && (
-              <p className="text-xs text-gray-500 mt-1">
-                Fuera de Venezuela puedes participar como ciudadano o centro
-                de acopio (voluntario/rescatista requieren estar en el
-                terreno, en Venezuela).
-              </p>
-            )}
           </div>
 
           {/* Rol */}
