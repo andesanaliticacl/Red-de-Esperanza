@@ -13,6 +13,8 @@ import NoEncontrada from './views/NoEncontrada'
 // la primera carga del mapa sea lo más liviana posible.
 const LoginView = lazy(() => import('./views/LoginView'))
 const RegistroView = lazy(() => import('./views/RegistroView'))
+const RecuperarClaveView = lazy(() => import('./views/RecuperarClaveView'))
+const NuevaClaveView = lazy(() => import('./views/NuevaClaveView'))
 const MisReportesView = lazy(() => import('./views/MisReportesView'))
 const CentrosAcopioView = lazy(() => import('./views/CentrosAcopioView'))
 const VoluntarioView = lazy(() => import('./views/VoluntarioView'))
@@ -63,6 +65,8 @@ export default function App() {
             <Route path="/" element={<CiudadanoView />} />
             <Route path="/login" element={<LoginView />} />
             <Route path="/registro" element={<RegistroView />} />
+            <Route path="/recuperar" element={<RecuperarClaveView />} />
+            <Route path="/nueva-clave" element={<NuevaClaveView />} />
             <Route path="/acopios" element={<CentrosAcopioView />} />
 
             {/* Cualquier usuario autenticado: sus reportes y chats */}

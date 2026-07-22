@@ -98,6 +98,12 @@ export default function LoginView() {
             >
               {cargando ? 'Entrando…' : '➡️ Entrar'}
             </button>
+            <Link
+              to="/recuperar"
+              className="block text-center text-sm text-bandera-azul font-semibold"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
           </form>
 
         <div className="mt-6 pt-5 border-t text-center">
