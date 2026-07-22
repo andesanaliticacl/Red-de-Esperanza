@@ -23,6 +23,9 @@ import {
   iconoAcopio,
   iconoAcopioCompacto,
   iconoAcopioFuera,
+  iconoAcopioAnimal,
+  iconoAcopioAnimalCompacto,
+  iconoAcopioAnimalFuera,
   iconoHospital,
   iconoHospitalCompacto,
   iconoHospitalFuera,
@@ -1120,6 +1123,7 @@ export default function MapaNecesidades({
 
       {acopiosEnVista.map((a) => {
         const esHospital = (a.descripcion ?? '').toLowerCase().includes('hospital')
+        const esAnimal = !esHospital && !!a.atiende_animales
         // Fuera de Venezuela: pequeño y uniforme. Dentro: tamaño normal.
         const fuera = !dentroDelRecuadroVE(a.lat, a.lng)
         const iconoCentro = esHospital
@@ -1128,11 +1132,17 @@ export default function MapaNecesidades({
             : esMovil
               ? iconoHospitalCompacto
               : iconoHospital
-          : fuera
-            ? iconoAcopioFuera
-            : esMovil
-              ? iconoAcopioCompacto
-              : iconoAcopio
+          : esAnimal
+            ? fuera
+              ? iconoAcopioAnimalFuera
+              : esMovil
+                ? iconoAcopioAnimalCompacto
+                : iconoAcopioAnimal
+            : fuera
+              ? iconoAcopioFuera
+              : esMovil
+                ? iconoAcopioCompacto
+                : iconoAcopio
         return (
         <Marker
           key={a.id}
@@ -1165,11 +1175,16 @@ export default function MapaNecesidades({
               <span>Compartir</span>
             </button>
             <div className="font-bold">
-              {esHospital ? '🏥' : '📦'} {a.nombre}
+              {esHospital ? '🏥' : esAnimal ? '🐾' : '📦'} {a.nombre}
             </div>
-            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : '#16a34a' }}>
+            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : esAnimal ? '#B45309' : '#16a34a' }}>
               {esHospital ? 'Hospital' : 'Centro de acopio'}
             </div>
+            {esAnimal && (
+              <div className="text-xs font-semibold text-amber-700">
+                🐾 También atiende animales / mascotas
+              </div>
+            )}
             <div className="text-xs text-gray-600">
               {[a.ciudad, a.pais].filter(Boolean).join(', ')}
             </div>

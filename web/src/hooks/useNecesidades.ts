@@ -103,7 +103,7 @@ export function useNecesidades(
     const ac = await supabase
       .from('centros_acopio')
       .select(
-        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, creado_por, creado_en, id_fuente, ultimo_refresco, refrescos, es_hospital',
+        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, creado_por, creado_en, id_fuente, ultimo_refresco, refrescos, es_hospital, atiende_animales',
       )
       // Ciclo de vida: los acopios vencidos se ocultan; los hospitales NUNCA.
       .or(`es_hospital.eq.true,ultimo_refresco.gte.${fechaCorteVida()}`)

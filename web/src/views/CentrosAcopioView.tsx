@@ -314,10 +314,15 @@ export default function CentrosAcopioView() {
             </h2>
             {lista.map((c, i) => (
               <div key={c.id} className="card flex items-start gap-3">
-                <div className="text-2xl">📦</div>
+                <div className="text-2xl">{c.atiende_animales ? '🐾' : '📦'}</div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold">
                     {c.nombre}
+                    {c.atiende_animales && (
+                      <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                        🐾 Atiende animales
+                      </span>
+                    )}
                     {yo && i === 0 && (
                       <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                         más cercano
@@ -435,6 +440,9 @@ function FormCentro({
   const [direccion, setDireccion] = useState(centro?.direccion ?? '')
   const [contacto, setContacto] = useState(centro?.contacto ?? '')
   const [redSocial, setRedSocial] = useState(centro?.red_social ?? '')
+  const [atiendeAnimales, setAtiendeAnimales] = useState(
+    centro?.atiende_animales ?? false,
+  )
   const [descripcion, setDescripcion] = useState(centro?.descripcion ?? '')
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
     centro ? { lat: centro.lat, lng: centro.lng } : null,
@@ -537,6 +545,7 @@ function FormCentro({
       direccion: direccion.trim() || null,
       contacto: contacto.trim() || null,
       red_social: redSocial.trim() || null,
+      atiende_animales: atiendeAnimales,
       descripcion: descripcion.trim() || null,
       lat: pt.lat,
       lng: pt.lng,
@@ -697,6 +706,17 @@ function FormCentro({
         value={redSocial}
         onChange={(e) => setRedSocial(e.target.value)}
       />
+      <label className="flex items-center gap-2 rounded-xl border-2 border-amber-200 bg-amber-50/60 p-3 cursor-pointer">
+        <input
+          type="checkbox"
+          className="h-5 w-5"
+          checked={atiendeAnimales}
+          onChange={(e) => setAtiendeAnimales(e.target.checked)}
+        />
+        <span className="text-sm font-semibold text-amber-950">
+          🐾 Este centro también atiende animales / mascotas
+        </span>
+      </label>
       {/* Ubicación: buscar dirección (Google/OSM) y AJUSTAR el pin al punto exacto. */}
       <div
         className={`rounded-xl border-2 p-3 ${

@@ -142,7 +142,7 @@ export function iconoNecesidad(
 // Caja de centro de acopio (gota verde con 📦). El tamaño cambia según el país:
 // los de DENTRO de Venezuela se ven más grandes (son los relevantes para la
 // emergencia); los de FUERA (donaciones desde la diáspora) van más pequeños.
-function iconoCaja(tam: number, sinSombra = false): L.DivIcon {
+function iconoCaja(tam: number, sinSombra = false, emoji = '📦', color = '#16A34A'): L.DivIcon {
   const fuente = Math.round(tam * 0.46)
   const sombra = sinSombra ? '' : 'box-shadow:0 2px 6px rgba(0,0,0,.4);'
   return L.divIcon({
@@ -150,11 +150,11 @@ function iconoCaja(tam: number, sinSombra = false): L.DivIcon {
     html: `
       <div style="position:relative;width:${tam}px;height:${tam}px;">
         <div style="
-          background:#16A34A;width:${tam}px;height:${tam}px;
+          background:${color};width:${tam}px;height:${tam}px;
           border-radius:50% 50% 50% 0;transform:rotate(-45deg);
           border:3px solid #fff;${sombra}
           display:flex;align-items:center;justify-content:center;">
-          <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">📦</span>
+          <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
         </div>
       </div>`,
     iconSize: [tam, tam],
@@ -166,6 +166,12 @@ function iconoCaja(tam: number, sinSombra = false): L.DivIcon {
 export const iconoAcopio: L.DivIcon = iconoCaja(36) // dentro de Venezuela
 export const iconoAcopioCompacto: L.DivIcon = iconoCaja(30, true) // móvil (menor, sin sombra)
 export const iconoAcopioFuera: L.DivIcon = iconoCaja(TAM_FUERA) // fuera (pequeño)
+
+// Acopio que ADEMÁS atiende animales: gota ámbar con huella 🐾, para
+// reconocerlo de un vistazo respecto de los centros normales (📦 verde).
+export const iconoAcopioAnimal: L.DivIcon = iconoCaja(36, false, '🐾', '#B45309')
+export const iconoAcopioAnimalCompacto: L.DivIcon = iconoCaja(30, true, '🐾', '#B45309')
+export const iconoAcopioAnimalFuera: L.DivIcon = iconoCaja(TAM_FUERA, false, '🐾', '#B45309')
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
 // del centro de acopio (caja verde).

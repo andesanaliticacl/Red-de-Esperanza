@@ -167,6 +167,8 @@ export interface CentroAcopio {
   refrescos?: number
   /** Los hospitales viven en esta tabla pero NUNCA vencen. */
   es_hospital?: boolean
+  /** El centro atiende animales/mascotas (cambia el ícono en el mapa). */
+  atiende_animales?: boolean
 }
 
 export interface Perfil {
