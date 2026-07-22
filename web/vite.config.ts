@@ -39,6 +39,22 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Datos de Supabase (lecturas GET): red primero y, si no hay, la
+            // última copia guardada. Así el mapa muestra lo último visto aunque
+            // se abra sin Internet. Solo GET (Workbox no cachea escrituras).
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith('.supabase.co') &&
+              url.pathname.startsWith('/rest/'),
+            handler: 'NetworkFirst',
+            method: 'GET',
+            options: {
+              cacheName: 'supabase-datos',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

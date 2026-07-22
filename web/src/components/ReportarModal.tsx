@@ -5,6 +5,7 @@ import {
   type NecesidadUrgencia,
 } from '../lib/types'
 import { crearNecesidad } from '../lib/reportes'
+import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   listarCatastrofes,
   crearCatastrofe,
@@ -97,6 +98,7 @@ export default function ReportarModal({
   fuenteInicial?: FuenteUbicacion | null
   puedeReportarHospital?: boolean
 }) {
+  const { notificar } = useNotificaciones()
   const [paso, setPaso] = useState(1)
   const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
@@ -393,7 +395,7 @@ export default function ReportarModal({
         return
       }
 
-      await crearNecesidad({
+      const res = await crearNecesidad({
         tipo: tipo as NecesidadTipo,
         urgencia,
         descripcion: esAtencionPsicologica
@@ -418,6 +420,12 @@ export default function ReportarModal({
         contactoObligatorio: true,
         origen: 'web',
       })
+      if (res.offline) {
+        notificar(
+          '📴 Guardado sin Internet. Tu reporte se enviará automáticamente al reconectar.',
+          'alerta',
+        )
+      }
       onCreado(tipo)
     } catch (e) {
       setErrorMsg((e as Error).message)

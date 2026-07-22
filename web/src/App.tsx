@@ -4,6 +4,7 @@ import { registrarVisita } from './lib/visitas'
 import BarraSuperior from './components/BarraSuperior'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
+import SincronizadorOffline from './components/SincronizadorOffline'
 // CiudadanoView es la pantalla principal: se carga de una vez.
 import CiudadanoView from './views/CiudadanoView'
 import NoEncontrada from './views/NoEncontrada'
@@ -51,6 +52,8 @@ export default function App() {
 
   return (
     <div className="h-full flex flex-col">
+      {/* Motor offline: reenvía los reportes creados sin Internet al reconectar. */}
+      <SincronizadorOffline />
       <BarraSuperior />
       <main className="flex-1 min-h-0">
         <ErrorBoundary>
