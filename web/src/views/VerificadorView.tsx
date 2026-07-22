@@ -22,6 +22,9 @@ const TIPOS: NecesidadTipo[] = [
   'medicinas',
   'refugio',
   'derrumbe',
+  'inundacion',
+  'incendio',
+  'sacos_arena',
   'otro',
 ]
 const URGENCIAS: NecesidadUrgencia[] = ['alta', 'media', 'baja']

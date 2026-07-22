@@ -32,12 +32,18 @@ const TIPOS: NecesidadTipo[] = [
   'medicinas',
   'refugio',
   'derrumbe',
+  'inundacion',
+  'incendio',
+  'sacos_arena',
   'otro',
 ]
 
 // Tipos del resumen consolidado (el SOS/rescate se cuenta aparte por prioridad).
 const RESUMEN_TIPOS: NecesidadTipo[] = [
   'derrumbe',
+  'inundacion',
+  'incendio',
+  'sacos_arena',
   'zona_sin_atender',
   'agua_comida',
   'medicinas',

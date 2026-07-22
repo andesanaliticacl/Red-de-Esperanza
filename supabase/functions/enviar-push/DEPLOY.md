@@ -34,7 +34,7 @@ prefieres, quítalo y en cada webhook agrega el header
 > de `supabase/functions/enviar-push/index.ts`.
 
 ## 4) Crear los Database Webhooks
-Database → **Webhooks** → Create a new hook. Crea **dos**, ambos apuntando a la
+Database → **Webhooks** → Create a new hook. Crea **tres**, todos apuntando a la
 Edge Function `enviar-push` (tipo HTTP Request / Supabase Edge Functions):
 
 **Webhook A — necesidades**
@@ -44,6 +44,11 @@ Edge Function `enviar-push` (tipo HTTP Request / Supabase Edge Functions):
 
 **Webhook B — mensajes**
 - Tabla: `mensajes`
+- Eventos: `Insert`
+- URL: la de la función `enviar-push`
+
+**Webhook C — solicitudes_psicologo**
+- Tabla: `solicitudes_psicologo` (creada en la migración 48)
 - Eventos: `Insert`
 - URL: la de la función `enviar-push`
 
@@ -57,6 +62,7 @@ Edge Function `enviar-push` (tipo HTTP Request / Supabase Edge Functions):
 - **Nueva necesidad / SOS** → a voluntarios y rescatistas.
 - **Te asignaron tu reporte** → a quien lo creó (si tenía sesión).
 - **Mensaje nuevo** → a los participantes de esa conversación.
+- **Alguien quiere ser psicólogo/a** → a admin y lider_psicologo.
 
 ## Notas
 - **iPhone:** las push solo funcionan si la persona instaló la página

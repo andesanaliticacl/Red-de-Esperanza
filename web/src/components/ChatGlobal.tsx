@@ -11,9 +11,9 @@ import {
 } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
 import { paisPorIP } from '../lib/visitas'
-import EntradaTelefono, { esTelefonoVenezuelaValido } from './EntradaTelefono'
+import EntradaTelefono, { esTelefonoValido } from './EntradaTelefono'
+import { PAISES_CHAT, regionesDe, claveSala } from '../lib/regionesChat'
 import {
-  ESTADOS_VENEZUELA,
   ROL_META,
   type MensajeGlobal,
   type RolUsuario,
@@ -32,10 +32,6 @@ const COLOR_ROL: Record<RolUsuario, string> = {
   lider_psicologo: '#6D28D9',
   verificador: '#7C3AED',
   admin: '#CF9B00',
-}
-
-function esVenezuela(pais: string | null | undefined): boolean {
-  return (pais ?? '').trim().toLowerCase() === 'venezuela'
 }
 
 function fragmento(texto: string, max = 120): string {
@@ -96,19 +92,26 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     ? perfil?.nombre?.split(' ')[0] || 'Yo'
     : ''
   const [nombre, setNombre] = useState(guardada?.nombre ?? '')
+  // País de la sala: Venezuela y Chile por ahora (se pueden sumar más en
+  // lib/regionesChat.ts). Se preselecciona con el país detectado por IP si
+  // está entre los disponibles; si no, Venezuela (base histórica de la red).
+  const [paisChat, setPaisChat] = useState(
+    guardada?.pais ?? PAISES_CHAT[0].pais,
+  )
   const [estado, setEstado] = useState(guardada?.estado ?? perfil?.estado ?? '')
   // Teléfono del invitado (registro express), para poder contactarlo.
   const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
-  const [paisVisitante, setPaisVisitante] = useState<string | null>(null)
   const tokenPruebaChat = import.meta.env.DEV
     ? ((import.meta.env.VITE_CHAT_DEV_BYPASS_TOKEN as string | undefined) ?? '').trim()
     : ''
-  const modoPruebaChat = Boolean(tokenPruebaChat)
-  const puedeEscribir = esVenezuela(paisVisitante) || modoPruebaChat
-  // ¿El invitado puso un teléfono válido? (mín. 8 dígitos). Obligatorio sin sesión.
-  const telefonoValido =
-    !puedeEscribir || esTelefonoVenezuelaValido(telefono)
+  // El chat en vivo ya es abierto: cualquiera que elija un país/región
+  // disponible puede participar (antes solo se dejaba escribir desde
+  // Venezuela). La sala en sí ya delimita con quién se conversa.
+  const regionesDisponibles = regionesDe(paisChat)
+  const sala = estado ? claveSala(paisChat, estado) : ''
+  // ¿El invitado puso un teléfono válido? Obligatorio sin sesión.
+  const telefonoValido = esTelefonoValido(telefono)
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
@@ -127,14 +130,21 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const finRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Solo preseleccionamos automáticamente si la persona NO tiene ya una
+    // sala guardada (para no cambiarle la sala a alguien que vuelve).
+    if (guardada) return
     let activo = true
     paisPorIP().then(({ pais }) => {
-      if (!activo) return
-      setPaisVisitante(pais)
+      if (!activo || !pais) return
+      const encontrado = PAISES_CHAT.find(
+        (p) => p.pais.toLowerCase() === pais.trim().toLowerCase(),
+      )
+      if (encontrado) setPaisChat(encontrado.pais)
     })
     return () => {
       activo = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Trae los teléfonos (privados) de los mensajes dados. Solo para líderes/admin.
@@ -190,10 +200,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   }
 
   useEffect(() => {
-    if (!listo || !estado.trim()) return
+    if (!listo || !sala) return
     let activo = true
     setCargando(true)
-    listarChat(estado)
+    listarChat(sala)
       .then((m) => {
         if (!activo) return
         setMensajes(m)
@@ -204,7 +214,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       .finally(() => activo && setCargando(false))
 
     const cancelar = suscribirChat(
-      estado,
+      sala,
       (m) => {
         setMensajes((prev) =>
           prev.some((x) => x.id === m.id) ? prev : [...prev, m],
@@ -227,7 +237,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       cancelar()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listo, estado])
+  }, [listo, sala])
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -244,14 +254,14 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   function entrar(e: React.FormEvent) {
     e.preventDefault()
     const nom = esLogueado ? nombreEfectivo : nombre.trim() || 'Visitante'
-    // Sin sesión: nombre + estado + teléfono (para poder contactar).
+    // Sin sesión: nombre + país + estado/región + teléfono (para contactar).
     if (!estado.trim()) return
-    if (puedeEscribir && !esLogueado && (!nombre.trim() || !telefonoValido)) return
+    if (!esLogueado && (!nombre.trim() || !telefonoValido)) return
     guardarIdentidad({
       nombre: nom,
       estado: estado.trim(),
-      telefono:
-        esLogueado || !puedeEscribir ? undefined : telefono.trim(),
+      pais: paisChat,
+      telefono: esLogueado ? undefined : telefono.trim(),
     })
     setMensajes([])
     setRespuestaA(null)
@@ -260,16 +270,13 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
-    if (!texto.trim()) return
-    if (!puedeEscribir) {
-      return
-    }
+    if (!texto.trim() || !sala) return
     const cuerpo = texto.trim()
     setTexto('')
     setErrorMsg('')
     try {
       await enviarChat({
-        ciudad: estado,
+        ciudad: sala,
         nombre: esLogueado ? nombreEfectivo : nombre,
         cuerpo,
         // Solo el invitado adjunta teléfono; el usuario con cuenta no expone el
@@ -313,6 +320,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         {listo && (
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full truncate">
             📍 {estado}
+            {paisChat !== PAISES_CHAT[0].pais ? `, ${paisChat}` : ''}
           </span>
         )}
         {listo && (
@@ -337,13 +345,13 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
       </div>
 
       {!listo ? (
-        // Ajustes / identidad (apodo + estado)
+        // Ajustes / identidad (apodo + país + estado/región)
         <form onSubmit={entrar} className="p-4 space-y-3 flex-1">
           <p className="text-sm text-gray-600">
-            Conversa con la gente de tu estado.{' '}
+            Conversa con la gente de tu zona.{' '}
             {esLogueado
-              ? 'Elige tu estado para entrar al chat comunitario.'
-              : 'Elige tu nombre y tu estado para entrar al chat comunitario.'}
+              ? 'Elige tu país y tu estado o región para entrar al chat comunitario.'
+              : 'Elige tu nombre, tu país y tu estado o región para entrar al chat comunitario.'}
           </p>
           {esLogueado ? (
             // Logueado: el nombre es automático (no se vuelve a pedir). Solo
@@ -356,8 +364,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           ) : (
-            puedeEscribir && (
-              <>
+            <>
               <label className="block text-sm font-semibold">
                 Nombre de la persona
                 <input
@@ -383,18 +390,36 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                 </p>
                 <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
               </div>
-              </>
-            )
+            </>
           )}
           <label className="block text-sm font-semibold">
-            Estado
+            País
+            <select
+              className="input mt-1"
+              value={paisChat}
+              onChange={(e) => {
+                setPaisChat(e.target.value)
+                setEstado('') // el país cambió: la región elegida ya no aplica
+              }}
+            >
+              {PAISES_CHAT.map((p) => (
+                <option key={p.pais} value={p.pais}>
+                  {p.pais}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-semibold">
+            {paisChat === 'Venezuela' ? 'Estado' : 'Región'}
             <select
               className="input mt-1"
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
             >
-              <option value="">Elige tu estado…</option>
-              {ESTADOS_VENEZUELA.map((s) => (
+              <option value="">
+                Elige tu {paisChat === 'Venezuela' ? 'estado' : 'región'}…
+              </option>
+              {regionesDisponibles.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -403,10 +428,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           </label>
           <button
             type="submit"
-            disabled={
-              !estado.trim() ||
-              (puedeEscribir && !esLogueado && (!nombre.trim() || !telefonoValido))
-            }
+            disabled={!estado.trim() || (!esLogueado && (!nombre.trim() || !telefonoValido))}
             className="btn-azul w-full disabled:opacity-50"
           >
             Entrar al chat
@@ -509,23 +531,21 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                           minute: '2-digit',
                         })}
                       </div>
-                      {puedeEscribir && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setRespuestaA({
-                              id: m.id,
-                              nombre: m.nombre,
-                              cuerpo: m.cuerpo,
-                            })
-                          }
-                          className={`mt-1 text-[11px] font-semibold ${
-                            mio ? 'text-white/80' : 'text-bandera-azul'
-                          }`}
-                        >
-                          Responder
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRespuestaA({
+                            id: m.id,
+                            nombre: m.nombre,
+                            cuerpo: m.cuerpo,
+                          })
+                        }
+                        className={`mt-1 text-[11px] font-semibold ${
+                          mio ? 'text-white/80' : 'text-bandera-azul'
+                        }`}
+                      >
+                        Responder
+                      </button>
                       {esAdmin && (
                         <button
                           type="button"
@@ -549,8 +569,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             <p className="px-3 text-bandera-rojo text-xs">⚠️ {errorMsg}</p>
           )}
 
-          {puedeEscribir && (
-            <>
           {respuestaA && (
             <div className="border-t bg-white px-3 pt-2">
               <div className="flex items-start gap-2 rounded-md border-l-4 border-bandera-azul bg-gray-50 px-2 py-1.5 text-xs">
@@ -579,19 +597,16 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               placeholder="Escribe un mensaje…"
               maxLength={500}
               value={texto}
-              disabled={!puedeEscribir}
               onChange={(e) => setTexto(e.target.value)}
             />
             <button
               type="submit"
-              disabled={!puedeEscribir || !texto.trim()}
+              disabled={!texto.trim()}
               className="btn-azul px-4 disabled:opacity-50"
             >
               ➤
             </button>
           </form>
-            </>
-          )}
         </>
       )}
     </div>

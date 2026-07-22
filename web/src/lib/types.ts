@@ -7,6 +7,9 @@ export type NecesidadTipo =
   | 'medicinas'
   | 'refugio'
   | 'derrumbe'
+  | 'inundacion'
+  | 'incendio'
+  | 'sacos_arena'
   | 'zona_sin_atender'
   | 'otro'
   | 'acopio'
@@ -57,6 +60,11 @@ export interface Necesidad {
   reportado_por: string | null
   asignado_a: string | null
   creado_en: string
+  /** Ciclo de vida de 4 días: última renovación y cuántas veces se renovó. */
+  ultimo_refresco?: string | null
+  refrescos?: number
+  /** Catástrofe (evento) a la que pertenece el reporte. Opcional. */
+  catastrofe_id?: string | null
   // Borrado suave: un líder/admin la quitó del mapa (spam, duplicado, etc.).
   // Sigue en la base para dejar registro; deja de verse en el mapa público.
   eliminada_del_mapa?: boolean
@@ -150,6 +158,11 @@ export interface CentroAcopio {
   creado_en: string
   /** Id en la web de origen: si está, vino del scraping (mostrar la fuente). */
   id_fuente: string | null
+  /** Ciclo de vida de 4 días: última renovación y cuántas veces se renovó. */
+  ultimo_refresco?: string | null
+  refrescos?: number
+  /** Los hospitales viven en esta tabla pero NUNCA vencen. */
+  es_hospital?: boolean
 }
 
 export interface Perfil {
@@ -198,14 +211,17 @@ export const TIPO_META: Record<
 > = {
   rescate: { etiqueta: 'Rescate', emoji: '🆘', color: '#CC0001' },
   atencion_psicologica: {
-    etiqueta: 'Atención psicológica',
-    emoji: '🧠',
+    etiqueta: 'Apoyo emocional',
+    emoji: '💙',
     color: '#7C3AED',
   },
   agua_comida: { etiqueta: 'Agua / Comida', emoji: '🥫', color: '#EA580C' },
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
   derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
+  inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
+  incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
+  sacos_arena: { etiqueta: 'Sacos de arena', emoji: '🧱', color: '#92400E' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
