@@ -597,6 +597,14 @@ export default function VoluntarioView() {
                     >
                       💬 Contactar
                     </button>
+                    {/* Cerrar directo si ya se rescató/resolvió, sin asignarse. */}
+                    <button
+                      onClick={() => iniciarCierre(n)}
+                      disabled={trabajando === n.id}
+                      className="py-2 px-3 text-sm whitespace-nowrap rounded-lg font-bold border-2 border-green-600 text-green-700 disabled:opacity-60"
+                    >
+                      ✅ Ayuda realizada
+                    </button>
                   </>
                 )}
               </div>
@@ -741,6 +749,7 @@ export default function VoluntarioView() {
                 trabajando={trabajando === n.id}
                 accion="asignar"
                 onAccion={() => asignarme(n)}
+                onResolver={() => iniciarCierre(n)}
                 onChat={() => setChat(n)}
               />
             ))}
@@ -982,6 +991,7 @@ function Fila({
   trabajando,
   accion,
   onAccion,
+  onResolver,
   onChat,
   onRetirar,
   atendidaPor,
@@ -994,6 +1004,10 @@ function Fila({
   trabajando: boolean
   accion: 'asignar' | 'atender' | null
   onAccion?: () => void
+  // "Ayuda realizada": cierra la necesidad SIN tener que asignársela antes.
+  // Sirve para que un rescatista marque algo que ya se resolvió y así nadie
+  // más vaya al pepe (evita movimientos innecesarios).
+  onResolver?: () => void
   onChat: () => void
   onRetirar?: () => void
   atendidaPor?: string | null
@@ -1049,6 +1063,15 @@ function Fila({
             } py-2.5 px-4 disabled:opacity-60 whitespace-nowrap`}
           >
             {accion === 'asignar' ? 'Me asigno' : 'Atendida'}
+          </button>
+        )}
+        {onResolver && (
+          <button
+            onClick={onResolver}
+            disabled={trabajando}
+            className="py-2.5 px-4 whitespace-nowrap rounded-2xl font-bold border-2 border-green-600 text-green-700 disabled:opacity-60"
+          >
+            ✅ Ayuda realizada
           </button>
         )}
         <button
