@@ -279,6 +279,7 @@ const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'inundacion',
   'incendio',
   'sacos_arena',
+  'mascota',
   'otro',
 ]
 
@@ -1177,11 +1178,11 @@ export default function MapaNecesidades({
             <div className="font-bold">
               {esHospital ? '🏥' : esAnimal ? '🐾' : '📦'} {a.nombre}
             </div>
-            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : esAnimal ? '#B45309' : '#16a34a' }}>
+            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : '#16a34a' }}>
               {esHospital ? 'Hospital' : 'Centro de acopio'}
             </div>
             {esAnimal && (
-              <div className="text-xs font-semibold text-amber-700">
+              <div className="text-xs font-semibold text-green-700">
                 🐾 También atiende animales / mascotas
               </div>
             )}
