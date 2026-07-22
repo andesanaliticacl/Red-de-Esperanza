@@ -91,12 +91,15 @@ export default function ReportarModal({
   coordInicial,
   fuenteInicial,
   puedeReportarHospital = false,
+  puedeReportarZonaAislada = false,
 }: {
   onCerrar: () => void
   onCreado: (tipo?: TipoReporte) => void
   coordInicial?: { lat: number; lng: number } | null
   fuenteInicial?: FuenteUbicacion | null
   puedeReportarHospital?: boolean
+  // Solo el admin puede marcar "zona aislada" (para verlas de un vistazo).
+  puedeReportarZonaAislada?: boolean
 }) {
   const { notificar } = useNotificaciones()
   const [paso, setPaso] = useState(1)
@@ -147,13 +150,17 @@ export default function ReportarModal({
   const [guardandoCatastrofe, setGuardandoCatastrofe] = useState(false)
 
   const esDerrumbe = tipo === 'derrumbe'
-  const esZona = tipo === 'zona_sin_atender'
+  const esZonaAislada = tipo === 'zona_aislada'
+  // Ambas zonas (sin atender y aislada) comparten el flujo: radio + pin del área.
+  const esZona = tipo === 'zona_sin_atender' || esZonaAislada
   const esAtencionPsicologica = tipo === 'atencion_psicologica'
   const esHospital = tipo === 'hospital'
   const requiereUbicacion = !esAtencionPsicologica
-  const tiposDisponibles: TipoReporte[] = puedeReportarHospital
-    ? [...TIPOS, 'hospital']
-    : TIPOS
+  const tiposDisponibles: TipoReporte[] = [
+    ...TIPOS,
+    ...(puedeReportarZonaAislada ? (['zona_aislada'] as TipoReporte[]) : []),
+    ...(puedeReportarHospital ? (['hospital'] as TipoReporte[]) : []),
+  ]
   const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
 
   async function actualizarUbicacion() {
@@ -246,6 +253,7 @@ export default function ReportarModal({
       t === 'derrumbe' ||
       t === 'rescate' ||
       t === 'zona_sin_atender' ||
+      t === 'zona_aislada' ||
       t === 'incendio' ||
       t === 'inundacion'
     )
@@ -258,6 +266,7 @@ export default function ReportarModal({
     setCoord(
       t === 'derrumbe' ||
         t === 'zona_sin_atender' ||
+        t === 'zona_aislada' ||
         t === 'hospital' ||
         t === 'atencion_psicologica'
         ? null
@@ -879,7 +888,13 @@ export default function ReportarModal({
         {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
           <div className="space-y-4">
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-              {esZona ? (
+              {esZonaAislada ? (
+                <>
+                  🏝️ Marca una <strong>zona aislada</strong> (incomunicada o de
+                  difícil acceso) para que el equipo la vea de un vistazo en el
+                  mapa. Solo el admin puede crearlas.
+                </>
+              ) : esZona ? (
                 <>
                   🚩 Marca una <strong>zona</strong> donde aún no ha llegado
                   ayuda, para que rescatistas y voluntarios sepan dónde ir. Se

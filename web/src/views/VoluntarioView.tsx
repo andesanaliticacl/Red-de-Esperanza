@@ -28,6 +28,7 @@ import {
 const TIPOS: NecesidadTipo[] = [
   'rescate',
   'zona_sin_atender',
+  'zona_aislada',
   'agua_comida',
   'medicinas',
   'refugio',
@@ -45,6 +46,7 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'incendio',
   'sacos_arena',
   'zona_sin_atender',
+  'zona_aislada',
   'agua_comida',
   'medicinas',
   'refugio',

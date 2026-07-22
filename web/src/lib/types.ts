@@ -11,6 +11,7 @@ export type NecesidadTipo =
   | 'incendio'
   | 'sacos_arena'
   | 'zona_sin_atender'
+  | 'zona_aislada'
   | 'otro'
   | 'acopio'
 
@@ -223,6 +224,7 @@ export const TIPO_META: Record<
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
   sacos_arena: { etiqueta: 'Sacos de arena', emoji: '🧱', color: '#92400E' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
+  zona_aislada: { etiqueta: 'Zona aislada', emoji: '🏝️', color: '#4338CA' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
 }

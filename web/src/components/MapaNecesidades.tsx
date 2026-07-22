@@ -268,6 +268,7 @@ const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'rescate',
   'atencion_psicologica',
   'zona_sin_atender',
+  'zona_aislada',
   'agua_comida',
   'medicinas',
   'refugio',
