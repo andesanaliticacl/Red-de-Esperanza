@@ -167,11 +167,11 @@ export const iconoAcopio: L.DivIcon = iconoCaja(36) // dentro de Venezuela
 export const iconoAcopioCompacto: L.DivIcon = iconoCaja(30, true) // móvil (menor, sin sombra)
 export const iconoAcopioFuera: L.DivIcon = iconoCaja(TAM_FUERA) // fuera (pequeño)
 
-// Acopio que ADEMÁS atiende animales: gota ámbar con huella 🐾, para
-// reconocerlo de un vistazo respecto de los centros normales (📦 verde).
-export const iconoAcopioAnimal: L.DivIcon = iconoCaja(36, false, '🐾', '#B45309')
-export const iconoAcopioAnimalCompacto: L.DivIcon = iconoCaja(30, true, '🐾', '#B45309')
-export const iconoAcopioAnimalFuera: L.DivIcon = iconoCaja(TAM_FUERA, false, '🐾', '#B45309')
+// Acopio que ADEMÁS atiende animales: MISMA gota verde que el acopio normal
+// pero con la huella 🐾 en vez de la caja 📦, para reconocerlo de un vistazo.
+export const iconoAcopioAnimal: L.DivIcon = iconoCaja(36, false, '🐾', '#16A34A')
+export const iconoAcopioAnimalCompacto: L.DivIcon = iconoCaja(30, true, '🐾', '#16A34A')
+export const iconoAcopioAnimalFuera: L.DivIcon = iconoCaja(TAM_FUERA, false, '🐾', '#16A34A')
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
 // del centro de acopio (caja verde).
