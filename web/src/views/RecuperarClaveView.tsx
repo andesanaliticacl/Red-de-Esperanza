@@ -22,7 +22,23 @@ export default function RecuperarClaveView() {
     })
     setEnviando(false)
     if (error) {
-      setErrorMsg(error.message)
+      const raw = (error.message || '').toLowerCase()
+      // El correo interno de Supabase (sin SMTP propio) tiene un límite muy
+      // bajo y a veces devuelve un error vacío ("{}"). Mostramos algo útil.
+      if (
+        !error.message ||
+        error.message === '{}' ||
+        raw.includes('rate') ||
+        raw.includes('limit') ||
+        raw.includes('seconds') ||
+        raw.includes('email')
+      ) {
+        setErrorMsg(
+          'No pudimos enviar el correo en este momento (límite de envíos alcanzado o el correo aún no está configurado). Inténtalo de nuevo en unos minutos.',
+        )
+      } else {
+        setErrorMsg(error.message)
+      }
       return
     }
     setListo(true)
