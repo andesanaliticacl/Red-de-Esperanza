@@ -30,6 +30,7 @@ import EntradaTelefono, {
   mensajeTelefono,
 } from './EntradaTelefono'
 import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
+import { subirFotoMascota } from '../lib/fotoMascota'
 
 // Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
 // propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
@@ -43,7 +44,15 @@ const TIPOS: NecesidadTipo[] = [
   'inundacion',
   'incendio',
   'sacos_arena',
+  'mascota',
   'otro',
+]
+
+// Tipos de animal para el reporte de mascota.
+const ANIMALES: { v: string; etiqueta: string; emoji: string }[] = [
+  { v: 'perro', etiqueta: 'Perro', emoji: '🐕' },
+  { v: 'gato', etiqueta: 'Gato', emoji: '🐈' },
+  { v: 'otro', etiqueta: 'Otro', emoji: '🐾' },
 ]
 type TipoReporte = NecesidadTipo | 'hospital'
 const HOSPITAL_META = {
@@ -91,12 +100,15 @@ export default function ReportarModal({
   coordInicial,
   fuenteInicial,
   puedeReportarHospital = false,
+  puedeReportarZonaAislada = false,
 }: {
   onCerrar: () => void
   onCreado: (tipo?: TipoReporte) => void
   coordInicial?: { lat: number; lng: number } | null
   fuenteInicial?: FuenteUbicacion | null
   puedeReportarHospital?: boolean
+  // Solo el admin puede marcar "zona aislada" (para verlas de un vistazo).
+  puedeReportarZonaAislada?: boolean
 }) {
   const { notificar } = useNotificaciones()
   const [paso, setPaso] = useState(1)
@@ -107,6 +119,11 @@ export default function ReportarModal({
   const [cedulaPaciente, setCedulaPaciente] = useState('')
   // Perfil del caso psicológico (elegido en las tarjetas de ayuda emocional).
   const [perfilPsico, setPerfilPsico] = useState<PerfilPsicologico>('')
+  // Mascota: tipo de animal, nombre y foto (comprimida al subir).
+  const [animalTipo, setAnimalTipo] = useState('perro')
+  const [nombreMascota, setNombreMascota] = useState('')
+  const [mascotaFile, setMascotaFile] = useState<File | null>(null)
+  const [mascotaPreview, setMascotaPreview] = useState<string>('')
   const [nombreHospital, setNombreHospital] = useState('')
   const [hospitalConfirmado, setHospitalConfirmado] =
     useState<HospitalGoogle | null>(null)
@@ -147,13 +164,18 @@ export default function ReportarModal({
   const [guardandoCatastrofe, setGuardandoCatastrofe] = useState(false)
 
   const esDerrumbe = tipo === 'derrumbe'
-  const esZona = tipo === 'zona_sin_atender'
+  const esMascota = tipo === 'mascota'
+  const esZonaAislada = tipo === 'zona_aislada'
+  // Ambas zonas (sin atender y aislada) comparten el flujo: radio + pin del área.
+  const esZona = tipo === 'zona_sin_atender' || esZonaAislada
   const esAtencionPsicologica = tipo === 'atencion_psicologica'
   const esHospital = tipo === 'hospital'
   const requiereUbicacion = !esAtencionPsicologica
-  const tiposDisponibles: TipoReporte[] = puedeReportarHospital
-    ? [...TIPOS, 'hospital']
-    : TIPOS
+  const tiposDisponibles: TipoReporte[] = [
+    ...TIPOS,
+    ...(puedeReportarZonaAislada ? (['zona_aislada'] as TipoReporte[]) : []),
+    ...(puedeReportarHospital ? (['hospital'] as TipoReporte[]) : []),
+  ]
   const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
 
   async function actualizarUbicacion() {
@@ -246,6 +268,7 @@ export default function ReportarModal({
       t === 'derrumbe' ||
       t === 'rescate' ||
       t === 'zona_sin_atender' ||
+      t === 'zona_aislada' ||
       t === 'incendio' ||
       t === 'inundacion'
     )
@@ -258,6 +281,7 @@ export default function ReportarModal({
     setCoord(
       t === 'derrumbe' ||
         t === 'zona_sin_atender' ||
+        t === 'zona_aislada' ||
         t === 'hospital' ||
         t === 'atencion_psicologica'
         ? null
@@ -395,6 +419,30 @@ export default function ReportarModal({
         return
       }
 
+      // Mascota: si adjuntó foto, la comprimimos y subimos ahora para tener
+      // la URL. La descripción resume el animal y su nombre.
+      let fotoUrlMascota: string | null = null
+      if (esMascota && mascotaFile) {
+        try {
+          fotoUrlMascota = await subirFotoMascota(mascotaFile)
+        } catch (e) {
+          throw new Error(
+            'No se pudo subir la foto de la mascota. Revisa tu conexión e inténtalo de nuevo. ' +
+              ((e as Error).message ?? ''),
+          )
+        }
+      }
+
+      const descripcionMascota = [
+        `${ANIMALES.find((a) => a.v === animalTipo)?.emoji ?? '🐾'} ${
+          ANIMALES.find((a) => a.v === animalTipo)?.etiqueta ?? 'Animal'
+        }`,
+        nombreMascota.trim() ? `Nombre: ${nombreMascota.trim()}` : '',
+        descripcion.trim() ? `Detalle: ${descripcion.trim()}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+
       const res = await crearNecesidad({
         tipo: tipo as NecesidadTipo,
         urgencia,
@@ -410,11 +458,14 @@ export default function ReportarModal({
             ]
               .filter(Boolean)
               .join('\n')
-          : descripcion.trim() || metaTipo.etiqueta,
+          : esMascota
+            ? descripcionMascota
+            : descripcion.trim() || metaTipo.etiqueta,
         zona: esAtencionPsicologica ? null : zona.trim() || null,
         lat,
         lng,
         radio_km: esZona ? tamZonaKm / 2 : null,
+        foto_url: fotoUrlMascota,
         catastrofe_id: catastrofeId || null,
         contacto,
         contactoObligatorio: true,
@@ -591,6 +642,84 @@ export default function ReportarModal({
           ➕ ¿No está en la lista? Crear catástrofe nueva
         </button>
       )}
+    </div>
+  )
+
+  const bloqueDatosMascota = (
+    <div className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
+      <p className="text-sm text-amber-950">
+        🐾 Reporta una mascota o animal (perdido, encontrado o que necesita
+        ayuda). Una foto ayuda muchísimo a reconocerlo.
+      </p>
+      <div>
+        <p className="font-bold mb-1">¿Qué animal es?</p>
+        <div className="grid grid-cols-3 gap-2">
+          {ANIMALES.map((a) => (
+            <button
+              key={a.v}
+              type="button"
+              onClick={() => setAnimalTipo(a.v)}
+              className={`rounded-xl border-2 py-2 text-sm font-semibold ${
+                animalTipo === a.v
+                  ? 'border-bandera-azul bg-blue-50'
+                  : 'border-gray-200 bg-white'
+              }`}
+            >
+              {a.emoji} {a.etiqueta}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="block">
+        <span className="font-bold">Nombre (si lo tiene)</span>
+        <input
+          className="input mt-1"
+          placeholder="Ej: Firulais"
+          maxLength={40}
+          value={nombreMascota}
+          onChange={(e) => setNombreMascota(e.target.value)}
+        />
+      </label>
+      <div>
+        <p className="font-bold mb-1">Foto (opcional)</p>
+        {mascotaPreview ? (
+          <div className="flex items-center gap-3">
+            <img
+              src={mascotaPreview}
+              alt="Mascota"
+              className="h-20 w-20 rounded-xl object-cover border"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setMascotaFile(null)
+                setMascotaPreview('')
+              }}
+              className="text-sm font-semibold text-bandera-rojo"
+            >
+              Quitar foto
+            </button>
+          </div>
+        ) : (
+          <label className="btn-gris inline-flex py-2 px-4 cursor-pointer">
+            📷 Elegir foto
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                setMascotaFile(f)
+                setMascotaPreview(URL.createObjectURL(f))
+              }}
+            />
+          </label>
+        )}
+        <p className="text-[11px] text-gray-500 mt-1">
+          La foto se comprime automáticamente para que pese poco.
+        </p>
+      </div>
     </div>
   )
 
@@ -879,7 +1008,13 @@ export default function ReportarModal({
         {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
           <div className="space-y-4">
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-              {esZona ? (
+              {esZonaAislada ? (
+                <>
+                  🏝️ Marca una <strong>zona aislada</strong> (incomunicada o de
+                  difícil acceso) para que el equipo la vea de un vistazo en el
+                  mapa. Solo el admin puede crearlas.
+                </>
+              ) : esZona ? (
                 <>
                   🚩 Marca una <strong>zona</strong> donde aún no ha llegado
                   ayuda, para que rescatistas y voluntarios sepan dónde ir. Se
@@ -965,6 +1100,8 @@ export default function ReportarModal({
             )}
 
             {esAtencionPsicologica && bloqueDatosPsicologia}
+
+            {esMascota && bloqueDatosMascota}
 
             {requiereUbicacion && (
               <div>

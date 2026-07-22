@@ -18,6 +18,7 @@ const TIPOS: NecesidadTipo[] = [
   'rescate',
   'atencion_psicologica',
   'zona_sin_atender',
+  'zona_aislada',
   'agua_comida',
   'medicinas',
   'refugio',

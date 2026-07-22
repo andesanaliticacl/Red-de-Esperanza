@@ -18,6 +18,19 @@ const COLOR_ROL: Record<RolUsuario, string> = {
   admin: '#CF9B00',
 }
 
+// País de un rescatista según el PREFIJO de su teléfono (+56 Chile, +58
+// Venezuela). Si el número no tiene un prefijo reconocible, se usa el país
+// del perfil como respaldo; si tampoco, "Otro".
+function paisDeRescatista(p: Perfil): 'Chile' | 'Venezuela' | 'Otro' {
+  const tel = (p.telefono ?? '').replace(/\s+/g, '')
+  if (tel.startsWith('+56')) return 'Chile'
+  if (tel.startsWith('+58')) return 'Venezuela'
+  const pais = (p.pais ?? '').trim().toLowerCase()
+  if (pais === 'chile') return 'Chile'
+  if (pais === 'venezuela') return 'Venezuela'
+  return 'Otro'
+}
+
 // PAUSADO: 'verificador' se mantiene fuera de la lista mientras la verificación
 // está oculta. Para reactivarla, vuelve a añadirlo aquí.
 const ROLES: RolUsuario[] = [
@@ -104,6 +117,20 @@ export default function AdminView() {
     }))
   }, [perfiles])
 
+  // Rescatistas separados por país (por prefijo del teléfono).
+  const rescatistasPorPais = useMemo(() => {
+    const m = { Venezuela: 0, Chile: 0, Otro: 0 }
+    for (const p of perfiles) {
+      if (p.rol !== 'rescatista') continue
+      m[paisDeRescatista(p)] += 1
+    }
+    return m
+  }, [perfiles])
+  const totalRescatistas =
+    rescatistasPorPais.Venezuela +
+    rescatistasPorPais.Chile +
+    rescatistasPorPais.Otro
+
   const stats = useMemo(() => {
     const c = (estado: string) =>
       necesidades.filter((n) => n.estado === estado).length
@@ -160,6 +187,30 @@ export default function AdminView() {
               color={COLOR_ROL[rol]}
             />
           ))}
+        </div>
+      </section>
+
+      {/* Rescatistas por país (según el prefijo del teléfono) */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">
+          🚑 Rescatistas por país ({totalRescatistas})
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
+          <Tarjeta
+            n={rescatistasPorPais.Venezuela}
+            etiqueta="Venezuela (+58)"
+            color="#CC0001"
+          />
+          <Tarjeta
+            n={rescatistasPorPais.Chile}
+            etiqueta="Chile (+56)"
+            color="#0033A0"
+          />
+          <Tarjeta
+            n={rescatistasPorPais.Otro}
+            etiqueta="Otro / sin prefijo"
+            color="#475569"
+          />
         </div>
       </section>
 

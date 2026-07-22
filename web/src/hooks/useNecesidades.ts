@@ -6,7 +6,7 @@ import type { Necesidad, CentroAcopio } from '../lib/types'
 // Solo las columnas que usan las vistas (no traemos texto_crudo, verificada_por,
 // actualizado_en ni nada sensible). Reduce muchísimo el tráfico. (Fase 2)
 const COLS_NECESIDAD =
-  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa, ultimo_refresco, refrescos'
+  'id, tipo, urgencia, estado, descripcion, zona, lat, lng, radio_km, foto_url, origen, reportado_por, asignado_a, creado_en, eliminada_del_mapa, ultimo_refresco, refrescos'
 
 // Tope de registros por carga: nadie puede ver decenas de miles. (Fase 4)
 const LIMITE = 500
@@ -103,7 +103,7 @@ export function useNecesidades(
     const ac = await supabase
       .from('centros_acopio')
       .select(
-        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, creado_por, creado_en, id_fuente, ultimo_refresco, refrescos, es_hospital',
+        'id, nombre, descripcion, pais, estado, ciudad, direccion, contacto, red_social, lat, lng, creado_por, creado_en, id_fuente, ultimo_refresco, refrescos, es_hospital, atiende_animales',
       )
       // Ciclo de vida: los acopios vencidos se ocultan; los hospitales NUNCA.
       .or(`es_hospital.eq.true,ultimo_refresco.gte.${fechaCorteVida()}`)

@@ -23,6 +23,9 @@ import {
   iconoAcopio,
   iconoAcopioCompacto,
   iconoAcopioFuera,
+  iconoAcopioAnimal,
+  iconoAcopioAnimalCompacto,
+  iconoAcopioAnimalFuera,
   iconoHospital,
   iconoHospitalCompacto,
   iconoHospitalFuera,
@@ -268,6 +271,7 @@ const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'rescate',
   'atencion_psicologica',
   'zona_sin_atender',
+  'zona_aislada',
   'agua_comida',
   'medicinas',
   'refugio',
@@ -968,9 +972,17 @@ export default function MapaNecesidades({
                 <div className="font-bold">
                   {TIPO_META[n.tipo].emoji} {TIPO_META[n.tipo].etiqueta}
                 </div>
-                <div className="text-sm">{n.descripcion}</div>
+                {n.tipo === 'mascota' && n.foto_url && (
+                  <img
+                    src={n.foto_url}
+                    alt="Mascota"
+                    loading="lazy"
+                    className="w-full max-h-40 object-cover rounded-lg my-1"
+                  />
+                )}
+                <div className="text-sm whitespace-pre-line">{n.descripcion}</div>
                 {n.zona && <div className="text-xs text-gray-600">📍 {n.zona}</div>}
-                {n.tipo === 'zona_sin_atender' && (
+                {(n.tipo === 'zona_sin_atender' || n.tipo === 'zona_aislada') && (
                   <div className="text-xs text-bandera-rojo font-semibold">
                     ⭕ Zona de ~{(n.radio_km ?? 1.5) * 2} km de diámetro
                   </div>
@@ -1111,6 +1123,7 @@ export default function MapaNecesidades({
 
       {acopiosEnVista.map((a) => {
         const esHospital = (a.descripcion ?? '').toLowerCase().includes('hospital')
+        const esAnimal = !esHospital && !!a.atiende_animales
         // Fuera de Venezuela: pequeño y uniforme. Dentro: tamaño normal.
         const fuera = !dentroDelRecuadroVE(a.lat, a.lng)
         const iconoCentro = esHospital
@@ -1119,11 +1132,17 @@ export default function MapaNecesidades({
             : esMovil
               ? iconoHospitalCompacto
               : iconoHospital
-          : fuera
-            ? iconoAcopioFuera
-            : esMovil
-              ? iconoAcopioCompacto
-              : iconoAcopio
+          : esAnimal
+            ? fuera
+              ? iconoAcopioAnimalFuera
+              : esMovil
+                ? iconoAcopioAnimalCompacto
+                : iconoAcopioAnimal
+            : fuera
+              ? iconoAcopioFuera
+              : esMovil
+                ? iconoAcopioCompacto
+                : iconoAcopio
         return (
         <Marker
           key={a.id}
@@ -1156,11 +1175,16 @@ export default function MapaNecesidades({
               <span>Compartir</span>
             </button>
             <div className="font-bold">
-              {esHospital ? '🏥' : '📦'} {a.nombre}
+              {esHospital ? '🏥' : esAnimal ? '🐾' : '📦'} {a.nombre}
             </div>
-            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : '#16a34a' }}>
+            <div className="text-xs font-semibold" style={{ color: esHospital ? '#CC0001' : esAnimal ? '#B45309' : '#16a34a' }}>
               {esHospital ? 'Hospital' : 'Centro de acopio'}
             </div>
+            {esAnimal && (
+              <div className="text-xs font-semibold text-amber-700">
+                🐾 También atiende animales / mascotas
+              </div>
+            )}
             <div className="text-xs text-gray-600">
               {[a.ciudad, a.pais].filter(Boolean).join(', ')}
             </div>

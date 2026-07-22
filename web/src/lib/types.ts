@@ -11,6 +11,8 @@ export type NecesidadTipo =
   | 'incendio'
   | 'sacos_arena'
   | 'zona_sin_atender'
+  | 'zona_aislada'
+  | 'mascota'
   | 'otro'
   | 'acopio'
 
@@ -56,6 +58,8 @@ export interface Necesidad {
   lng: number | null
   /** Radio en km cuando el reporte es una ZONA (tipo zona_sin_atender). */
   radio_km: number | null
+  /** Foto (URL pública) — solo para necesidades de tipo mascota. */
+  foto_url?: string | null
   origen: string | null
   reportado_por: string | null
   asignado_a: string | null
@@ -163,6 +167,8 @@ export interface CentroAcopio {
   refrescos?: number
   /** Los hospitales viven en esta tabla pero NUNCA vencen. */
   es_hospital?: boolean
+  /** El centro atiende animales/mascotas (cambia el ícono en el mapa). */
+  atiende_animales?: boolean
 }
 
 export interface Perfil {
@@ -223,6 +229,8 @@ export const TIPO_META: Record<
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
   sacos_arena: { etiqueta: 'Sacos de arena', emoji: '🧱', color: '#92400E' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
+  zona_aislada: { etiqueta: 'Zona aislada', emoji: '🏝️', color: '#4338CA' },
+  mascota: { etiqueta: 'Mascota / animal', emoji: '🐾', color: '#B45309' },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
 }

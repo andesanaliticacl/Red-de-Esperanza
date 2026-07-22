@@ -46,6 +46,7 @@ const TIPOS_FILTRO: NecesidadTipo[] = [
   'rescate',
   'atencion_psicologica',
   'zona_sin_atender',
+  'zona_aislada',
   'agua_comida',
   'medicinas',
   'refugio',
@@ -1028,6 +1029,7 @@ export default function CiudadanoView() {
           coordInicial={coordAuto}
           fuenteInicial={fuenteAuto}
           puedeReportarHospital={puedeReportarHospital}
+          puedeReportarZonaAislada={esAdmin}
           onCerrar={() => setAbrirReporte(false)}
           onCreado={(tipo) => {
             setAbrirReporte(false)
