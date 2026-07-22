@@ -969,9 +969,17 @@ export default function MapaNecesidades({
                 <div className="font-bold">
                   {TIPO_META[n.tipo].emoji} {TIPO_META[n.tipo].etiqueta}
                 </div>
-                <div className="text-sm">{n.descripcion}</div>
+                {n.tipo === 'mascota' && n.foto_url && (
+                  <img
+                    src={n.foto_url}
+                    alt="Mascota"
+                    loading="lazy"
+                    className="w-full max-h-40 object-cover rounded-lg my-1"
+                  />
+                )}
+                <div className="text-sm whitespace-pre-line">{n.descripcion}</div>
                 {n.zona && <div className="text-xs text-gray-600">📍 {n.zona}</div>}
-                {n.tipo === 'zona_sin_atender' && (
+                {(n.tipo === 'zona_sin_atender' || n.tipo === 'zona_aislada') && (
                   <div className="text-xs text-bandera-rojo font-semibold">
                     ⭕ Zona de ~{(n.radio_km ?? 1.5) * 2} km de diámetro
                   </div>

@@ -43,6 +43,8 @@ export interface NuevoReporte {
   lat?: number | null
   lng?: number | null
   radio_km?: number | null // solo para zonas (tipo zona_sin_atender)
+  /** Foto (URL pública) — solo para necesidades de tipo mascota. */
+  foto_url?: string | null
   /** Catástrofe (evento) a la que pertenece el reporte. Opcional. */
   catastrofe_id?: string | null
   origen?: string
@@ -101,6 +103,7 @@ async function insertarReporteEnServidor(
     lat: r.lat ?? null,
     lng: r.lng ?? null,
     radio_km: r.radio_km ?? null,
+    foto_url: r.foto_url ?? null,
     catastrofe_id: r.catastrofe_id ?? null,
     origen: r.origen ?? 'web',
     estado: 'sin_verificar',
