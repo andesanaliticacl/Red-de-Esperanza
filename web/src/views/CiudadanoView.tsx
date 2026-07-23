@@ -1030,7 +1030,7 @@ export default function CiudadanoView() {
           coordInicial={coordAuto}
           fuenteInicial={fuenteAuto}
           puedeReportarHospital={puedeReportarHospital}
-          puedeReportarZonaAislada={esAdmin}
+          puedeReportarZonaAislada={esAdmin || rol === 'lider_voluntarios'}
           onCerrar={() => setAbrirReporte(false)}
           onCreado={(tipo) => {
             setAbrirReporte(false)
