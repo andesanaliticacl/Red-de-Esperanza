@@ -887,7 +887,7 @@ export default function ReportarModal({
         {/* PASO 1: tipo */}
         {paso === 1 && (
           <div>
-            <p className="font-bold mb-3">¿Qué quieres reportar?</p>
+            <p className="font-bold mb-3">¿Qué deseas reportar?</p>
             <div className="grid grid-cols-2 gap-3">
               {tiposDisponibles.map((t) => {
                 const meta = t === 'hospital' ? HOSPITAL_META : TIPO_META[t]
