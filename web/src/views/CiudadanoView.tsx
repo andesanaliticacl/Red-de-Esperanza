@@ -948,18 +948,21 @@ export default function CiudadanoView() {
                 ❤️ Ayudar
               </button>
             )}
-            <button
-              onClick={() => setAbrirReporte(true)}
-              className="btn-azul w-full text-base sm:text-lg py-3.5"
-            >
-              📝 Reportar
-            </button>
-            <button
-              onClick={() => setAbrirSos(true)}
-              className="btn-rojo w-full text-base sm:text-lg py-3.5 animate-pulse"
-            >
-              🆘 SOS / Necesito rescate
-            </button>
+            {/* SOS + Reportar lado a lado: más compacto y deja más mapa visible. */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAbrirSos(true)}
+                className="btn-rojo flex-1 text-sm sm:text-base py-3.5 animate-pulse"
+              >
+                🆘 SOS / Necesito rescate
+              </button>
+              <button
+                onClick={() => setAbrirReporte(true)}
+                className="btn-azul flex-1 text-sm sm:text-base py-3.5"
+              >
+                📝 Reportar
+              </button>
+            </div>
           </div>
         </div>
       </div>
