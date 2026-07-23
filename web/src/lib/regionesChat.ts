@@ -34,9 +34,11 @@ export const REGIONES_CHILE = [
   'Magallanes y de la Antártica Chilena',
 ] as const
 
+// Chile va primero: es el país por defecto mientras la emergencia activa es
+// el temporal de lluvias en Chile (se puede cambiar libremente en el selector).
 export const PAISES_CHAT: PaisChat[] = [
-  { pais: 'Venezuela', salaSinPrefijo: true, regiones: ESTADOS_VENEZUELA },
   { pais: 'Chile', regiones: REGIONES_CHILE },
+  { pais: 'Venezuela', salaSinPrefijo: true, regiones: ESTADOS_VENEZUELA },
 ]
 
 function normalizar(txt: string): string {

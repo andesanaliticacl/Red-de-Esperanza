@@ -33,7 +33,7 @@ const OPCIONES_PARTICIPAR: {
   {
     v: 'voluntario',
     emoji: '❤️',
-    titulo: 'Ayudar',
+    titulo: 'Voluntario',
     descripcion: 'Apoyo a atender y coordinar reportes.',
   },
   {
@@ -115,7 +115,8 @@ export default function RegistroView() {
   const quierePsicologo = participa === 'psicologo'
   const rol: Exclude<RolRegistro, 'psicologo'> =
     participa === 'psicologo' ? 'voluntario' : participa
-  const [pais, setPais] = useState('Venezuela')
+  // Chile por defecto: es la emergencia activa ahora mismo (se puede cambiar).
+  const [pais, setPais] = useState('Chile')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
   const [documento, setDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
