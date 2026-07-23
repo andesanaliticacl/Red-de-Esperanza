@@ -10,11 +10,7 @@ import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
 import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 import { validarDocumentoPsicologo } from '../lib/documentos'
-import {
-  ROL_META,
-  type RolRegistro,
-  type TipoDocumento,
-} from '../lib/types'
+import { type RolRegistro, type TipoDocumento } from '../lib/types'
 
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   value: p.nombre,
@@ -22,12 +18,43 @@ const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   etiqueta: p.nombre,
 }))
 
-const DESCRIPCION_ROL: Record<Exclude<RolRegistro, 'psicologo'>, string> = {
-  ciudadano: 'Reporto necesidades y sigo el mapa.',
-  voluntario: 'Ayudo a atender y coordinar reportes.',
-  rescatista: 'Atiendo rescates y emergencias en terreno.',
-  centro_acopio: 'Gestiono donaciones y suministros.',
-}
+// "¿Cómo quieres participar?": solo 4 tarjetas, en lenguaje natural (no
+// técnico). "Ciudadano" ya no es una opción de registro: quien solo quiere
+// ver el mapa no necesita cuenta. "Psicólogo/a" NO asigna el rol directo:
+// crea la cuenta como colaborador/a y deja pendiente una solicitud que
+// revisa el equipo (ver quiere_psicologo más abajo).
+type OpcionParticipar = 'voluntario' | 'rescatista' | 'centro_acopio' | 'psicologo'
+const OPCIONES_PARTICIPAR: {
+  v: OpcionParticipar
+  emoji: string
+  titulo: string
+  descripcion: string
+}[] = [
+  {
+    v: 'voluntario',
+    emoji: '❤️',
+    titulo: 'Ayudar',
+    descripcion: 'Apoyo a atender y coordinar reportes.',
+  },
+  {
+    v: 'rescatista',
+    emoji: '🚑',
+    titulo: 'Soy rescatista',
+    descripcion: 'Atiendo rescates y emergencias en terreno.',
+  },
+  {
+    v: 'centro_acopio',
+    emoji: '📦',
+    titulo: 'Represento un centro de acopio',
+    descripcion: 'Gestiono donaciones y suministros.',
+  },
+  {
+    v: 'psicologo',
+    emoji: '🧠',
+    titulo: 'Soy psicólogo/a y deseo colaborar',
+    descripcion: 'El equipo revisa tu solicitud antes de otorgar el rol.',
+  },
+]
 
 // Convierte el error de Supabase en un mensaje claro en español.
 // Siempre deja el detalle crudo en la consola para poder diagnosticar.
@@ -56,10 +83,10 @@ function mensajeDeError(error: unknown): string {
   return crudo || 'Ocurrió un error inesperado al crear la cuenta. Revisa la consola (F12) para más detalle.'
 }
 
-// 'psicologo' NO es un rol autoasignable: se otorga tras revisar una
-// solicitud (ver lib/solicitudesPsicologo.ts). No va en esta lista.
-const ROLES_VALIDOS: Exclude<RolRegistro, 'psicologo'>[] = [
-  'ciudadano',
+// Opciones válidas para preseleccionar vía "?rol=" (acceso directo). No
+// incluye 'ciudadano' (ya no es una tarjeta de registro) ni 'psicologo'
+// (ese viene por separado con "?psicologo=1").
+const ROLES_VALIDOS: Exclude<OpcionParticipar, 'psicologo'>[] = [
   'voluntario',
   'rescatista',
   'centro_acopio',
@@ -75,15 +102,19 @@ export default function RegistroView() {
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rol, setRol] = useState<Exclude<RolRegistro, 'psicologo'>>(
-    ROLES_VALIDOS.includes(rolInicial as (typeof ROLES_VALIDOS)[number])
-      ? (rolInicial as (typeof ROLES_VALIDOS)[number])
-      : 'ciudadano',
+  // Selección única entre las 4 tarjetas de "¿Cómo quieres participar?".
+  const [participa, setParticipa] = useState<OpcionParticipar>(
+    psicologoInicial
+      ? 'psicologo'
+      : ROLES_VALIDOS.includes(rolInicial as (typeof ROLES_VALIDOS)[number])
+        ? (rolInicial as (typeof ROLES_VALIDOS)[number])
+        : 'voluntario',
   )
-  // "Quiero ser psicólogo/a": NO es el rol de la cuenta (esa sigue siendo
-  // ciudadano/voluntario/...), es un pedido aparte que revisa el equipo de
-  // psicología antes de otorgar el rol.
-  const [quierePsicologo, setQuierePsicologo] = useState(psicologoInicial)
+  // "Psicólogo/a" NO es el rol de la cuenta: se crea como voluntario/a y
+  // queda un pedido aparte que revisa el equipo de psicología.
+  const quierePsicologo = participa === 'psicologo'
+  const rol: Exclude<RolRegistro, 'psicologo'> =
+    participa === 'psicologo' ? 'voluntario' : participa
   const [pais, setPais] = useState('Venezuela')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
   const [documento, setDocumento] = useState('')
@@ -98,15 +129,6 @@ export default function RegistroView() {
   const zona = zonasDePais(isoPais)
   // Ciudades sugeridas según la zona elegida (autocompletar, no obligatorio).
   const ciudadesSugeridas = ciudadesDeZona(isoPais, estado)
-
-  // Todos los roles autoasignables están disponibles desde cualquier país
-  // (la red ya opera en más de un país, no solo Venezuela).
-  const rolesDisponibles: Exclude<RolRegistro, 'psicologo'>[] = [
-    'ciudadano',
-    'voluntario',
-    'rescatista',
-    'centro_acopio',
-  ]
 
   const [verPass, setVerPass] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -225,9 +247,7 @@ export default function RegistroView() {
           Crear cuenta
         </h1>
         <p className="text-gray-600 mb-5 text-sm">
-          Para participar como ciudadano, voluntario, rescatista o centro de
-          acopio. También puedes solicitar ser psicólogo/a: el equipo lo
-          revisa antes de otorgar el rol.
+          Elige cómo quieres participar en la red.
         </p>
 
         <form onSubmit={registrar} className="space-y-4">
@@ -245,70 +265,49 @@ export default function RegistroView() {
             />
           </div>
 
-          {/* Rol */}
+          {/* ¿Cómo quieres participar? Una sola elección entre 4 tarjetas. */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="font-bold text-sm">¿Cómo participas?</p>
+              <p className="font-bold text-sm">¿Cómo quieres participar?</p>
               <button
                 type="button"
                 onClick={() => setVerRoles(true)}
                 className="text-xs text-bandera-azul font-semibold underline"
               >
-                ¿Qué rol elegir?
+                ¿Qué significa cada uno?
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {rolesDisponibles.map((r) => (
+              {OPCIONES_PARTICIPAR.map((o) => (
                 <button
                   type="button"
-                  key={r}
-                  onClick={() => setRol(r)}
+                  key={o.v}
+                  onClick={() => setParticipa(o.v)}
                   className={`card text-left p-3 border-2 ${
-                    rol === r ? 'border-bandera-azul' : 'border-transparent'
+                    participa === o.v
+                      ? o.v === 'psicologo'
+                        ? 'border-purple-400 bg-purple-50'
+                        : 'border-bandera-azul'
+                      : 'border-transparent'
                   }`}
                 >
                   <div className="font-bold text-sm">
-                    {ROL_META[r].emoji} {ROL_META[r].etiqueta}
+                    {o.emoji} {o.titulo}
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {DESCRIPCION_ROL[r]}
+                    {o.descripcion}
                   </div>
                 </button>
               ))}
             </div>
+            {quierePsicologo && (
+              <p className="text-xs text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-2">
+                🧠 Tu cuenta se crea como colaborador/a. El equipo de
+                psicología revisará tu solicitud, te contactará por teléfono
+                y, si corresponde, te otorgará el rol.
+              </p>
+            )}
           </div>
-
-          {/* Solicitud aparte: NO es un rol que se autoasigne, el equipo de
-              psicología revisa y otorga el rol después de contactar. */}
-          <button
-            type="button"
-            onClick={() => setQuierePsicologo((v) => !v)}
-            className={`w-full text-left rounded-2xl border-2 p-3 ${
-              quierePsicologo
-                ? 'border-purple-400 bg-purple-50'
-                : 'border-gray-200 bg-white'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-5 w-5 shrink-0 rounded-md border-2 flex items-center justify-center ${
-                  quierePsicologo
-                    ? 'bg-purple-600 border-purple-600 text-white'
-                    : 'border-gray-300'
-                }`}
-              >
-                {quierePsicologo && '✓'}
-              </span>
-              <span className="font-bold text-sm">
-                🧠 También quiero ser psicólogo/a
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 ml-7">
-              Tu cuenta se crea con el rol de arriba. El equipo de psicología
-              revisará tu solicitud, te contactará por teléfono y, si
-              corresponde, te otorgará el rol.
-            </p>
-          </button>
 
           <input
             className="input"
