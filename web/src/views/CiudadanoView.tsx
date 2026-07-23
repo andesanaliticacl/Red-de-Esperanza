@@ -999,7 +999,7 @@ export default function CiudadanoView() {
             {!session && (
               <button
                 onClick={() => navigate('/registro?rol=voluntario')}
-                className="btn-verde w-full text-base sm:text-lg py-3.5"
+                className="btn-verde self-center w-auto text-sm py-2 px-6"
               >
                 ❤️ Ayudar
               </button>
