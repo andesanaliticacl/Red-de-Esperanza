@@ -75,12 +75,16 @@ export default function BotonInstalar({
   if (!mostrar) return null
 
   async function instalar() {
-    onAccion?.()
-    // iOS: no hay instalador programático → instrucciones.
+    // iOS: no hay instalador programático → instrucciones. IMPORTANTE: no
+    // llamamos a onAccion() aquí. En el menú, onAccion cierra el menú
+    // (desmonta este componente), y con él se perdía el estado que muestra
+    // este modal antes de que llegara a pintarse: el botón parecía no hacer
+    // nada. El modal (z-[3000]) igual cubre el menú al abrirse.
     if (evento === null && ios) {
       setVerInstruccionesIOS(true)
       return
     }
+    onAccion?.()
     if (!evento) return
     await evento.prompt()
     const { outcome } = await evento.userChoice

@@ -96,7 +96,7 @@ export default function SelectorBandera({
         ref={btnRef}
         type="button"
         onClick={() => (abierto ? setAbierto(false) : abrir())}
-        className="input flex items-center gap-2 text-left"
+        className="input bg-white shadow flex items-center gap-2 text-left"
       >
         {sel ? (
           <>
