@@ -2,7 +2,31 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useNecesidades } from '../hooks/useNecesidades'
-import { ROL_META, type Perfil, type RolUsuario } from '../lib/types'
+import {
+  ROL_META,
+  TIPO_META,
+  type NecesidadTipo,
+  type Perfil,
+  type RolUsuario,
+} from '../lib/types'
+
+// Orden de la tabla de necesidades por tipo (excluye 'acopio': eso no es una
+// alerta reportada, es un centro registrado aparte).
+const TIPOS_ALERTA: NecesidadTipo[] = [
+  'rescate',
+  'atencion_psicologica',
+  'zona_sin_atender',
+  'zona_aislada',
+  'agua_comida',
+  'medicinas',
+  'refugio',
+  'derrumbe',
+  'inundacion',
+  'incendio',
+  'sacos_arena',
+  'mascota',
+  'otro',
+]
 
 // Color de la tarjeta de conteo por rol.
 const COLOR_ROL: Record<RolUsuario, string> = {
@@ -150,6 +174,19 @@ export default function AdminView() {
     }
   }, [necesidades, perfiles])
 
+  // Conteo de alertas/necesidades por tipo (activas: no resueltas ni
+  // rechazadas), para ver de un vistazo dónde está concentrada la demanda.
+  const necesidadesPorTipo = useMemo(() => {
+    const activas = necesidades.filter(
+      (n) => n.estado !== 'resuelta' && n.estado !== 'rechazada',
+    )
+    return TIPOS_ALERTA.map((tipo) => ({
+      tipo,
+      n: activas.filter((n) => n.tipo === tipo).length,
+    })).filter((t) => t.n > 0)
+  }, [necesidades])
+  const totalAlertasActivas = necesidadesPorTipo.reduce((a, t) => a + t.n, 0)
+
   async function cambiarRol(id: string, rol: RolUsuario) {
     const { error } = await supabase
       .from('perfiles')
@@ -166,12 +203,32 @@ export default function AdminView() {
       </h1>
 
       {/* Panel de estadísticas */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Tarjeta n={totalAlertasActivas} etiqueta="🔔 Alertas activas" color="#CC0001" />
         <Tarjeta n={stats.recibidas} etiqueta="Recibidas" color="#475569" />
         <Tarjeta n={stats.en_proceso} etiqueta="En proceso" color="#002FA7" />
         <Tarjeta n={stats.resuelta} etiqueta="Resueltas" color="#0891B2" />
         <Tarjeta n={stats.voluntarios} etiqueta="Equipo activo" color="#CF9B00" />
       </section>
+
+      {/* Alertas/necesidades activas por tipo */}
+      {necesidadesPorTipo.length > 0 && (
+        <section>
+          <h2 className="font-bold text-lg mb-2">
+            🔔 Alertas activas por tipo ({totalAlertasActivas})
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {necesidadesPorTipo.map(({ tipo, n }) => (
+              <Tarjeta
+                key={tipo}
+                n={n}
+                etiqueta={`${TIPO_META[tipo].emoji} ${TIPO_META[tipo].etiqueta}`}
+                color={TIPO_META[tipo].color}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Usuarios registrados por rol */}
       <section>
