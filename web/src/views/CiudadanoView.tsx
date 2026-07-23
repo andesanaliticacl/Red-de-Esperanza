@@ -999,22 +999,22 @@ export default function CiudadanoView() {
             {!session && (
               <button
                 onClick={() => navigate('/registro?rol=voluntario')}
-                className="btn w-full text-base sm:text-lg py-3.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-2xl shadow"
+                className="btn-verde w-full text-base sm:text-lg py-3.5"
               >
                 ❤️ Ayudar
               </button>
             )}
             <button
-              onClick={() => setAbrirSos(true)}
-              className="btn-rojo w-full text-base sm:text-lg py-3.5 animate-pulse"
-            >
-              🆘 SOS / Necesito rescate
-            </button>
-            <button
               onClick={() => setAbrirReporte(true)}
               className="btn-azul w-full text-base sm:text-lg py-3.5"
             >
               📝 Reportar
+            </button>
+            <button
+              onClick={() => setAbrirSos(true)}
+              className="btn-rojo w-full text-base sm:text-lg py-3.5 animate-pulse"
+            >
+              🆘 SOS / Necesito rescate
             </button>
           </div>
         </div>
