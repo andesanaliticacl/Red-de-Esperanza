@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -323,25 +324,38 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             {paisChat !== PAISES_CHAT[0].pais ? `, ${paisChat}` : ''}
           </span>
         )}
-        {listo && (
-          <button
-            onClick={() => setListo(false)}
-            className="ml-auto text-base opacity-90 hover:opacity-100"
-            title={esLogueado ? 'Cambiar estado' : 'Cambiar estado o apodo'}
-            aria-label="Ajustes del chat"
-          >
-            ⚙️
-          </button>
-        )}
-        {onCerrar && (
-          <button
-            onClick={onCerrar}
-            className={`${listo ? '' : 'ml-auto'} text-2xl leading-none`}
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {/* Quien escribe sin cuenta ve una salida directa a crear una: así
+              el chat también es una puerta de entrada a la red. */}
+          {!esLogueado && (
+            <Link
+              to="/registro?rol=voluntario"
+              onClick={() => onCerrar?.()}
+              className="text-[11px] font-bold bg-white text-bandera-azul px-2.5 py-1 rounded-full whitespace-nowrap no-underline hover:bg-gray-100"
+            >
+              ❤️ Ayudar
+            </Link>
+          )}
+          {listo && (
+            <button
+              onClick={() => setListo(false)}
+              className="text-base opacity-90 hover:opacity-100"
+              title={esLogueado ? 'Cambiar estado' : 'Cambiar estado o apodo'}
+              aria-label="Ajustes del chat"
+            >
+              ⚙️
+            </button>
+          )}
+          {onCerrar && (
+            <button
+              onClick={onCerrar}
+              className="text-2xl leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {!listo ? (
