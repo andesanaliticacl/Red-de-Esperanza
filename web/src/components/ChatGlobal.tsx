@@ -95,11 +95,14 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [nombre, setNombre] = useState(guardada?.nombre ?? '')
   // País de la sala: Venezuela y Chile por ahora (se pueden sumar más en
   // lib/regionesChat.ts). Se preselecciona con el país detectado por IP si
-  // está entre los disponibles; si no, Venezuela (base histórica de la red).
+  // está entre los disponibles; si no, Chile (la emergencia activa ahora
+  // mismo), con Coquimbo como región inicial. Todo se puede cambiar.
   const [paisChat, setPaisChat] = useState(
     guardada?.pais ?? PAISES_CHAT[0].pais,
   )
-  const [estado, setEstado] = useState(guardada?.estado ?? perfil?.estado ?? '')
+  const [estado, setEstado] = useState(
+    guardada?.estado ?? perfil?.estado ?? 'Coquimbo',
+  )
   // Teléfono del invitado (registro express), para poder contactarlo.
   const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))

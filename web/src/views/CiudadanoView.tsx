@@ -11,6 +11,7 @@ import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
+import { geocodificarDireccion } from '../lib/geo'
 import {
   esRolPsicologia,
   esRolRescatista,
@@ -451,6 +452,11 @@ export default function CiudadanoView() {
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
+  // Buscador de direcciones dentro del panel de Filtrar: vuela el mapa al
+  // punto encontrado (mismo mecanismo que "ir a persona" de desaparecidos).
+  const [buscarDireccionTexto, setBuscarDireccionTexto] = useState('')
+  const [buscandoDireccion, setBuscandoDireccion] = useState(false)
+  const [errorBuscarDireccion, setErrorBuscarDireccion] = useState('')
   // Capa de desaparecidos: OCULTA al entrar. Solo se muestra cuando el usuario
   // la activa con el botón 🔍 Desaparecidos. null = aún no ha tocado (oculta).
   const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
@@ -551,6 +557,23 @@ export default function CiudadanoView() {
       setDesaparecidoSeleccionadoId(null)
       window.setTimeout(() => setDesaparecidoSeleccionadoId(d.id), 0)
       setListaDesapVisible(false)
+    }
+  }
+
+  // Buscador de direcciones del panel "Filtrar": geocodifica lo escrito y
+  // vuela el mapa hasta ahí (sin restricción de país: la red ya es global).
+  async function buscarDireccionEnMapa(e: React.FormEvent) {
+    e.preventDefault()
+    const dir = buscarDireccionTexto.trim()
+    if (!dir) return
+    setErrorBuscarDireccion('')
+    setBuscandoDireccion(true)
+    const g = await geocodificarDireccion(dir, { pais: '', cc: '' })
+    setBuscandoDireccion(false)
+    if (g) {
+      setIrACoordenada([g.lat, g.lng])
+    } else {
+      setErrorBuscarDireccion('No encontramos esa dirección en el mapa.')
     }
   }
   // El tutorial se muestra automáticamente la primera vez que se abre la app.
@@ -809,6 +832,38 @@ export default function CiudadanoView() {
                 <option value="media">🟠 Urgencia media</option>
                 <option value="baja">🟢 Urgencia baja</option>
               </select>
+
+              {/* Buscador de direcciones: vuela el mapa al punto encontrado. */}
+              <form onSubmit={buscarDireccionEnMapa} className="mt-2">
+                <p className="text-xs font-bold text-gray-600 mb-1">
+                  📍 Buscar una dirección en el mapa
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="search"
+                    value={buscarDireccionTexto}
+                    onChange={(e) => {
+                      setBuscarDireccionTexto(e.target.value)
+                      setErrorBuscarDireccion('')
+                    }}
+                    placeholder="Calle, sector, ciudad…"
+                    className="flex-1 min-w-0 rounded-lg border-2 border-gray-200 px-2 py-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={buscandoDireccion || !buscarDireccionTexto.trim()}
+                    className="btn-azul px-4 text-sm disabled:opacity-60"
+                  >
+                    {buscandoDireccion ? '…' : '🔎'}
+                  </button>
+                </div>
+                {errorBuscarDireccion && (
+                  <p className="text-xs text-bandera-rojo mt-1">
+                    {errorBuscarDireccion}
+                  </p>
+                )}
+              </form>
+
               {hayFiltro && (
                 <button
                   onClick={() => {
@@ -945,7 +1000,7 @@ export default function CiudadanoView() {
                 onClick={() => navigate('/registro?rol=voluntario')}
                 className="btn-verde self-center w-auto text-sm py-2 px-6"
               >
-                ❤️ Ayudar
+                ❤️ Crear Cuenta
               </button>
             )}
             {/* SOS + Reportar lado a lado: más compacto y deja más mapa visible. */}

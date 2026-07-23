@@ -3,9 +3,9 @@ import SelectorBandera from './SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
 
 // La red ya no es solo Venezuela: el teléfono acepta CUALQUIER país.
-// Venezuela sigue primera en la lista (base principal de usuarios) y es el
-// país por defecto cuando no hay número guardado.
-const ISO_DEFECTO = 've'
+// Chile es el país por defecto cuando no hay número guardado (emergencia
+// activa ahora mismo); se puede cambiar libremente en el selector.
+const ISO_DEFECTO = 'cl'
 
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   value: p.iso,
