@@ -734,10 +734,23 @@ export default function CiudadanoView() {
           className="absolute top-0 left-0 right-0 z-[1000] p-3 pointer-events-none"
           data-map-overlay="top"
         >
+          {/* Marca + Filtrar en la misma fila: usa mejor el espacio de arriba.
+              Desaparecidos queda dentro del panel (no tapa la parte de arriba). */}
           <div className="flex items-center gap-2 mb-2 pointer-events-auto">
-            <span className="bg-bandera-azul text-white font-extrabold px-3 py-2 rounded-xl shadow">
-              Esperanza
+            <span className="bg-bandera-azul text-white font-extrabold px-3 py-2 rounded-xl shadow whitespace-nowrap">
+              Red de Esperanza
             </span>
+            <button
+              onClick={() => setVerFiltros((v) => !v)}
+              className={`flex items-center justify-center gap-1.5 rounded-2xl shadow px-2 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap ${
+                verFiltros || hayFiltro
+                  ? 'bg-bandera-azul text-white'
+                  : 'bg-white/95 backdrop-blur text-gray-700'
+              }`}
+            >
+              🔎 Filtrar{hayFiltro ? ' •' : ''}
+              <span className="text-[10px] leading-none">{verFiltros ? '▲' : '▼'}</span>
+            </button>
             <div className="ml-auto flex items-center gap-2">
               {session && <CampanaNotificaciones claro />}
               <MenuUsuario claro />
@@ -747,22 +760,6 @@ export default function CiudadanoView() {
           {/* El acceso "Entra o crea tu cuenta" se retiró de aquí: el botón
               ❤️ Ayudar de la barra inferior ya cumple ese rol. Iniciar sesión
               sigue disponible desde el menú de usuario (arriba a la derecha). */}
-
-          {/* Un solo botón a primera vista: "Filtrar". Desaparecidos queda
-              dentro del panel (no tapa la parte de arriba). */}
-          <div className="pointer-events-auto flex items-center gap-2">
-            <button
-              onClick={() => setVerFiltros((v) => !v)}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl shadow px-2 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap ${
-                verFiltros || hayFiltro
-                  ? 'bg-bandera-azul text-white'
-                  : 'bg-white/95 backdrop-blur text-gray-700'
-              }`}
-            >
-              🔎 Filtrar{hayFiltro ? ' •' : ''}
-              <span className="text-[10px] leading-none">{verFiltros ? '▲' : '▼'}</span>
-            </button>
-          </div>
 
           {/* Panel de filtros (solo si está abierto) */}
           {verFiltros && (

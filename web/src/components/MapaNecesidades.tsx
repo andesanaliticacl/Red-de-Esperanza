@@ -565,8 +565,9 @@ function ControlesMapa({
 
   return (
     <div className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] flex flex-col items-end gap-2">
-      {/* Compartir + País: agrupados detrás de un FAB (⊕) para no saturar el
-          mapa. Se ocultan mientras el usuario lo mueve o hace zoom. */}
+      {/* Mi ubicación + Compartir + País: agrupados detrás de un FAB (⊕) para
+          no saturar el mapa. Se ocultan mientras el usuario lo mueve o hace
+          zoom, y reaparecen al soltar. */}
       <div
         className={`flex flex-col items-end gap-2 transition-opacity duration-150 ${
           interactuando ? 'opacity-0 pointer-events-none' : 'opacity-100'
@@ -574,6 +575,37 @@ function ControlesMapa({
       >
         {fabAbierto && (
           <>
+            {miUbicacion && (
+              <button
+                onClick={() => {
+                  map.setView([miUbicacion.lat, miUbicacion.lng], 16)
+                  setFabAbierto(false)
+                }}
+                className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
+                title="Centrar en mi ubicación actual"
+                aria-label="Mi ubicación actual"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+                  <circle cx="12" cy="12" r="7" />
+                  <line x1="12" y1="1.5" x2="12" y2="4.5" />
+                  <line x1="12" y1="19.5" x2="12" y2="22.5" />
+                  <line x1="1.5" y1="12" x2="4.5" y2="12" />
+                  <line x1="19.5" y1="12" x2="22.5" y2="12" />
+                </svg>
+                <span className="whitespace-nowrap">Mi ubicación</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setCompartirAbierto(true)
@@ -607,40 +639,13 @@ function ControlesMapa({
         <button
           onClick={() => setFabAbierto((v) => !v)}
           className="h-11 w-11 rounded-full bg-bandera-azul text-white shadow-lg grid place-items-center text-xl font-bold hover:bg-bandera-azul/90 active:scale-95 transition"
-          title={fabAbierto ? 'Cerrar opciones' : 'Más opciones (compartir, país)'}
+          title={fabAbierto ? 'Cerrar opciones' : 'Más opciones (ubicación, compartir, país)'}
           aria-label={fabAbierto ? 'Cerrar opciones' : 'Más opciones'}
         >
           {fabAbierto ? '✕' : '⊕'}
         </button>
       </div>
 
-      {miUbicacion && (
-        <button
-          onClick={() => map.setView([miUbicacion.lat, miUbicacion.lng], 16)}
-          className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
-          title="Centrar en mi ubicación actual"
-          aria-label="Mi ubicación actual"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
-            <circle cx="12" cy="12" r="7" />
-            <line x1="12" y1="1.5" x2="12" y2="4.5" />
-            <line x1="12" y1="19.5" x2="12" y2="22.5" />
-            <line x1="1.5" y1="12" x2="4.5" y2="12" />
-            <line x1="19.5" y1="12" x2="22.5" y2="12" />
-          </svg>
-          <span className="whitespace-nowrap">Mi ubicación</span>
-        </button>
-      )}
       {compartirAbierto && (
         <ModalCompartir
           url={urlCompartir}
