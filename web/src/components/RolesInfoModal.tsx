@@ -2,11 +2,6 @@
 export default function RolesInfoModal({ onCerrar }: { onCerrar: () => void }) {
   const roles = [
     {
-      emoji: '🙋',
-      t: 'Ciudadano',
-      d: 'Visualizas y reportas. Ves el mapa y las ubicaciones, pides ayuda con un SOS y reportas necesidades. NO recibes alertas ni notificaciones: solo observas lo que pasa a tu alrededor.',
-    },
-    {
       emoji: '🤝',
       t: 'Voluntario',
       d: 'Atiendes y coordinas necesidades (agua, comida, medicinas, refugio). Te asignas casos y recibes un aviso cuando alguien te escribe. Eres el apoyo logístico de la red.',
