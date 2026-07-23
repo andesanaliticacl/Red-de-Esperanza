@@ -336,7 +336,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               onClick={() => onCerrar?.()}
               className="text-[11px] font-bold bg-white text-bandera-azul px-2.5 py-1 rounded-full whitespace-nowrap no-underline hover:bg-gray-100"
             >
-              ❤️ Ayudar
+              ❤️ Crear Cuenta
             </Link>
           )}
           {listo && (
