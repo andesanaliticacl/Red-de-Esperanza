@@ -800,9 +800,10 @@ export default function CiudadanoView() {
             </div>
           )}
 
-          {/* Controles compactos: una sola fila con Filtrar + Desaparecidos,
-              para no saturar la pantalla (sobre todo en el teléfono). */}
-          <div className="pointer-events-auto flex gap-2">
+          {/* Controles compactos: Filtrar (abre panel) + Desaparecidos como
+              chip de filtro (borde, sin relleno sólido) para que no se lea
+              como un botón de acción del estilo SOS/Reportar. */}
+          <div className="pointer-events-auto flex items-center gap-2">
             <button
               onClick={() => setVerFiltros((v) => !v)}
               className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl shadow px-2 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap ${
@@ -820,12 +821,14 @@ export default function CiudadanoView() {
                 setVerDesapManual(nuevo)
                 if (!nuevo) setBusqDesap('')
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl shadow px-2 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap ${
+              aria-pressed={verDesap}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border-2 px-3 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap ${
                 verDesap
-                  ? 'bg-bandera-azul text-white'
-                  : 'bg-white/95 backdrop-blur text-gray-700'
+                  ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
+                  : 'bg-white/95 backdrop-blur border-gray-200 text-gray-600'
               }`}
             >
+              {verDesap && <span className="leading-none">✓</span>}
               🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
             </button>
           </div>
