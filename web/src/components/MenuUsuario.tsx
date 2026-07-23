@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ROL_META } from '../lib/types'
 import ChatGlobal from './ChatGlobal'
+import TutorialModal from './TutorialModal'
+import BotonInstalar from './BotonInstalar'
 
 /**
  * Menú de usuario: un solo botón que despliega el perfil y todas las opciones
@@ -17,6 +19,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
   const navigate = useNavigate()
   const [abierto, setAbierto] = useState(false)
   const [chat, setChat] = useState(false)
+  const [verTutorial, setVerTutorial] = useState(false)
 
   const meta = rol ? ROL_META[rol] : null
   const nombreCorto = perfil?.nombre?.split(' ')[0] ?? null
@@ -180,6 +183,20 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
               {rol === 'admin' && (
                 <ItemLink to="/panel-x7k2" emoji="🛡️" texto="Administración" onClick={cerrar} />
               )}
+
+              {/* Ayuda e instalación (antes estaban sueltas en el mapa). */}
+              <button
+                onClick={() => {
+                  cerrar()
+                  setVerTutorial(true)
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left"
+              >
+                <span className="text-lg">💡</span>
+                <span className="font-medium">¿Cómo funciona?</span>
+              </button>
+              {/* Solo aparece si la app se puede instalar (Android/iOS). */}
+              <BotonInstalar variante="menu" onAccion={cerrar} />
             </nav>
 
             <div className="border-t p-2">
@@ -223,6 +240,8 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
           </div>,
           document.body,
         )}
+
+      {verTutorial && <TutorialModal onCerrar={() => setVerTutorial(false)} />}
     </>
   )
 }

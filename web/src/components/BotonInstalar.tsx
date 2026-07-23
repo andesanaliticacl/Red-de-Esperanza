@@ -34,7 +34,15 @@ function esIOS(): boolean {
  *    permite instalación automática).
  * Desaparece PARA SIEMPRE al instalar (modo app + marca local).
  */
-export default function BotonInstalar() {
+export default function BotonInstalar({
+  variante = 'flotante',
+  onAccion,
+}: {
+  /** 'flotante' = botón verde redondo (mapa); 'menu' = fila del menú lateral. */
+  variante?: 'flotante' | 'menu'
+  /** Se llama al tocar (p. ej. para cerrar el menú lateral). */
+  onAccion?: () => void
+} = {}) {
   const [evento, setEvento] = useState<PromptInstalacion | null>(null)
   const [oculto, setOculto] = useState(false)
   const [verInstruccionesIOS, setVerInstruccionesIOS] = useState(false)
@@ -67,6 +75,7 @@ export default function BotonInstalar() {
   if (!mostrar) return null
 
   async function instalar() {
+    onAccion?.()
     // iOS: no hay instalador programático → instrucciones.
     if (evento === null && ios) {
       setVerInstruccionesIOS(true)
@@ -84,20 +93,30 @@ export default function BotonInstalar() {
 
   return (
     <>
-      <button
-        onClick={instalar}
-        className="bg-green-600 text-white rounded-full shadow-lg border border-green-700 pl-2.5 pr-3.5 h-11 flex items-center gap-2 hover:bg-green-700 active:scale-95 transition"
-        title="Instalar la app para usarla sin Internet"
-        aria-label="Instalar la app para usarla sin Internet"
-      >
-        <span className="text-lg leading-none">📲</span>
-        <span className="flex flex-col leading-tight text-left">
-          <span className="text-xs sm:text-sm font-bold">Instalar app</span>
-          <span className="text-[10px] font-normal opacity-90">
-            Úsala sin Internet
+      {variante === 'menu' ? (
+        <button
+          onClick={instalar}
+          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left"
+        >
+          <span className="text-lg">📲</span>
+          <span className="font-medium">Instalar app</span>
+        </button>
+      ) : (
+        <button
+          onClick={instalar}
+          className="bg-green-600 text-white rounded-full shadow-lg border border-green-700 pl-2.5 pr-3.5 h-11 flex items-center gap-2 hover:bg-green-700 active:scale-95 transition"
+          title="Instalar la app para usarla sin Internet"
+          aria-label="Instalar la app para usarla sin Internet"
+        >
+          <span className="text-lg leading-none">📲</span>
+          <span className="flex flex-col leading-tight text-left">
+            <span className="text-xs sm:text-sm font-bold">Instalar app</span>
+            <span className="text-[10px] font-normal opacity-90">
+              Úsala sin Internet
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+      )}
 
       {/* Instrucciones para iPhone/iPad (instalación manual). */}
       {verInstruccionesIOS && (
