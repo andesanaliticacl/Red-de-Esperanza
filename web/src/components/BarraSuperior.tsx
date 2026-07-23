@@ -14,7 +14,7 @@ export default function BarraSuperior() {
   return (
     <header className="sticky top-0 z-[1000] bg-bandera-azul text-white px-4 py-3 flex items-center gap-3 shadow">
       <Link to="/" className="font-extrabold text-lg whitespace-nowrap">
-        🕊️ Esperanza
+        Esperanza
       </Link>
       {/* Toda la navegación (incluido "Atender solicitudes") vive en el menú de
           usuario, para que se vea ordenado en todos los dispositivos. */}
