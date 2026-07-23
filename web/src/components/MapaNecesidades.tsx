@@ -518,6 +518,20 @@ function ControlesMapa({
 }) {
   const map = useMap()
   const [compartirAbierto, setCompartirAbierto] = useState(false)
+  const [fabAbierto, setFabAbierto] = useState(false)
+  // Oculta Compartir/País (agrupados detrás del FAB) mientras el usuario mueve
+  // o hace zoom en el mapa, al estilo Google Maps. "Mi ubicación" y la barra
+  // inferior NUNCA se ocultan: siguen accesibles en todo momento.
+  const [interactuando, setInteractuando] = useState(false)
+  useMapEvents({
+    movestart: () => {
+      setInteractuando(true)
+      setFabAbierto(false)
+    },
+    zoomstart: () => setInteractuando(true),
+    moveend: () => setInteractuando(false),
+    zoomend: () => setInteractuando(false),
+  })
   const urlCompartir =
     typeof window !== 'undefined' ? window.location.origin : ''
   const tituloCompartir = 'Red de Esperanza'
@@ -551,29 +565,53 @@ function ControlesMapa({
 
   return (
     <div className="absolute right-3 bottom-44 sm:bottom-6 z-[1100] flex flex-col items-end gap-2">
-      <button
-        onClick={() => setCompartirAbierto(true)}
-        className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
-        title="Compartir Red de Esperanza"
-        aria-label="Compartir Red de Esperanza"
+      {/* Compartir + País: agrupados detrás de un FAB (⊕) para no saturar el
+          mapa. Se ocultan mientras el usuario lo mueve o hace zoom. */}
+      <div
+        className={`flex flex-col items-end gap-2 transition-opacity duration-150 ${
+          interactuando ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
       >
-        <IconoCompartir className="h-4 w-4" />
-        <span className="whitespace-nowrap">Compartir</span>
-      </button>
+        {fabAbierto && (
+          <>
+            <button
+              onClick={() => {
+                setCompartirAbierto(true)
+                setFabAbierto(false)
+              }}
+              className="bg-white text-bandera-azul rounded-full shadow-lg border pl-2 pr-3 h-10 flex items-center gap-1.5 hover:bg-gray-50 font-semibold text-xs sm:text-sm"
+              title="Compartir Red de Esperanza"
+              aria-label="Compartir Red de Esperanza"
+            >
+              <IconoCompartir className="h-4 w-4" />
+              <span className="whitespace-nowrap">Compartir</span>
+            </button>
 
-      <div className="flex flex-col items-end gap-1">
-        <SelectorBandera
-          opciones={OPCIONES_PAIS_MAPA}
-          valor={paisMapa}
-          onChange={(v) => void irAPais(v)}
-          placeholder={buscandoPais ? 'Buscando…' : 'País'}
-          className="w-40 sm:w-48"
-        />
-        {errorPais && (
-          <span className="bg-white text-bandera-rojo text-[11px] font-semibold rounded-lg shadow px-2 py-1 max-w-[200px] text-right">
-            {errorPais}
-          </span>
+            <div className="flex flex-col items-end gap-1">
+              <SelectorBandera
+                opciones={OPCIONES_PAIS_MAPA}
+                valor={paisMapa}
+                onChange={(v) => void irAPais(v)}
+                placeholder={buscandoPais ? 'Buscando…' : 'País'}
+                className="w-40 sm:w-48"
+              />
+              {errorPais && (
+                <span className="bg-white text-bandera-rojo text-[11px] font-semibold rounded-lg shadow px-2 py-1 max-w-[200px] text-right">
+                  {errorPais}
+                </span>
+              )}
+            </div>
+          </>
         )}
+
+        <button
+          onClick={() => setFabAbierto((v) => !v)}
+          className="h-11 w-11 rounded-full bg-bandera-azul text-white shadow-lg grid place-items-center text-xl font-bold hover:bg-bandera-azul/90 active:scale-95 transition"
+          title={fabAbierto ? 'Cerrar opciones' : 'Más opciones (compartir, país)'}
+          aria-label={fabAbierto ? 'Cerrar opciones' : 'Más opciones'}
+        >
+          {fabAbierto ? '✕' : '⊕'}
+        </button>
       </div>
 
       {miUbicacion && (
