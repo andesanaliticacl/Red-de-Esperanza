@@ -24,21 +24,11 @@ import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   TIPO_META,
-  ROL_META,
   type Necesidad,
   type CentroAcopio,
   type NecesidadTipo,
   type NecesidadUrgencia,
-  type RolRegistro,
 } from '../lib/types'
-
-// Accesos directos de inicio de sesión por rol (en el orden pedido).
-const ROLES_ACCESO: RolRegistro[] = [
-  'rescatista',
-  'voluntario',
-  'ciudadano',
-  'centro_acopio',
-]
 
 // Opciones del filtro por tipo. Incluye las necesidades, los centros de acopio
 // y un valor especial 'hospital' (los acopios cuya descripción dice "hospital").
@@ -461,8 +451,6 @@ export default function CiudadanoView() {
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
-  // En móvil, el bloque de roles arranca plegado para no tapar el mapa.
-  const [verRoles, setVerRoles] = useState(false)
   // Capa de desaparecidos: OCULTA al entrar. Solo se muestra cuando el usuario
   // la activa con el botón 🔍 Desaparecidos. null = aún no ha tocado (oculta).
   const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
@@ -756,53 +744,12 @@ export default function CiudadanoView() {
             </div>
           </div>
 
-          {/* Accesos directos por rol (solo si no hay sesión): entra o crea
-              cuenta ya con el rol elegido. Plegable para no tapar el mapa. */}
-          {!session && (
-            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow mb-2">
-              <button
-                onClick={() => setVerRoles((v) => !v)}
-                className="w-full flex items-center justify-between px-3 py-2.5"
-              >
-                <span className="text-sm font-bold text-gray-700">
-                  👤 Entra o crea tu cuenta
-                </span>
-                <span className="text-gray-400 text-lg leading-none">
-                  {verRoles ? '▲' : '▼'}
-                </span>
-              </button>
-              {verRoles && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 px-2 pb-2">
-                  {ROLES_ACCESO.map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => navigate(`/login?rol=${r}`)}
-                      className="flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-2 py-2 bg-bandera-azul/10 text-bandera-azul hover:bg-bandera-azul/20 active:scale-95 transition"
-                    >
-                      <span className="text-base leading-none">
-                        {ROL_META[r].emoji}
-                      </span>
-                      {ROL_META[r].etiqueta}
-                    </button>
-                  ))}
-                  {/* Psicólogo/a NO es un rol que se autoasigne al entrar: es
-                      una solicitud que revisa el equipo. Por eso va aparte y
-                      lleva directo al registro con el pedido preactivado. */}
-                  <button
-                    onClick={() => navigate('/registro?psicologo=1')}
-                    className="flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-2 py-2 bg-purple-100 text-purple-800 hover:bg-purple-200 active:scale-95 transition"
-                  >
-                    <span className="text-base leading-none">🧠</span>
-                    Psicólogo/a
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          {/* El acceso "Entra o crea tu cuenta" se retiró de aquí: el botón
+              ❤️ Ayudar de la barra inferior ya cumple ese rol. Iniciar sesión
+              sigue disponible desde el menú de usuario (arriba a la derecha). */}
 
-          {/* Controles compactos: Filtrar (abre panel) + Desaparecidos como
-              chip de filtro (borde, sin relleno sólido) para que no se lea
-              como un botón de acción del estilo SOS/Reportar. */}
+          {/* Un solo botón a primera vista: "Filtrar". Desaparecidos queda
+              dentro del panel (no tapa la parte de arriba). */}
           <div className="pointer-events-auto flex items-center gap-2">
             <button
               onClick={() => setVerFiltros((v) => !v)}
@@ -814,22 +761,6 @@ export default function CiudadanoView() {
             >
               🔎 Filtrar{hayFiltro ? ' •' : ''}
               <span className="text-[10px] leading-none">{verFiltros ? '▲' : '▼'}</span>
-            </button>
-            <button
-              onClick={() => {
-                const nuevo = !verDesap
-                setVerDesapManual(nuevo)
-                if (!nuevo) setBusqDesap('')
-              }}
-              aria-pressed={verDesap}
-              className={`shrink-0 flex items-center gap-1.5 rounded-full border-2 px-3 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap ${
-                verDesap
-                  ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
-                  : 'bg-white/95 backdrop-blur border-gray-200 text-gray-600'
-              }`}
-            >
-              {verDesap && <span className="leading-none">✓</span>}
-              🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
             </button>
           </div>
 
@@ -852,19 +783,35 @@ export default function CiudadanoView() {
                   ))}
                   <option value="hospital">🏥 Hospital</option>
                 </select>
-                <select
-                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
-                  value={urgFiltro}
-                  onChange={(e) =>
-                    setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
-                  }
+                <button
+                  onClick={() => {
+                    const nuevo = !verDesap
+                    setVerDesapManual(nuevo)
+                    if (!nuevo) setBusqDesap('')
+                  }}
+                  aria-pressed={verDesap}
+                  className={`w-full flex items-center justify-center gap-1.5 rounded-lg border-2 px-2 py-2 text-sm font-semibold whitespace-nowrap ${
+                    verDesap
+                      ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
+                      : 'border-gray-200 text-gray-600'
+                  }`}
                 >
-                  <option value="todas">⏱️ Cualquier urgencia</option>
-                  <option value="alta">🔴 Urgencia alta</option>
-                  <option value="media">🟠 Urgencia media</option>
-                  <option value="baja">🟢 Urgencia baja</option>
-                </select>
+                  {verDesap && <span className="leading-none">✓</span>}
+                  🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
+                </button>
               </div>
+              <select
+                className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium mt-2"
+                value={urgFiltro}
+                onChange={(e) =>
+                  setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
+                }
+              >
+                <option value="todas">⏱️ Cualquier urgencia</option>
+                <option value="alta">🔴 Urgencia alta</option>
+                <option value="media">🟠 Urgencia media</option>
+                <option value="baja">🟢 Urgencia baja</option>
+              </select>
               {hayFiltro && (
                 <button
                   onClick={() => {
