@@ -1,21 +1,61 @@
 import { useState } from 'react'
 import { crearNecesidad } from '../lib/reportes'
-import { obtenerUbicacion, type FuenteUbicacion } from '../lib/geo'
+import {
+  obtenerUbicacion,
+  paisPorCoordenadas,
+  type FuenteUbicacion,
+} from '../lib/geo'
 import EntradaTelefono, {
   esTelefonoVenezuelaValido,
   mensajeTelefonoVenezuela,
 } from './EntradaTelefono'
 
-// Número único de emergencias de Venezuela (VEN 911, nacional desde 2013).
-const NUMERO_EMERGENCIA = '911'
+// Número de emergencias a mostrar según el país detectado (por coordenadas).
+// Chile: solo Carabineros (133), como pidió el equipo. Venezuela y cualquier
+// país no reconocido: 911 (nacional en Venezuela desde 2013), como respaldo.
+interface EmergenciaPais {
+  tel: string
+  boton: string
+  enlace: string
+  avisoOffline: string
+}
+const EMERGENCIA_VE: EmergenciaPais = {
+  tel: '911',
+  boton: '📞 Llamar al 911',
+  enlace: '📞 ¿Vida o muerte? Llama al 911',
+  avisoOffline: 'llama también al 911',
+}
+const EMERGENCIA_CL: EmergenciaPais = {
+  tel: '133',
+  boton: '🚓 Llamar a Carabineros (133)',
+  enlace: '🚓 ¿Vida o muerte? Llama a Carabineros: 133',
+  avisoOffline: 'llama también a Carabineros: 133',
+}
+function emergenciaPorCoord(
+  coord: { lat: number; lng: number } | null,
+): EmergenciaPais {
+  const pais = coord ? paisPorCoordenadas(coord.lat, coord.lng) : null
+  return pais === 'Chile' ? EMERGENCIA_CL : EMERGENCIA_VE
+}
 
 /**
  * Vista EMERGENCIA: flujo de 2 toques.
  * (1) Usar mi ubicación → (2) Enviar SOS. Crea rescate/urgencia alta.
  */
-export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
-  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
+export default function SosModal({
+  onCerrar,
+  coordInicial,
+}: {
+  onCerrar: () => void
+  /** Ubicación ya detectada al abrir (evita esperar el GPS solo para saber
+   *  qué número de emergencia local mostrar). */
+  coordInicial?: { lat: number; lng: number } | null
+}) {
+  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(
+    coordInicial ?? null,
+  )
   const [fuente, setFuente] = useState<FuenteUbicacion | null>(null)
+  const emergencia = emergenciaPorCoord(coord)
   const [paso, setPaso] = useState<'inicio' | 'listo' | 'enviado'>('inicio')
   const [texto, setTexto] = useState('')
   const [personas, setPersonas] = useState('')
@@ -110,7 +150,7 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
                 <p className="text-sm text-white/90 mt-1">
                   Tu SOS quedó guardado en el teléfono y se enviará
                   automáticamente en cuanto recuperes la conexión. Si es de vida
-                  o muerte, llama también al {NUMERO_EMERGENCIA}.
+                  o muerte, {emergencia.avisoOffline}.
                 </p>
               </div>
             ) : (
@@ -123,10 +163,10 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
               Si es una emergencia de vida o muerte, llama también a emergencias:
             </p>
             <a
-              href={`tel:${NUMERO_EMERGENCIA}`}
+              href={`tel:${emergencia.tel}`}
               className="btn bg-white text-bandera-rojo w-full text-2xl py-6 no-underline mb-3"
             >
-              📞 Llamar al {NUMERO_EMERGENCIA}
+              {emergencia.boton}
             </a>
             <button
               onClick={onCerrar}
@@ -219,10 +259,10 @@ export default function SosModal({ onCerrar }: { onCerrar: () => void }) {
             {errorMsg && <p className="mt-4 text-white font-semibold">⚠️ {errorMsg}</p>}
 
             <a
-              href={`tel:${NUMERO_EMERGENCIA}`}
+              href={`tel:${emergencia.tel}`}
               className="mt-6 block text-white underline text-lg"
             >
-              📞 ¿Vida o muerte? Llama al {NUMERO_EMERGENCIA}
+              {emergencia.enlace}
             </a>
           </>
         )}

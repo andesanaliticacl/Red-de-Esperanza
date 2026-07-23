@@ -994,6 +994,16 @@ export default function CiudadanoView() {
           data-map-overlay="bottom"
         >
           <div className="mx-auto w-full max-w-md flex flex-col gap-2 pointer-events-auto">
+            {/* "Ayudar" lleva directo a crear cuenta como voluntario. Desaparece
+                para quien ya tiene cuenta (ya está adentro de la red). */}
+            {!session && (
+              <button
+                onClick={() => navigate('/registro?rol=voluntario')}
+                className="btn w-full text-base sm:text-lg py-3.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-2xl shadow"
+              >
+                ❤️ Ayudar
+              </button>
+            )}
             <button
               onClick={() => setAbrirSos(true)}
               className="btn-rojo w-full text-base sm:text-lg py-3.5 animate-pulse"
@@ -1004,7 +1014,7 @@ export default function CiudadanoView() {
               onClick={() => setAbrirReporte(true)}
               className="btn-azul w-full text-base sm:text-lg py-3.5"
             >
-              ➕ Reportar necesidad
+              📝 Reportar
             </button>
           </div>
         </div>
@@ -1043,7 +1053,9 @@ export default function CiudadanoView() {
           }}
         />
       )}
-      {abrirSos && <SosModal onCerrar={() => setAbrirSos(false)} />}
+      {abrirSos && (
+        <SosModal onCerrar={() => setAbrirSos(false)} coordInicial={coordAuto} />
+      )}
       {abrirTutorial && <TutorialModal onCerrar={cerrarTutorial} />}
       {chatNec && (
         <ChatNecesidad
