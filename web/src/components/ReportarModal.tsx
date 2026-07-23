@@ -1010,9 +1010,10 @@ export default function ReportarModal({
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
               {esZonaAislada ? (
                 <>
-                  🏝️ Marca una <strong>zona aislada</strong> (incomunicada o de
+                  🚧 Marca una <strong>zona aislada</strong> (incomunicada o de
                   difícil acceso) para que el equipo la vea de un vistazo en el
-                  mapa. Solo el admin puede crearlas.
+                  mapa. Solo el admin y los líderes de voluntarios pueden
+                  crearlas.
                 </>
               ) : esZona ? (
                 <>
