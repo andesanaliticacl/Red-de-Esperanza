@@ -760,8 +760,8 @@ export default function CiudadanoView() {
           {/* Marca + Filtrar en la misma fila: usa mejor el espacio de arriba.
               Desaparecidos queda dentro del panel (no tapa la parte de arriba). */}
           <div className="flex items-center gap-2 mb-2 pointer-events-auto">
-            <span className="bg-bandera-azul text-white font-extrabold px-3 py-2 rounded-xl shadow whitespace-nowrap">
-              Red de Esperanza
+            <span className="bg-bandera-azul text-white font-extrabold px-3 py-2 rounded-xl shadow whitespace-nowrap text-sm sm:text-base">
+              🕊️ Red de Esperanza
             </span>
             <button
               onClick={() => setVerFiltros((v) => !v)}
