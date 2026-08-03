@@ -103,6 +103,9 @@ export default function VoluntarioView() {
   // Solo líder de voluntarios/admin pueden quitar (o restaurar) del mapa.
   const puedeEliminar = puedeGestionarComoLider(rol)
   const puedeCambiarTipo = rol === 'admin'
+  // El admin puede intervenir en cualquier necesidad "en curso", aunque esté
+  // asignada a otra persona (p. ej. casos abandonados hace semanas).
+  const esAdmin = rol === 'admin'
   // Sin verificación: los reportes nuevos (y los de datos previos ya
   // verificados) se atienden directamente, más los que están en proceso.
   // El aviso sonoro de "nueva necesidad / SOS" lo da el proveedor global de
@@ -722,7 +725,10 @@ export default function VoluntarioView() {
                 origen={origenes.get(n.id)}
                 repeticiones={repeticionesDe(n.id)}
                 trabajando={trabajando === n.id}
-                accion={null}
+                accion={esAdmin ? 'atender' : null}
+                onAccion={esAdmin ? () => iniciarCierre(n) : undefined}
+                onRetirar={esAdmin ? () => setARetirar(n) : undefined}
+                retirarEtiqueta={esAdmin ? 'Liberar' : 'Retirarme'}
                 atendidaPor={quienAtiende(n)}
                 onChat={() => setChat(n)}
               />
@@ -842,9 +848,21 @@ export default function VoluntarioView() {
       <ConfirmDialog
         abierto={!!aRetirar}
         emoji="✋"
-        titulo="¿Retirarte de esta necesidad?"
-        mensaje="Volverá a quedar disponible para que otra persona la tome."
-        textoConfirmar="Sí, retirarme"
+        titulo={
+          aRetirar && aRetirar.asignado_a !== perfil?.id
+            ? '¿Liberar esta necesidad?'
+            : '¿Retirarte de esta necesidad?'
+        }
+        mensaje={
+          aRetirar && aRetirar.asignado_a !== perfil?.id
+            ? 'Se quitará la asignación actual y volverá a quedar disponible para que cualquiera la tome.'
+            : 'Volverá a quedar disponible para que otra persona la tome.'
+        }
+        textoConfirmar={
+          aRetirar && aRetirar.asignado_a !== perfil?.id
+            ? 'Sí, liberar'
+            : 'Sí, retirarme'
+        }
         peligro
         onConfirmar={confirmarRetiro}
         onCancelar={() => setARetirar(null)}
@@ -998,6 +1016,7 @@ function Fila({
   onResolver,
   onChat,
   onRetirar,
+  retirarEtiqueta,
   atendidaPor,
 }: {
   n: Necesidad
@@ -1014,6 +1033,9 @@ function Fila({
   onResolver?: () => void
   onChat: () => void
   onRetirar?: () => void
+  // Texto del botón de retiro: "Retirarme" (propio) o "Liberar" (admin sobre
+  // un caso ajeno, p. ej. abandonado hace semanas).
+  retirarEtiqueta?: string
   atendidaPor?: string | null
 }) {
   return (
@@ -1096,7 +1118,7 @@ function Fila({
             disabled={trabajando}
             className="py-2.5 px-4 whitespace-nowrap rounded-2xl font-bold border-2 border-bandera-rojo text-bandera-rojo disabled:opacity-60"
           >
-            ✋ Retirarme
+            ✋ {retirarEtiqueta ?? 'Retirarme'}
           </button>
         )}
         {n.lat != null && n.lng != null && (
