@@ -12,6 +12,9 @@ export interface Catastrofe {
   id: string
   nombre: string
   pais: string | null
+  /** Ciudad/zona de la emergencia (migración 57). Afina la asignación
+   *  automática cuando hay varias catástrofes en un mismo país. */
+  ciudad: string | null
   creado_en: string
 }
 
@@ -19,7 +22,7 @@ export interface Catastrofe {
 export async function listarCatastrofes(): Promise<Catastrofe[]> {
   const { data, error } = await supabase
     .from('catastrofes')
-    .select('id, nombre, pais, creado_en')
+    .select('id, nombre, pais, ciudad, creado_en')
     .order('creado_en', { ascending: false })
     .limit(100)
   if (error) throw error
@@ -27,12 +30,14 @@ export async function listarCatastrofes(): Promise<Catastrofe[]> {
 }
 
 /**
- * Crea una catástrofe nueva. Solo usuarios con cuenta (lo exige la RLS);
- * la fecha de creación la pone la base automáticamente.
+ * Crea una catástrofe nueva. Desde la migración 57 solo la coordinación
+ * (admin y líderes) puede hacerlo, y se define desde el panel: así los
+ * reportes se asignan solos y nadie tiene que elegir un evento a mano.
  */
 export async function crearCatastrofe(
   nombre: string,
   pais?: string | null,
+  ciudad?: string | null,
 ): Promise<Catastrofe> {
   const { data: auth } = await supabase.auth.getUser()
   if (!auth?.user?.id) {
@@ -44,12 +49,22 @@ export async function crearCatastrofe(
   }
   const { data, error } = await supabase
     .from('catastrofes')
-    .insert({ nombre: limpio, pais: pais?.trim() || null, creado_por: auth.user.id })
-    .select('id, nombre, pais, creado_en')
+    .insert({
+      nombre: limpio,
+      pais: pais?.trim() || null,
+      ciudad: ciudad?.trim() || null,
+      creado_por: auth.user.id,
+    })
+    .select('id, nombre, pais, ciudad, creado_en')
     .single()
   if (error) {
     if (error.code === '23505') {
       throw new Error('Ya existe una catástrofe con ese nombre.')
+    }
+    if (error.code === '42501') {
+      throw new Error(
+        'Solo el equipo de coordinación (admin o líder) puede crear catástrofes.',
+      )
     }
     throw error
   }

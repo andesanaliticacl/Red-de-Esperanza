@@ -8,7 +8,6 @@ import { crearNecesidad } from '../lib/reportes'
 import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   listarCatastrofes,
-  crearCatastrofe,
   type Catastrofe,
 } from '../lib/catastrofes'
 import { supabase } from '../lib/supabase'
@@ -22,6 +21,7 @@ import {
   obtenerUbicacion,
   geocodificarDireccion,
   parsearCoordenadas,
+  paisPorCoordenadas,
   type FuenteUbicacion,
 } from '../lib/geo'
 import SelectorPunto from './SelectorPunto'
@@ -29,6 +29,7 @@ import EntradaTelefono, {
   esTelefonoValido,
   mensajeTelefono,
 } from './EntradaTelefono'
+import { paisPorIP } from '../lib/visitas'
 import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
 import { subirFotoMascota } from '../lib/fotoMascota'
 
@@ -158,6 +159,11 @@ export default function ReportarModal({
   // grandes). Se conserva al volver del formulario, para caer en la misma
   // lista de la que se salió y no obligar a empezar de cero.
   const [grupo, setGrupo] = useState<GrupoReporte | null>(null)
+  // Tramo del formulario en los reportes comunes: 1 ¿dónde? · 2 ¿qué pasa? ·
+  // 3 ¿tu teléfono? Una sola pregunta por pantalla se sigue mucho mejor bajo
+  // estrés que un formulario largo. Apoyo emocional, mascota y hospital NO lo
+  // usan: sus campos propios no encajan en este recorrido.
+  const [subPaso, setSubPaso] = useState(1)
   const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
   const [nombrePaciente, setNombrePaciente] = useState('')
@@ -204,10 +210,9 @@ export default function ReportarModal({
   // Catástrofe (evento) opcional a la que pertenece el reporte.
   const [catastrofes, setCatastrofes] = useState<Catastrofe[]>([])
   const [catastrofeId, setCatastrofeId] = useState('')
-  const [creandoCatastrofe, setCreandoCatastrofe] = useState(false)
-  const [nombreCatastrofe, setNombreCatastrofe] = useState('')
-  const [paisCatastrofe, setPaisCatastrofe] = useState('')
-  const [guardandoCatastrofe, setGuardandoCatastrofe] = useState(false)
+  // Ciudad aproximada de quien reporta (por IP). Solo se usa para afinar a
+  // qué catástrofe pertenece el reporte cuando hay varias en el mismo país.
+  const [ciudadIP, setCiudadIP] = useState<string | null>(null)
 
   const esDerrumbe = tipo === 'derrumbe'
   const esMascota = tipo === 'mascota'
@@ -217,6 +222,12 @@ export default function ReportarModal({
   const esAtencionPsicologica = tipo === 'atencion_psicologica'
   const esHospital = tipo === 'hospital'
   const requiereUbicacion = !esAtencionPsicologica
+  // Reportes comunes: recorrido de 3 tramos. Los tres tipos con campos muy
+  // propios (perfil psicológico, foto del animal, buscador de Google Maps)
+  // conservan su pantalla única, que ya está afinada.
+  const usaPasos = !esHospital && !esAtencionPsicologica && !esMascota
+  /** ¿Toca pintar lo del tramo n? Sin tramos (pantalla única), siempre. */
+  const enTramo = (n: number) => !usaPasos || subPaso === n
   const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
   // Opciones del grupo abierto. "Zona aislada" solo la ven quienes pueden
   // crearla (admin / líder de voluntarios), dentro del grupo de peligros.
@@ -257,22 +268,38 @@ export default function ReportarModal({
       .catch(() => setCatastrofes([]))
   }, [])
 
-  async function crearCatastrofeNueva() {
-    setGuardandoCatastrofe(true)
-    setErrorMsg('')
-    try {
-      const nueva = await crearCatastrofe(nombreCatastrofe, paisCatastrofe)
-      setCatastrofes((prev) => [nueva, ...prev])
-      setCatastrofeId(nueva.id)
-      setCreandoCatastrofe(false)
-      setNombreCatastrofe('')
-      setPaisCatastrofe('')
-    } catch (e) {
-      setErrorMsg((e as Error).message)
-    } finally {
-      setGuardandoCatastrofe(false)
+  // Ciudad aproximada por IP, solo para afinar la catástrofe. Es best-effort:
+  // si falla, la asignación se queda con el país (o con la más reciente).
+  useEffect(() => {
+    let vivo = true
+    paisPorIP()
+      .then(({ ciudad }) => {
+        if (vivo) setCiudadIP(ciudad)
+      })
+      .catch(() => {})
+    return () => {
+      vivo = false
     }
-  }
+  }, [])
+
+  // La catástrofe se asigna SOLA. Quien pide ayuda no tiene que elegir un
+  // evento de una lista (y desde la migración 57 tampoco puede crearlos:
+  // los define la coordinación desde el panel, con país y ciudad).
+  // Prioridad: misma ciudad y país › mismo país › la más reciente.
+  useEffect(() => {
+    if (catastrofeId || catastrofes.length === 0) return
+    const igual = (a: string | null, b: string | null | undefined) =>
+      !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase()
+
+    const pais = coord ? paisPorCoordenadas(coord.lat, coord.lng) : null
+    const porCiudad = catastrofes.find(
+      (c) => igual(pais, c.pais) && igual(ciudadIP, c.ciudad),
+    )
+    const porPais = catastrofes.find((c) => igual(pais, c.pais))
+    // listarCatastrofes() las trae de la más reciente a la más antigua.
+    const elegida = porCiudad ?? porPais ?? catastrofes[0]
+    if (elegida) setCatastrofeId(elegida.id)
+  }, [catastrofes, coord, ciudadIP, catastrofeId])
 
   useEffect(() => {
     if (!esHospital) return
@@ -340,6 +367,7 @@ export default function ReportarModal({
         : coordAuto,
     )
     setErrorMsg('')
+    setSubPaso(1)
     setPaso(2)
   }
 
@@ -612,88 +640,6 @@ export default function ReportarModal({
           En Google Maps: mantén pulsado el lugar → copia los números que salen.
         </p>
       </details>
-    </div>
-  )
-
-  // Fecha corta de creación de una catástrofe (para la lista del selector).
-  // timeZone: 'UTC' evita que la fecha "salte" un día atrás para quien mira
-  // desde un huso horario negativo (Venezuela, Chile...): la medianoche UTC
-  // sembrada en la migración debe verse siempre como el mismo día calendario.
-  const fechaCatastrofe = (iso: string) =>
-    new Date(iso).toLocaleDateString('es-VE', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    })
-
-  const bloqueCatastrofe = (
-    <div>
-      <p className="font-bold mb-1">Catástrofe / evento (opcional)</p>
-      <p className="text-xs text-gray-500 mb-2">
-        ¿Este reporte pertenece a una emergencia con nombre? Ayuda a filtrar la
-        ayuda por catástrofe.
-      </p>
-      <select
-        className="input"
-        value={catastrofeId}
-        onChange={(e) => setCatastrofeId(e.target.value)}
-      >
-        <option value="">Sin catástrofe específica</option>
-        {catastrofes.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.nombre}
-            {c.pais ? ` · ${c.pais}` : ''} · creada el {fechaCatastrofe(c.creado_en)}
-          </option>
-        ))}
-      </select>
-      {creandoCatastrofe ? (
-        <div className="mt-2 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
-          <input
-            className="input text-sm"
-            placeholder="Nombre. Ej: Temporal de lluvias Chile"
-            maxLength={80}
-            value={nombreCatastrofe}
-            onChange={(e) => setNombreCatastrofe(e.target.value)}
-          />
-          <input
-            className="input text-sm"
-            placeholder="País (opcional). Ej: Chile"
-            maxLength={40}
-            value={paisCatastrofe}
-            onChange={(e) => setPaisCatastrofe(e.target.value)}
-          />
-          <p className="text-[11px] text-gray-500">
-            La fecha de creación se registra automáticamente. Se necesita tener
-            sesión iniciada.
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setCreandoCatastrofe(false)}
-              className="btn-gris flex-1 py-2 text-sm"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={() => void crearCatastrofeNueva()}
-              disabled={guardandoCatastrofe || nombreCatastrofe.trim().length < 3}
-              className="btn-azul flex-1 py-2 text-sm disabled:opacity-60"
-            >
-              {guardandoCatastrofe ? 'Creando…' : 'Crear'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setCreandoCatastrofe(true)}
-          className="text-xs text-bandera-azul font-semibold mt-1"
-        >
-          ➕ ¿No está en la lista? Crear catástrofe nueva
-        </button>
-      )}
     </div>
   )
 
@@ -1102,9 +1048,41 @@ export default function ReportarModal({
           </div>
         )}
 
-        {/* PASO 2: TODO en una sola pantalla, con mini-mapa */}
+        {/* PASO 2: reportes comunes en 3 tramos (¿dónde? · ¿qué pasa? ·
+            ¿teléfono?). Hospital, apoyo emocional y mascota conservan su
+            pantalla única: sus campos propios no encajan en este recorrido. */}
         {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
           <div className="space-y-4">
+            {usaPasos && (
+              <div>
+                <div
+                  className="flex items-center gap-1.5 mb-2"
+                  role="progressbar"
+                  aria-valuenow={subPaso}
+                  aria-valuemin={1}
+                  aria-valuemax={3}
+                  aria-label={`Paso ${subPaso} de 3`}
+                >
+                  {[1, 2, 3].map((n) => (
+                    <span
+                      key={n}
+                      className={`h-1.5 flex-1 rounded-full ${
+                        n <= subPaso ? 'bg-bandera-azul' : 'bg-gray-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="font-extrabold text-lg leading-tight">
+                  {subPaso === 1
+                    ? '¿Dónde es?'
+                    : subPaso === 2
+                      ? '¿Qué pasa?'
+                      : '¿Cómo te contactamos?'}
+                </p>
+              </div>
+            )}
+
+            {enTramo(1) && (
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
               {esZonaAislada ? (
                 <>
@@ -1123,6 +1101,7 @@ export default function ReportarModal({
                 intro
               )}
             </div>
+            )}
 
             {esHospital && (
               <div>
@@ -1202,7 +1181,7 @@ export default function ReportarModal({
 
             {esMascota && bloqueDatosMascota}
 
-            {requiereUbicacion && (
+            {requiereUbicacion && enTramo(1) && (
               <div>
                 <p className="font-bold mb-2">{etiquetaDir}</p>
                 <input
@@ -1220,7 +1199,7 @@ export default function ReportarModal({
               </div>
             )}
 
-            {esZona && (
+            {esZona && enTramo(1) && (
               <div>
                 <p className="font-bold mb-2">Tamaño de la zona (diámetro)</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -1241,42 +1220,88 @@ export default function ReportarModal({
               </div>
             )}
 
-            {requiereUbicacion && bloqueUbicacionMapa}
+            {requiereUbicacion && enTramo(1) && bloqueUbicacionMapa}
 
-            <div>
-              <p className="font-bold mb-2">{etiquetaDetalle}</p>
-              <textarea
-                className="input min-h-[70px]"
-                placeholder={placeholderDetalle}
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-              />
-            </div>
+            {enTramo(2) && (
+              <div>
+                <p className="font-bold mb-2">{etiquetaDetalle}</p>
+                <textarea
+                  className="input min-h-[70px]"
+                  placeholder={placeholderDetalle}
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                />
+              </div>
+            )}
 
-            {!esHospital && !esAtencionPsicologica && selectorUrgencia}
-            {!esHospital && bloqueCatastrofe}
-            {!esHospital && !esAtencionPsicologica && bloqueContacto}
+            {!esHospital &&
+              !esAtencionPsicologica &&
+              enTramo(2) &&
+              selectorUrgencia}
+            {/* La catástrofe ya no se pregunta: se asigna sola según el país
+                y la ciudad del reporte (la define la coordinación en el
+                panel). Un formulario menos para quien pide ayuda. */}
+            {!esHospital &&
+              !esAtencionPsicologica &&
+              enTramo(3) &&
+              bloqueContacto}
             {avisoError}
 
-            <div className="flex gap-2">
-              <button
-                onClick={() =>
-                  esAtencionPsicologica && perfilPsico
-                    ? setPerfilPsico('')
-                    : setPaso(1)
-                }
-                className="btn-gris flex-1"
-              >
-                ← Atrás
-              </button>
-              <button
-                onClick={enviar}
-                disabled={guardando}
-                className="btn-verde flex-1 disabled:opacity-60"
-              >
-                {guardando ? 'Enviando…' : esHospital ? 'Guardar hospital' : 'Enviar reporte'}
-              </button>
-            </div>
+            {usaPasos ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    subPaso === 1 ? setPaso(1) : setSubPaso(subPaso - 1)
+                  }
+                  className="btn-gris flex-1"
+                >
+                  ← Atrás
+                </button>
+                {subPaso < 3 ? (
+                  <button
+                    onClick={() => setSubPaso(subPaso + 1)}
+                    // El punto es lo único imprescindible del primer tramo:
+                    // sin él (ni dirección escrita) no se puede seguir.
+                    disabled={subPaso === 1 && !coord && !zona.trim()}
+                    className="btn-azul flex-1 disabled:opacity-60"
+                  >
+                    {subPaso === 1 ? '✅ Es aquí' : 'Siguiente →'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={enviar}
+                    disabled={guardando}
+                    className="btn-verde flex-1 disabled:opacity-60"
+                  >
+                    {guardando ? 'Enviando…' : 'Enviar reporte'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    esAtencionPsicologica && perfilPsico
+                      ? setPerfilPsico('')
+                      : setPaso(1)
+                  }
+                  className="btn-gris flex-1"
+                >
+                  ← Atrás
+                </button>
+                <button
+                  onClick={enviar}
+                  disabled={guardando}
+                  className="btn-verde flex-1 disabled:opacity-60"
+                >
+                  {guardando
+                    ? 'Enviando…'
+                    : esHospital
+                      ? 'Guardar hospital'
+                      : 'Enviar reporte'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
