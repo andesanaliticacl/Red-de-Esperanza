@@ -12,7 +12,7 @@ import {
 } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
 import { paisPorIP } from '../lib/visitas'
-import EntradaTelefono, { esTelefonoValido } from './EntradaTelefono'
+import { mencionaDinero, AVISO_DINERO } from '../lib/avisoDinero'
 import { PAISES_CHAT, regionesDe, claveSala } from '../lib/regionesChat'
 import {
   ROL_META,
@@ -92,7 +92,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const nombreEfectivo = esLogueado
     ? perfil?.nombre?.split(' ')[0] || 'Yo'
     : ''
-  const [nombre, setNombre] = useState(guardada?.nombre ?? '')
+  // Nombre guardado de visitas anteriores. Ya no se edita (sin cuenta no se
+  // escribe), pero sirve para reconocer como propios los mensajes viejos que
+  // esta persona dejó cuando el chat aún admitía invitados.
+  const nombre = guardada?.nombre ?? ''
   // País de la sala: Venezuela y Chile por ahora (se pueden sumar más en
   // lib/regionesChat.ts). Se preselecciona con el país detectado por IP si
   // está entre los disponibles; si no, Chile (la emergencia activa ahora
@@ -103,8 +106,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   const [estado, setEstado] = useState(
     guardada?.estado ?? perfil?.estado ?? 'Coquimbo',
   )
-  // Teléfono del invitado (registro express), para poder contactarlo.
-  const [telefono, setTelefono] = useState(guardada?.telefono ?? '')
   const [listo, setListo] = useState(Boolean(guardada))
   const tokenPruebaChat = import.meta.env.DEV
     ? ((import.meta.env.VITE_CHAT_DEV_BYPASS_TOKEN as string | undefined) ?? '').trim()
@@ -114,8 +115,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Venezuela). La sala en sí ya delimita con quién se conversa.
   const regionesDisponibles = regionesDe(paisChat)
   const sala = estado ? claveSala(paisChat, estado) : ''
-  // ¿El invitado puso un teléfono válido? Obligatorio sin sesión.
-  const telefonoValido = esTelefonoValido(telefono)
 
   const [mensajes, setMensajes] = useState<MensajeGlobal[]>([])
   const [texto, setTexto] = useState('')
@@ -257,15 +256,13 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
 
   function entrar(e: React.FormEvent) {
     e.preventDefault()
-    const nom = esLogueado ? nombreEfectivo : nombre.trim() || 'Visitante'
-    // Sin sesión: nombre + país + estado/región + teléfono (para contactar).
+    // Ya no se pide nombre ni teléfono a quien no tiene cuenta: sin sesión el
+    // chat es de solo lectura, así que basta con saber qué sala mostrar.
     if (!estado.trim()) return
-    if (!esLogueado && (!nombre.trim() || !telefonoValido)) return
     guardarIdentidad({
-      nombre: nom,
+      nombre: esLogueado ? nombreEfectivo : 'Visitante',
       estado: estado.trim(),
       pais: paisChat,
-      telefono: esLogueado ? undefined : telefono.trim(),
     })
     setMensajes([])
     setRespuestaA(null)
@@ -275,17 +272,21 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     if (!texto.trim() || !sala) return
+    // Cinturón y tirantes: la caja de texto ni siquiera se muestra sin sesión.
+    if (!esLogueado) return
     const cuerpo = texto.trim()
     setTexto('')
     setErrorMsg('')
     try {
       await enviarChat({
         ciudad: sala,
-        nombre: esLogueado ? nombreEfectivo : nombre,
+        nombre: nombreEfectivo,
         cuerpo,
         // Solo el invitado adjunta teléfono; el usuario con cuenta no expone el
         // suyo en el chat comunitario.
-        telefono: esLogueado ? null : telefono,
+        // Quien escribe siempre tiene cuenta: su teléfono vive en su perfil,
+        // no se adjunta al mensaje (chat_contactos era solo para invitados).
+        telefono: null,
         respuestaA,
         devBypassToken: tokenPruebaChat,
       })
@@ -365,10 +366,8 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         // Ajustes / identidad (apodo + país + estado/región)
         <form onSubmit={entrar} className="p-4 space-y-3 flex-1">
           <p className="text-sm text-gray-600">
-            Conversa con la gente de tu zona.{' '}
-            {esLogueado
-              ? 'Elige tu país y tu estado o región para entrar al chat comunitario.'
-              : 'Elige tu nombre, tu país y tu estado o región para entrar al chat comunitario.'}
+            Conversa con la gente de tu zona. Elige tu país y tu estado o
+            región para entrar al chat comunitario.
           </p>
           {esLogueado ? (
             // Logueado: el nombre es automático (no se vuelve a pedir). Solo
@@ -381,33 +380,12 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           ) : (
-            <>
-              <label className="block text-sm font-semibold">
-                Nombre de la persona
-                <input
-                  className="input mt-1"
-                  placeholder="Tu nombre o apodo"
-                  maxLength={40}
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                />
-              </label>
-              <div>
-                <p className="text-sm font-semibold mb-1">
-                  Teléfono de contacto
-                </p>
-                <p className="text-xs text-gray-500 mb-1">
-                  📱 <strong>Obligatorio.</strong> Privado: solo un{' '}
-                  <strong>líder</strong> o un{' '}
-                  <strong>administrador</strong> lo verá y,{' '}
-                  <strong className="text-bandera-azul">
-                    en caso de ser necesario
-                  </strong>
-                  , podrá contactarte. No aparece para el resto del chat.
-                </p>
-                <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
-              </div>
-            </>
+            // Sin cuenta se puede LEER, no escribir: los mensajes anónimos son
+            // la vía fácil para estafas y suplantaciones en una emergencia.
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+              👀 Puedes <b>leer</b> el chat sin cuenta. Para{' '}
+              <b>escribir</b> necesitas una, así se sabe quién dice qué.
+            </div>
           )}
           <label className="block text-sm font-semibold">
             País
@@ -445,7 +423,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           </label>
           <button
             type="submit"
-            disabled={!estado.trim() || (!esLogueado && (!nombre.trim() || !telefonoValido))}
+            disabled={!estado.trim()}
             className="btn-azul w-full disabled:opacity-50"
           >
             Entrar al chat
@@ -509,6 +487,20 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                         </div>
                       )}
                       <div className="break-words">{m.cuerpo}</div>
+                      {/* Aviso cuando el mensaje habla de dinero. No lo borra
+                          ni lo bloquea: puede ser alguien de buena fe. Solo
+                          recuerda que la red no recauda nada. */}
+                      {mencionaDinero(m.cuerpo) && (
+                        <div
+                          className={`mt-1.5 rounded-lg px-2 py-1.5 text-[11px] leading-snug ${
+                            mio
+                              ? 'bg-white/15 text-white/90'
+                              : 'bg-amber-50 border border-amber-200 text-amber-900'
+                          }`}
+                        >
+                          ⚠️ {AVISO_DINERO}
+                        </div>
+                      )}
                       {/* Teléfono del invitado: SOLO los líderes/admin lo ven
                           (el mapa solo se llena para ellos) para contactarlo. */}
                       {!mio && telefonos.get(m.id) && (
@@ -608,22 +600,48 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               </div>
             </div>
           )}
-          <form onSubmit={enviar} className="p-2.5 border-t flex gap-2">
-            <input
-              className="input flex-1"
-              placeholder="Escribe un mensaje…"
-              maxLength={500}
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-            />
-            <button
-              type="submit"
-              disabled={!texto.trim()}
-              className="btn-azul px-4 disabled:opacity-50"
-            >
-              ➤
-            </button>
-          </form>
+          {esLogueado ? (
+            <form onSubmit={enviar} className="p-2.5 border-t flex gap-2">
+              <input
+                className="input flex-1"
+                placeholder="Escribe un mensaje…"
+                maxLength={500}
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={!texto.trim()}
+                className="btn-azul px-4 disabled:opacity-50"
+              >
+                ➤
+              </button>
+            </form>
+          ) : (
+            // Escribir exige cuenta: los mensajes anónimos son la vía fácil
+            // para estafas y para hacerse pasar por otra persona.
+            <div className="p-3 border-t bg-gray-50 text-center">
+              <p className="text-sm text-gray-600 mb-2">
+                Para escribir necesitas una cuenta.
+              </p>
+              <div className="flex gap-2">
+                <Link
+                  to="/registro?rol=voluntario"
+                  onClick={() => onCerrar?.()}
+                  className="btn-verde flex-1 py-2 text-sm no-underline"
+                >
+                  ❤️ Crear Cuenta
+                </Link>
+                <Link
+                  to="/login"
+                  onClick={() => onCerrar?.()}
+                  className="btn-azul flex-1 py-2 text-sm no-underline"
+                >
+                  Iniciar sesión
+                </Link>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
