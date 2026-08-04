@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useNecesidades } from '../hooks/useNecesidades'
 import {
+  listarCatastrofes,
+  crearCatastrofe,
+  type Catastrofe,
+} from '../lib/catastrofes'
+import {
   ROL_META,
   TIPO_META,
   type NecesidadTipo,
@@ -80,6 +85,39 @@ export default function AdminView() {
   const [visitas, setVisitas] = useState<{ pais: string | null }[]>([])
   // Filtro de usuarios por nombre, correo o teléfono.
   const [busqUsuario, setBusqUsuario] = useState('')
+  // Catástrofes: las define aquí la coordinación (migración 57). Con país y
+  // ciudad, la app asigna sola el evento de cada reporte y quien pide ayuda
+  // no tiene que elegir nada.
+  const [catastrofes, setCatastrofes] = useState<Catastrofe[]>([])
+  const [catNombre, setCatNombre] = useState('')
+  const [catPais, setCatPais] = useState('')
+  const [catCiudad, setCatCiudad] = useState('')
+  const [catGuardando, setCatGuardando] = useState(false)
+  const [catError, setCatError] = useState('')
+
+  async function cargarCatastrofes() {
+    try {
+      setCatastrofes(await listarCatastrofes())
+    } catch {
+      setCatastrofes([])
+    }
+  }
+
+  async function crearCatastrofeNueva() {
+    setCatGuardando(true)
+    setCatError('')
+    try {
+      const nueva = await crearCatastrofe(catNombre, catPais, catCiudad)
+      setCatastrofes((prev) => [nueva, ...prev])
+      setCatNombre('')
+      setCatPais('')
+      setCatCiudad('')
+    } catch (e) {
+      setCatError((e as Error).message)
+    } finally {
+      setCatGuardando(false)
+    }
+  }
 
   // Supabase (PostgREST) corta cada consulta a 1000 filas por defecto, así que
   // con más de mil usuarios la lista se quedaba en "1000 de 1000". Pedimos por
@@ -109,6 +147,7 @@ export default function AdminView() {
   useEffect(() => {
     cargarPerfiles()
     cargarVisitas()
+    cargarCatastrofes()
   }, [])
 
   // Visitantes únicos y desglose por país (de mayor a menor).
@@ -302,6 +341,80 @@ export default function AdminView() {
             </ul>
           </div>
         )}
+      </section>
+
+      {/* Catástrofes (eventos). Con país y ciudad, cada reporte se asigna
+          solo al evento que le corresponde: quien pide ayuda no elige nada. */}
+      <section>
+        <h2 className="font-bold text-lg mb-2">
+          🌊 Catástrofes ({catastrofes.length})
+        </h2>
+        <div className="card">
+          <p className="text-sm text-gray-600 mb-3">
+            El <b>país</b> y la <b>ciudad</b> son los que permiten asignar cada
+            reporte automáticamente. Si dejas la ciudad vacía, el evento cubre
+            todo el país.
+          </p>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input
+              className="input text-sm"
+              placeholder="Nombre. Ej: Temporal de lluvias Chile"
+              maxLength={80}
+              value={catNombre}
+              onChange={(e) => setCatNombre(e.target.value)}
+            />
+            <input
+              className="input text-sm"
+              placeholder="País. Ej: Chile"
+              maxLength={40}
+              value={catPais}
+              onChange={(e) => setCatPais(e.target.value)}
+            />
+            <input
+              className="input text-sm"
+              placeholder="Ciudad (opcional). Ej: Coquimbo"
+              maxLength={60}
+              value={catCiudad}
+              onChange={(e) => setCatCiudad(e.target.value)}
+            />
+          </div>
+
+          {catError && (
+            <p className="text-sm text-bandera-rojo font-semibold mt-2">
+              ⚠️ {catError}
+            </p>
+          )}
+
+          <button
+            onClick={() => void crearCatastrofeNueva()}
+            disabled={catGuardando || catNombre.trim().length < 3}
+            className="btn-azul mt-3 disabled:opacity-60"
+          >
+            {catGuardando ? 'Creando…' : '➕ Crear catástrofe'}
+          </button>
+
+          {catastrofes.length > 0 && (
+            <ul className="divide-y divide-gray-100 mt-4">
+              {catastrofes.map((c) => (
+                <li key={c.id} className="py-2">
+                  <div className="font-semibold text-gray-900">{c.nombre}</div>
+                  <div className="text-xs text-gray-500">
+                    {[c.ciudad, c.pais].filter(Boolean).join(', ') ||
+                      'Sin país ni ciudad — no se asignará sola'}
+                    {' · creada el '}
+                    {new Date(c.creado_en).toLocaleDateString('es-VE', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      timeZone: 'UTC',
+                    })}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       {/* Gestión de usuarios */}
