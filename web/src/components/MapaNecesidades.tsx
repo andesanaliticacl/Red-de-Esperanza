@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { cargarContactosNecesidad } from '../lib/contactos'
@@ -93,6 +93,12 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
     if (posicion) map.flyTo(posicion, 17, { duration: 0.8 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave])
+  return null
+}
+
+/** Avisa cuando se toca el mapa (no un marcador ni un control). */
+function AlTocarMapa({ onTocar }: { onTocar: () => void }) {
+  useMapEvents({ click: () => onTocar() })
   return null
 }
 
@@ -676,7 +682,11 @@ export default function MapaNecesidades({
   irACoordenada = null,
   desaparecidoResaltadoId,
   onHospitalSeleccionado,
+  onTocarMapa,
 }: {
+  /** Se llama al tocar el mapa (no un marcador): sirve para que la vista
+   *  cierre los paneles que estén tapándolo. */
+  onTocarMapa?: () => void
   necesidades: Necesidad[]
   acopios?: CentroAcopio[]
   miUbicacion?: { lat: number; lng: number } | null
@@ -723,6 +733,10 @@ export default function MapaNecesidades({
   /** Ajusta el mapa para mostrar todas las necesidades (donde estén). */
   ajustarVista?: boolean
 }) {
+  // Instancia de Leaflet, para poder cerrar el globo abierto desde los
+  // botones del propio globo (ver "Contactar").
+  const mapaRef = useRef<L.Map | null>(null)
+
   const puntos: [number, number][] = useMemo(
     () =>
       necesidades
@@ -900,6 +914,7 @@ export default function MapaNecesidades({
 
   return (
     <MapContainer
+      ref={mapaRef}
       center={CENTRO_CHILE}
       zoom={ZOOM_INICIAL_CHILE}
       className="h-full w-full"
@@ -910,6 +925,7 @@ export default function MapaNecesidades({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <CentrarPopupAbierto />
+      {onTocarMapa && <AlTocarMapa onTocar={onTocarMapa} />}
 
       {ajustarVista && <AjustarVista puntos={puntos} />}
 
@@ -1112,7 +1128,12 @@ export default function MapaNecesidades({
                     )}
                   {onMensaje && (
                     <button
-                      onClick={() => onMensaje(n)}
+                      onClick={() => {
+                        // Cierra el globo antes de abrir el chat: si no, los
+                        // dos quedan apilados tapándose entre sí.
+                        mapaRef.current?.closePopup()
+                        onMensaje(n)
+                      }}
                       className="inline-flex items-center bg-green-600 !text-white font-semibold px-3 py-1.5 rounded-lg"
                     >
                       💬 Contactar
