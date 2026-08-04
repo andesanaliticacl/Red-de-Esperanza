@@ -263,6 +263,43 @@ export function dentroDelRecuadroVE(lat: number, lng: number): boolean {
   )
 }
 
+export interface LugarAproximado {
+  pais: string | null
+  /** Estado / región / provincia, según cómo lo llame cada país. */
+  region: string | null
+  ciudad: string | null
+}
+
+/**
+ * País, región y ciudad aproximados de unas coordenadas (geocodificación
+ * inversa de OpenStreetMap). Sirve para rellenar solo el registro y que la
+ * persona no tenga que buscar su región en una lista larga.
+ *
+ * Devuelve null si no hay red o el servicio no responde: es una comodidad,
+ * nunca un requisito, así que quien llama debe seguir sin ella.
+ */
+export async function lugarPorCoordenadas(
+  lat: number,
+  lng: number,
+): Promise<LugarAproximado | null> {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=json&zoom=10` +
+      `&accept-language=es&lat=${lat}&lon=${lng}`
+    const r = await fetch(url, { headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    const a = j?.address
+    if (!a) return null
+    return {
+      pais: a.country ?? null,
+      region: a.state ?? a.region ?? a.province ?? a.county ?? null,
+      ciudad: a.city ?? a.town ?? a.village ?? a.municipality ?? null,
+    }
+  } catch {
+    return null
+  }
+}
+
 /** Código de país (ISO alfa-2, minúscula) de unas coordenadas, vía OSM. */
 async function paisDeCoordenadas(
   lat: number,

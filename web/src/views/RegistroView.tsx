@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { obtenerUbicacion, lugarPorCoordenadas } from '../lib/geo'
 import EntradaTelefono, {
   esTelefonoVenezuelaValido,
   mensajeTelefonoVenezuela,
@@ -17,6 +18,36 @@ const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   iso: p.iso,
   etiqueta: p.nombre,
 }))
+
+/** Minúsculas y sin tildes, para comparar nombres de lugares. */
+function normalizarLugar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+/**
+ * Busca en `opciones` la que corresponde al nombre detectado por GPS. No
+ * coinciden literalmente: OpenStreetMap devuelve "Región de Coquimbo" y la
+ * lista dice "Coquimbo", así que aceptamos que una contenga a la otra.
+ * Exige 4+ letras para no emparejar por casualidad con nombres cortos.
+ */
+function buscarCoincidencia(
+  detectado: string | null,
+  opciones: readonly string[],
+): string | null {
+  if (!detectado) return null
+  const d = normalizarLugar(detectado)
+  if (d.length < 4) return null
+  return (
+    opciones.find((o) => {
+      const n = normalizarLugar(o)
+      return n.length >= 4 && (d.includes(n) || n.includes(d))
+    }) ?? null
+  )
+}
 
 // "¿Cómo quieres participar?": solo 4 tarjetas, en lenguaje natural (no
 // técnico). "Ciudadano" ya no es una opción de registro: quien solo quiere
@@ -124,6 +155,67 @@ export default function RegistroView() {
   const [ciudad, setCiudad] = useState('')
   // Cuando la ciudad no está en la lista sugerida, se escribe a mano.
   const [ciudadOtra, setCiudadOtra] = useState(false)
+  // Ubicación detectada sola al abrir, para no obligar a buscar la región en
+  // una lista larga. Es una comodidad: todo queda editable.
+  const [detectando, setDetectando] = useState(true)
+  const [lugarDetectado, setLugarDetectado] = useState<string | null>(null)
+  // Evita pisar lo que la persona ya escribió si el GPS tarda en responder.
+  const tocadoPorUsuario = useRef(false)
+
+  useEffect(() => {
+    let vivo = true
+    async function detectar() {
+      try {
+        const u = await obtenerUbicacion({ timeoutGps: 6000 })
+        const lugar = await lugarPorCoordenadas(u.lat, u.lng)
+        if (!vivo || !lugar || tocadoPorUsuario.current) return
+
+        const paisEncontrado = buscarCoincidencia(
+          lugar.pais,
+          PAISES_MUNDO.map((p) => p.nombre),
+        )
+        if (paisEncontrado) setPais(paisEncontrado)
+
+        // La región depende del país, así que se resuelve con el recién
+        // detectado (el estado de React aún no se ha actualizado aquí).
+        const iso = PAISES_MUNDO.find(
+          (p) => p.nombre === (paisEncontrado ?? pais),
+        )?.iso
+        const regionEncontrada = buscarCoincidencia(
+          lugar.region,
+          zonasDePais(iso).opciones,
+        )
+        if (regionEncontrada) setEstado(regionEncontrada)
+
+        if (lugar.ciudad) {
+          const sugeridas = ciudadesDeZona(iso, regionEncontrada ?? '')
+          const ciudadEnLista = buscarCoincidencia(lugar.ciudad, sugeridas)
+          if (ciudadEnLista) {
+            setCiudad(ciudadEnLista)
+          } else {
+            // No está entre las sugeridas: se escribe tal cual la detectamos.
+            setCiudadOtra(true)
+            setCiudad(lugar.ciudad)
+          }
+        }
+
+        setLugarDetectado(
+          [lugar.ciudad, regionEncontrada ?? lugar.region, paisEncontrado]
+            .filter(Boolean)
+            .join(', '),
+        )
+      } catch {
+        /* sin permiso de ubicación o sin red: se llena a mano, sin drama */
+      } finally {
+        if (vivo) setDetectando(false)
+      }
+    }
+    void detectar()
+    return () => {
+      vivo = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Divisiones del país elegido (Estado/Región/Provincia… con sus nombres).
   const isoPais = PAISES_MUNDO.find((p) => p.nombre === pais)?.iso
@@ -252,6 +344,20 @@ export default function RegistroView() {
         </p>
 
         <form onSubmit={registrar} className="space-y-4">
+          {/* Ubicación detectada: se rellena sola, pero todo es editable. */}
+          {detectando && (
+            <p className="text-sm text-gray-500 flex items-center gap-2">
+              <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-bandera-azul animate-spin" />
+              Detectando dónde estás para completarlo por ti…
+            </p>
+          )}
+          {!detectando && lugarDetectado && (
+            <p className="text-sm rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-bandera-azul">
+              📍 Parece que estás en <b>{lugarDetectado}</b>. Ya lo completamos;
+              si no es correcto, cámbialo abajo.
+            </p>
+          )}
+
           {/* País donde estás */}
           <div>
             <p className="font-bold text-sm mb-2">¿En qué país estás?</p>
@@ -259,6 +365,7 @@ export default function RegistroView() {
               opciones={OPCIONES_PAIS}
               valor={pais}
               onChange={(v) => {
+                tocadoPorUsuario.current = true
                 setPais(v)
                 // Al cambiar de país, la zona anterior ya no aplica.
                 setEstado('')
@@ -369,6 +476,7 @@ export default function RegistroView() {
                 required
                 value={estado}
                 onChange={(e) => {
+                  tocadoPorUsuario.current = true
                   setEstado(e.target.value)
                   setCiudad('') // la ciudad anterior ya no corresponde
                   setCiudadOtra(false)
@@ -388,6 +496,7 @@ export default function RegistroView() {
                 required
                 value={estado}
                 onChange={(e) => {
+                  tocadoPorUsuario.current = true
                   setEstado(e.target.value)
                   setCiudad('')
                   setCiudadOtra(false)
