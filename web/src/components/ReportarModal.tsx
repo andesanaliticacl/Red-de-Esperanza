@@ -32,20 +32,62 @@ import EntradaTelefono, {
 import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
 import { subirFotoMascota } from '../lib/fotoMascota'
 
-// Opciones del menú "Reportar necesidad". El rescate NO va aquí: tiene su
-// propio botón rojo "🆘 SOS" (SosModal). En su lugar va "Zona sin atender".
-const TIPOS: NecesidadTipo[] = [
-  'zona_sin_atender',
-  'atencion_psicologica',
-  'agua_comida',
-  'medicinas',
-  'refugio',
-  'derrumbe',
-  'inundacion',
-  'incendio',
-  'sacos_arena',
-  'mascota',
-  'otro',
+// Menú de "Reportar necesidad". El rescate NO va aquí: tiene su propio botón
+// rojo "🆘 SOS" (SosModal).
+//
+// OJO: al agregar un NecesidadTipo nuevo hay que meterlo en GRUPOS o en
+// DIRECTOS; si no, no aparecerá en ninguna pantalla. Antes había una sola
+// lista plana (TIPOS) que se pintaba entera, así que bastaba con añadirlo ahí.
+//
+// Las 11 opciones de golpe abrumaban a quien reporta bajo estrés (y los
+// nombres eran de categoría, no de intención). Ahora la primera pantalla
+// muestra pocos bloques grandes en lenguaje de persona ("necesito algo"),
+// y solo los dos primeros abren un segundo paso con sus opciones. El resto
+// entra directo a su formulario, sin pasos de más.
+type GrupoReporte = 'necesito' | 'peligro'
+
+const GRUPOS: {
+  v: GrupoReporte
+  emoji: string
+  titulo: string
+  ejemplos: string
+  tipos: NecesidadTipo[]
+}[] = [
+  {
+    v: 'necesito',
+    emoji: '🥫',
+    titulo: 'Necesito algo',
+    ejemplos: 'Agua, comida, medicinas, refugio…',
+    tipos: ['agua_comida', 'medicinas', 'refugio', 'sacos_arena'],
+  },
+  {
+    v: 'peligro',
+    emoji: '⚠️',
+    titulo: 'Aviso de un peligro',
+    ejemplos: 'Inundación, incendio, derrumbe, zona sin ayuda…',
+    tipos: ['inundacion', 'incendio', 'derrumbe', 'zona_sin_atender'],
+  },
+]
+
+// Van directo al formulario: no tiene sentido hacerlos elegir dos veces.
+const DIRECTOS: {
+  tipo: NecesidadTipo
+  emoji: string
+  titulo: string
+  ejemplos: string
+}[] = [
+  {
+    tipo: 'atencion_psicologica',
+    emoji: '💙',
+    titulo: 'Me siento mal, quiero hablar',
+    ejemplos: 'Apoyo emocional, gratuito y privado',
+  },
+  {
+    tipo: 'mascota',
+    emoji: '🐾',
+    titulo: 'Un animal necesita ayuda',
+    ejemplos: 'Perdido, herido o abandonado',
+  },
 ]
 
 // Tipos de animal para el reporte de mascota.
@@ -112,6 +154,10 @@ export default function ReportarModal({
 }) {
   const { notificar } = useNotificaciones()
   const [paso, setPaso] = useState(1)
+  // Grupo elegido en la primera pantalla (null = aún viendo los bloques
+  // grandes). Se conserva al volver del formulario, para caer en la misma
+  // lista de la que se salió y no obligar a empezar de cero.
+  const [grupo, setGrupo] = useState<GrupoReporte | null>(null)
   const [tipo, setTipo] = useState<TipoReporte>('otro')
   const [descripcion, setDescripcion] = useState('')
   const [nombrePaciente, setNombrePaciente] = useState('')
@@ -171,12 +217,18 @@ export default function ReportarModal({
   const esAtencionPsicologica = tipo === 'atencion_psicologica'
   const esHospital = tipo === 'hospital'
   const requiereUbicacion = !esAtencionPsicologica
-  const tiposDisponibles: TipoReporte[] = [
-    ...TIPOS,
-    ...(puedeReportarZonaAislada ? (['zona_aislada'] as TipoReporte[]) : []),
-    ...(puedeReportarHospital ? (['hospital'] as TipoReporte[]) : []),
-  ]
   const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
+  // Opciones del grupo abierto. "Zona aislada" solo la ven quienes pueden
+  // crearla (admin / líder de voluntarios), dentro del grupo de peligros.
+  const grupoAbierto = GRUPOS.find((g) => g.v === grupo) ?? null
+  const tiposDelGrupo: NecesidadTipo[] = grupoAbierto
+    ? [
+        ...grupoAbierto.tipos,
+        ...(grupoAbierto.v === 'peligro' && puedeReportarZonaAislada
+          ? (['zona_aislada'] as NecesidadTipo[])
+          : []),
+      ]
+    : []
 
   async function actualizarUbicacion() {
     setGpsEstado('buscando')
@@ -884,29 +936,75 @@ export default function ReportarModal({
           </button>
         </div>
 
-        {/* PASO 1: tipo */}
-        {paso === 1 && (
-          <div>
-            <p className="font-bold mb-3">¿Qué deseas reportar?</p>
-            <div className="grid grid-cols-2 gap-3">
-              {tiposDisponibles.map((t) => {
-                const meta = t === 'hospital' ? HOSPITAL_META : TIPO_META[t]
-                return (
-                  <button
-                    key={t}
-                    onClick={() => elegirTipo(t)}
-                    className={`card flex flex-col items-center py-5 border-2 ${
-                      tipo === t ? 'border-bandera-azul' : 'border-transparent'
-                    }`}
-                  >
-                    <span className="text-3xl">{meta.emoji}</span>
-                    <span className="font-bold mt-1 text-center text-sm">
-                      {meta.etiqueta}
-                    </span>
-                  </button>
-                )
-              })}
+        {/* PASO 1-A: bloques grandes (pocas opciones, lenguaje de persona) */}
+        {paso === 1 && !grupo && (
+          <div className="space-y-2">
+            <p className="font-bold mb-1">¿Qué deseas reportar?</p>
+
+            {GRUPOS.map((g) => (
+              <BloqueOpcion
+                key={g.v}
+                emoji={g.emoji}
+                titulo={g.titulo}
+                ejemplos={g.ejemplos}
+                onClick={() => setGrupo(g.v)}
+                flecha
+              />
+            ))}
+
+            {DIRECTOS.map((d) => (
+              <BloqueOpcion
+                key={d.tipo}
+                emoji={d.emoji}
+                titulo={d.titulo}
+                ejemplos={d.ejemplos}
+                onClick={() => elegirTipo(d.tipo)}
+              />
+            ))}
+
+            {/* Salidas poco frecuentes: no compiten con las opciones grandes. */}
+            <div className="flex flex-wrap gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => elegirTipo('otro')}
+                className="text-sm font-semibold text-bandera-azul underline"
+              >
+                ¿Otra cosa? Reportar algo distinto
+              </button>
+              {puedeReportarHospital && (
+                <button
+                  type="button"
+                  onClick={() => elegirTipo('hospital')}
+                  className="ml-auto text-sm font-semibold text-gray-500 underline"
+                >
+                  🏥 Registrar un hospital
+                </button>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* PASO 1-B: opciones del grupo elegido */}
+        {paso === 1 && grupoAbierto && (
+          <div className="space-y-2">
+            <p className="font-bold mb-1">
+              {grupoAbierto.emoji} {grupoAbierto.titulo}
+            </p>
+            {tiposDelGrupo.map((t) => (
+              <BloqueOpcion
+                key={t}
+                emoji={TIPO_META[t].emoji}
+                titulo={TIPO_META[t].etiqueta}
+                onClick={() => elegirTipo(t)}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => setGrupo(null)}
+              className="btn-gris w-full mt-2"
+            >
+              ← Atrás
+            </button>
           </div>
         )}
 
@@ -1183,5 +1281,52 @@ export default function ReportarModal({
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Bloque grande de la primera pantalla de "Reportar": objetivo táctil amplio,
+ * texto legible y una sola idea por fila, para que se entienda de un vistazo
+ * incluso con estrés o poca vista.
+ */
+function BloqueOpcion({
+  emoji,
+  titulo,
+  ejemplos,
+  onClick,
+  flecha = false,
+}: {
+  emoji: string
+  titulo: string
+  ejemplos?: string
+  onClick: () => void
+  /** Muestra "›" cuando el bloque abre otra lista en vez de un formulario. */
+  flecha?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-4 rounded-2xl border-2 border-gray-200 bg-white p-4 text-left hover:border-bandera-azul active:scale-[0.99] transition"
+    >
+      <span className="text-4xl leading-none shrink-0" aria-hidden="true">
+        {emoji}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-extrabold text-base leading-tight">
+          {titulo}
+        </span>
+        {ejemplos && (
+          <span className="block text-sm text-gray-500 leading-snug mt-0.5">
+            {ejemplos}
+          </span>
+        )}
+      </span>
+      {flecha && (
+        <span className="text-2xl text-gray-300 shrink-0" aria-hidden="true">
+          ›
+        </span>
+      )}
+    </button>
   )
 }
