@@ -452,6 +452,13 @@ export default function CiudadanoView() {
   const [urgFiltro, setUrgFiltro] = useState<NecesidadUrgencia | 'todas'>('todas')
   // El filtro arranca CERRADO para no tapar el mapa; se abre con la flechita.
   const [verFiltros, setVerFiltros] = useState(false)
+  // El SOS late solo al entrar, para que salte a la vista. Latir sin parar
+  // cansa y termina ignorándose, que es justo lo contrario de lo que busca.
+  const [pulsoSos, setPulsoSos] = useState(true)
+  useEffect(() => {
+    const t = window.setTimeout(() => setPulsoSos(false), 8000)
+    return () => window.clearTimeout(t)
+  }, [])
   // Buscador de direcciones dentro del panel de Filtrar: vuela el mapa al
   // punto encontrado (mismo mecanismo que "ir a persona" de desaparecidos).
   const [buscarDireccionTexto, setBuscarDireccionTexto] = useState('')
@@ -743,6 +750,9 @@ export default function CiudadanoView() {
             busquedaDesap={busqDesap}
             irACoordenada={irACoordenada}
             desaparecidoResaltadoId={desaparecidoSeleccionadoId}
+            // Tocar el mapa cierra el panel de filtros, que en el teléfono
+            // tapa media pantalla.
+            onTocarMapa={() => setVerFiltros(false)}
             onHospitalSeleccionado={(hospital) => {
               setTipoFiltro('hospital')
               setHospitalSeleccionado(hospital)
@@ -1007,7 +1017,9 @@ export default function CiudadanoView() {
             <div className="flex gap-2">
               <button
                 onClick={() => setAbrirSos(true)}
-                className="btn-rojo flex-1 text-sm sm:text-base py-3.5 animate-pulse"
+                className={`btn-rojo flex-1 text-sm sm:text-base py-3.5 ${
+                  pulsoSos ? 'animate-pulse' : ''
+                }`}
               >
                 🆘 SOS / Necesito rescate
               </button>
