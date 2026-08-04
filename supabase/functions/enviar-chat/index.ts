@@ -227,6 +227,20 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'Nombre y mensaje son obligatorios.' }, { status: 400 })
   }
 
+  // Escribir EXIGE cuenta. Antes se aceptaban mensajes anonimos (con un
+  // apodo libre), y eso permitia hacerse pasar por cualquiera y publicar
+  // estafas sin dejar rastro. Leer sigue siendo abierto.
+  const autor = await autorDesdeJWT(req)
+  if (!autor) {
+    return json(
+      {
+        ok: false,
+        error: 'Necesitas iniciar sesion para escribir en el chat.',
+      },
+      { status: 401 },
+    )
+  }
+
   const permiteBypassDev = bypassDevPermitido(req, body.dev_bypass_token)
   if (!permiteBypassDev) {
     const ip = ipDeRequest(req)
@@ -252,7 +266,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  const autor = await autorDesdeJWT(req)
   const { data, error } = await supabase
     .from('chat_global')
     .insert({
