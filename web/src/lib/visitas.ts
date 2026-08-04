@@ -46,15 +46,14 @@ export async function registrarVisita(): Promise<void> {
 
     const id = idVisitante()
     const { pais, ciudad } = await paisPorIP()
-    const { error } = await supabase.from('visitas').upsert(
-      {
-        visitor_id: id,
-        pais,
-        ciudad,
-        visto_en: new Date().toISOString(),
-      },
-      { onConflict: 'visitor_id' },
-    )
+    // Pasa por una función del servidor (migración 56): la tabla ya no acepta
+    // escrituras directas, porque antes cualquiera podía modificar la visita
+    // de otro dispositivo y falsear el contador del panel.
+    const { error } = await supabase.rpc('registrar_visita', {
+      p_visitor_id: id,
+      p_pais: pais,
+      p_ciudad: ciudad,
+    })
     if (!error) localStorage.setItem(CLAVE_HOY, hoy)
   } catch {
     /* silencioso: el contador no debe afectar la experiencia */

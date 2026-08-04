@@ -62,6 +62,18 @@ export interface ResultadoReporte {
   offline?: boolean
 }
 
+/**
+ * ¿El servidor rechazó por el límite diario de solicitudes con el mismo
+ * teléfono? Lo aplica un trigger (migración 56) que lanza 'check_violation'.
+ */
+function esLimiteDiario(e: { code?: string; message?: string } | null): boolean {
+  if (!e) return false
+  return (
+    e.code === '23514' ||
+    (e.message ?? '').toLowerCase().includes('solicitudes hoy')
+  )
+}
+
 /** ¿El error viene de falta de red (y no de un rechazo del servidor)? */
 function esErrorDeRed(e: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true
@@ -124,12 +136,18 @@ async function insertarReporteEnServidor(
       })
       errContacto = res.error
       if (!errContacto) break
+      // El servidor RECHAZÓ (p. ej. superó el límite diario por teléfono,
+      // migración 56). Reintentar no cambia nada: salimos ya para mostrar el
+      // motivo real en vez de un genérico "revisa tu conexión".
+      if (esLimiteDiario(errContacto)) break
     }
     if (errContacto) {
       if (r.contactoObligatorio) {
         await supabase.from('necesidades').delete().eq('id', id)
         throw new Error(
-          'No pudimos guardar tu número de teléfono. Revisa tu conexión e inténtalo de nuevo: es obligatorio para que puedan contactarte.',
+          esLimiteDiario(errContacto)
+            ? errContacto.message
+            : 'No pudimos guardar tu número de teléfono. Revisa tu conexión e inténtalo de nuevo: es obligatorio para que puedan contactarte.',
         )
       }
       console.error('No se pudo guardar el contacto:', errContacto.message)
