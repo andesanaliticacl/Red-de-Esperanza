@@ -13,37 +13,92 @@ html {
   color-scheme: light;
 }
 
+/* Tipografía del sistema, NO una fuente web: esta app tiene que abrir en un
+   teléfono con mala señal o sin datos, y una fuente descargada retrasaría el
+   primer pintado justo cuando más urge. Lo que sí afinamos es el detalle:
+   interletraje de titulares, cifras alineadas y suavizado. */
 body {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Segoe UI Variable Display', system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   -webkit-tap-highlight-color: transparent;
+  background-color: #f7f8fa;
+  color: #232b3a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Titulares un poco más juntos: a tamaño grande, el espaciado por defecto se
+   ve suelto y amateur. */
+h1, h2, h3 {
+  letter-spacing: -0.018em;
+}
+
+/* Las cifras de los paneles (conteos, teléfonos) alineadas en columna. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Controles de formulario siempre legibles, sin importar el tema del SO. */
 input, select, textarea {
-  color: #111827;
+  color: #232b3a;
   background-color: #ffffff;
 }
 input::placeholder, textarea::placeholder {
-  color: #9ca3af;
+  color: #98a1b2;
+}
+
+/* Foco visible solo con teclado: accesible, sin ensuciar el toque en móvil. */
+:focus-visible {
+  outline: 2px solid #002fa7;
+  outline-offset: 2px;
+  border-radius: 12px;
 }
 
 /* Botones accesibles: cómodos en móvil, sin exagerar en escritorio */
 @layer components {
+  /* Botón: sombra en dos capas, brillo sutil arriba (como si le diera la luz)
+     y respuesta inmediata al tocar. Son detalles pequeños, pero es lo que
+     separa un botón "plano de plantilla" de uno que se siente cuidado. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3
-           text-base font-bold shadow-md active:scale-[0.98] transition select-none;
+    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl
+           px-5 py-3 text-base font-bold shadow-boton select-none
+           transition-all duration-200 ease-suave
+           hover:-translate-y-[1px] hover:shadow-media
+           active:translate-y-0 active:scale-[0.985] active:shadow-suave
+           disabled:hover:translate-y-0 disabled:hover:shadow-boton
+           disabled:cursor-not-allowed;
   }
-  .btn-azul   { @apply btn bg-bandera-azul text-white; }
-  .btn-rojo   { @apply btn bg-bandera-rojo text-white; }
-  .btn-amber  { @apply btn bg-bandera-amarillo text-white; }
-  .btn-verde  { @apply btn bg-green-600 text-white; }
-  .btn-gris   { @apply btn bg-gray-200 text-gray-800; }
+  /* Velo claro en el borde superior: da volumen sin recurrir a degradados. */
+  .btn-azul,
+  .btn-rojo,
+  .btn-amber,
+  .btn-verde {
+    @apply ring-1 ring-inset ring-white/15;
+  }
+  .btn-azul   { @apply btn bg-bandera-azul text-white hover:bg-[#0037c4]; }
+  .btn-rojo   { @apply btn bg-bandera-rojo text-white hover:bg-[#e00506]; }
+  .btn-amber  { @apply btn bg-bandera-amarillo text-white hover:bg-[#e0a900]; }
+  .btn-verde  { @apply btn bg-green-600 text-white hover:bg-green-700; }
+  .btn-gris   {
+    @apply btn bg-white text-tinta-700 ring-1 ring-inset ring-tinta-200
+           hover:bg-tinta-50;
+  }
+
+  /* Tarjeta: borde muy tenue + sombra difusa. El borde marca el canto y la
+     sombra da la altura; con una sola de las dos se ve o plano o flotando. */
   .card {
-    @apply rounded-2xl bg-white shadow-md border border-gray-100 p-4;
+    @apply rounded-2xl bg-white shadow-suave border border-tinta-100 p-4;
   }
+
+  /* Campo: borde de 1px (el de 2px se veía tosco) y anillo de foco en vez de
+     cambiar el grosor, para que el contenido no "salte" al enfocar. */
   .input {
-    @apply w-full rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base
-           focus:border-bandera-azul focus:outline-none;
+    @apply w-full rounded-xl border border-tinta-200 bg-white px-3.5 py-2.5
+           text-base text-tinta-800 shadow-[inset_0_1px_2px_rgba(20,26,37,0.04)]
+           transition-shadow duration-150
+           focus:border-bandera-azul focus:outline-none
+           focus:ring-4 focus:ring-bandera-azul/10;
   }
 }
 
