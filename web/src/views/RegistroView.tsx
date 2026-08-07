@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { obtenerUbicacion, lugarPorCoordenadas } from '../lib/geo'
 import EntradaTelefono, {
-  esTelefonoVenezuelaValido,
-  mensajeTelefonoVenezuela,
+  esTelefonoValido,
+  mensajeTelefono,
 } from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
@@ -242,8 +242,8 @@ export default function RegistroView() {
       setErrorMsg('El teléfono es obligatorio para crear tu cuenta.')
       return
     }
-    if (!esTelefonoVenezuelaValido(telefono)) {
-      setErrorMsg(mensajeTelefonoVenezuela())
+    if (!esTelefonoValido(telefono)) {
+      setErrorMsg(mensajeTelefono())
       return
     }
     // Psicólogo/a exige un documento válido (cédula/pasaporte venezolano o

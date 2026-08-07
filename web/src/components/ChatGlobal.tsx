@@ -16,24 +16,10 @@ import { mencionaDinero, AVISO_DINERO } from '../lib/avisoDinero'
 import { PAISES_CHAT, regionesDe, claveSala } from '../lib/regionesChat'
 import {
   ROL_META,
+  COLOR_ROL,
   type MensajeGlobal,
   type RolUsuario,
 } from '../lib/types'
-
-// Color distintivo por rol (mismo criterio que el panel de administración),
-// para que de un vistazo se distinga quién es rescatista, voluntario, etc.
-const COLOR_ROL: Record<RolUsuario, string> = {
-  ciudadano: '#475569',
-  voluntario: '#002FA7',
-  rescatista: '#CC0001',
-  psicologo: '#7C3AED',
-  centro_acopio: '#16A34A',
-  acopio_admin: '#0891B2',
-  lider_voluntarios: '#B45309',
-  lider_psicologo: '#6D28D9',
-  verificador: '#7C3AED',
-  admin: '#CF9B00',
-}
 
 function fragmento(texto: string, max = 120): string {
   const limpio = texto.replace(/\s+/g, ' ').trim()

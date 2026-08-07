@@ -32,8 +32,8 @@ import { PAISES_MUNDO, isoDe } from '../lib/paises'
 import Bandera from '../components/Bandera'
 import IconoRuta from '../components/IconoRuta'
 import EntradaTelefono, {
-  esTelefonoVenezuelaValido,
-  mensajeTelefonoVenezuela,
+  esTelefonoValido,
+  mensajeTelefono,
 } from '../components/EntradaTelefono'
 
 /** Enlace de WhatsApp a partir de un teléfono (solo dígitos). */
@@ -512,9 +512,9 @@ function FormCentro({
     if (
       pais.trim() === 'Venezuela' &&
       contacto.trim() &&
-      !esTelefonoVenezuelaValido(contacto)
+      !esTelefonoValido(contacto)
     ) {
-      setErrorMsg(mensajeTelefonoVenezuela())
+      setErrorMsg(mensajeTelefono())
       return
     }
 

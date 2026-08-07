@@ -34,9 +34,6 @@ export function mensajeTelefono(): string {
   return 'El número no parece válido. Elige el país y escribe el número completo, por ejemplo +58 04121234567 o +56 912345678.'
 }
 
-// Compatibilidad con el nombre anterior (validación solo-Venezuela).
-export const esTelefonoVenezuelaValido = esTelefonoValido
-export const mensajeTelefonoVenezuela = mensajeTelefono
 
 /** Separa un teléfono guardado ("+58 0412...") en país (iso) y número local. */
 function separar(valor: string): { iso: string; numero: string } {
