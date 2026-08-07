@@ -375,12 +375,14 @@ export default function RegistroView() {
 
           {/* ¿Cómo quieres participar? Una sola elección entre 4 tarjetas. */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="font-bold text-sm">¿Cómo quieres participar?</p>
+            <div className="flex items-baseline justify-between gap-3 mb-2">
+              <p className="font-bold text-sm text-tinta-800">
+                ¿Cómo quieres participar?
+              </p>
               <button
                 type="button"
                 onClick={() => setVerRoles(true)}
-                className="text-xs text-bandera-azul font-semibold underline"
+                className="shrink-0 text-xs text-bandera-azul font-semibold hover:underline"
               >
                 ¿Qué significa cada uno?
               </button>
@@ -391,18 +393,22 @@ export default function RegistroView() {
                   type="button"
                   key={o.v}
                   onClick={() => setParticipa(o.v)}
-                  className={`card text-left p-3 border-2 ${
+                  aria-pressed={participa === o.v}
+                  // h-full: las cuatro quedan de la misma altura aunque los
+                  // textos midan distinto. El estado elegido se marca con un
+                  // anillo (no con el borde) para que nada se desplace.
+                  className={`card h-full min-h-[7rem] flex flex-col text-left p-3.5 transition-all duration-200 ease-suave ${
                     participa === o.v
                       ? o.v === 'psicologo'
-                        ? 'border-purple-400 bg-purple-50'
-                        : 'border-bandera-azul'
-                      : 'border-transparent'
+                        ? 'ring-2 ring-purple-400 bg-purple-50/60 shadow-media'
+                        : 'ring-2 ring-bandera-azul bg-bandera-azul/[0.04] shadow-media'
+                      : 'hover:border-tinta-200 hover:shadow-media'
                   }`}
                 >
-                  <div className="font-bold text-sm">
+                  <div className="font-bold text-sm text-tinta-800">
                     {o.emoji} {o.titulo}
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
+                  <div className="text-xs text-tinta-500 mt-1 leading-snug">
                     {o.descripcion}
                   </div>
                 </button>

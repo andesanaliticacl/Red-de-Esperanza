@@ -908,12 +908,13 @@ export default function ReportarModal({
               />
             ))}
 
-            {/* Salidas poco frecuentes: no compiten con las opciones grandes. */}
-            <div className="flex flex-wrap gap-2 pt-2">
+            {/* Salidas poco frecuentes: presentes, pero sin competir con las
+                opciones grandes de arriba. */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => elegirTipo('otro')}
-                className="text-sm font-semibold text-bandera-azul underline"
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-tinta-600 transition-colors hover:bg-tinta-50 hover:text-bandera-azul"
               >
                 ¿Otra cosa? Reportar algo distinto
               </button>
@@ -921,7 +922,7 @@ export default function ReportarModal({
                 <button
                   type="button"
                   onClick={() => elegirTipo('hospital')}
-                  className="ml-auto text-sm font-semibold text-gray-500 underline"
+                  className="ml-auto rounded-xl px-3 py-2 text-sm font-semibold text-tinta-500 transition-colors hover:bg-tinta-50"
                 >
                   🏥 Registrar un hospital
                 </button>
@@ -1332,23 +1333,35 @@ function BloqueOpcion({
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center gap-4 rounded-2xl border-2 border-gray-200 bg-white p-4 text-left hover:border-bandera-azul active:scale-[0.99] transition"
+      className="group w-full flex items-center gap-4 rounded-2xl border border-tinta-200 bg-white p-4 text-left shadow-suave
+                 transition-all duration-200 ease-suave
+                 hover:border-bandera-azul/40 hover:shadow-media hover:-translate-y-[1px]
+                 active:translate-y-0 active:scale-[0.99]"
     >
-      <span className="text-4xl leading-none shrink-0" aria-hidden="true">
+      {/* El emoji sobre un disco de color: le da peso y alinea todas las
+          filas, en vez de que cada icono flote a su aire. */}
+      <span
+        className="h-12 w-12 shrink-0 grid place-items-center rounded-xl bg-tinta-50 text-2xl leading-none
+                   transition-colors duration-200 group-hover:bg-bandera-azul/[0.06]"
+        aria-hidden="true"
+      >
         {emoji}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-extrabold text-base leading-tight">
+        <span className="block font-extrabold text-base leading-tight text-tinta-800">
           {titulo}
         </span>
         {ejemplos && (
-          <span className="block text-sm text-gray-500 leading-snug mt-0.5">
+          <span className="block text-sm text-tinta-500 leading-snug mt-0.5">
             {ejemplos}
           </span>
         )}
       </span>
       {flecha && (
-        <span className="text-2xl text-gray-300 shrink-0" aria-hidden="true">
+        <span
+          className="text-2xl text-tinta-300 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+          aria-hidden="true"
+        >
           ›
         </span>
       )}

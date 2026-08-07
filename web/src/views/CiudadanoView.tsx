@@ -986,36 +986,42 @@ export default function CiudadanoView() {
 
         {/* Botones flotantes: SOS + Reportar */}
         <div
-          className="absolute bottom-4 left-0 right-0 z-[1000] px-4 pointer-events-none"
+          className="absolute bottom-0 left-0 right-0 z-[1000] pointer-events-none"
           data-map-overlay="bottom"
         >
-          <div className="mx-auto w-full max-w-md flex flex-col gap-2 pointer-events-auto">
-            {/* "Ayudar" lleva directo a crear cuenta como voluntario. Desaparece
-                para quien ya tiene cuenta (ya está adentro de la red). */}
-            {!session && (
-              <button
-                onClick={() => navigate('/registro?rol=voluntario')}
-                className="btn-verde self-center w-auto text-sm py-2 px-6"
-              >
-                ❤️ Crear Cuenta
-              </button>
-            )}
-            {/* SOS + Reportar lado a lado: más compacto y deja más mapa visible. */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setAbrirSos(true)}
-                className={`btn-rojo flex-1 text-sm sm:text-base py-3.5 ${
-                  pulsoSos ? 'animate-pulse' : ''
-                }`}
-              >
-                🆘 SOS / Necesito rescate
-              </button>
-              <button
-                onClick={() => setAbrirReporte(true)}
-                className="btn-azul flex-1 text-sm sm:text-base py-3.5"
-              >
-                📝 Reportar
-              </button>
+          {/* Velo degradado: separa los botones del mapa para que se lean
+              siempre, caiga encima lo que caiga (mar, ciudad, carretera). */}
+          <div className="h-24 bg-gradient-to-t from-white/85 to-transparent" />
+          <div className="px-4 pb-4 -mt-16">
+            <div className="mx-auto w-full max-w-md flex flex-col gap-2.5 pointer-events-auto">
+              {/* "Crear Cuenta" desaparece para quien ya tiene sesión. */}
+              {!session && (
+                <button
+                  onClick={() => navigate('/registro?rol=voluntario')}
+                  className="btn-verde self-center w-auto text-sm py-2 px-6"
+                >
+                  ❤️ Crear Cuenta
+                </button>
+              )}
+              {/* SOS + Reportar lado a lado: más compacto y deja más mapa
+                  visible. Misma altura mínima para que el SOS, que lleva dos
+                  líneas, no deje al otro botón descuadrado. */}
+              <div className="flex gap-2.5 items-stretch">
+                <button
+                  onClick={() => setAbrirSos(true)}
+                  className={`btn-rojo flex-1 min-h-[3.5rem] px-3 text-sm sm:text-base leading-tight ${
+                    pulsoSos ? 'animate-pulse' : ''
+                  }`}
+                >
+                  🆘 SOS / Necesito rescate
+                </button>
+                <button
+                  onClick={() => setAbrirReporte(true)}
+                  className="btn-azul flex-1 min-h-[3.5rem] px-3 text-sm sm:text-base leading-tight"
+                >
+                  📝 Reportar
+                </button>
+              </div>
             </div>
           </div>
         </div>
