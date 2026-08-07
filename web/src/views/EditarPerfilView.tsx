@@ -4,8 +4,8 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import EntradaTelefono, {
-  esTelefonoVenezuelaValido,
-  mensajeTelefonoVenezuela,
+  esTelefonoValido,
+  mensajeTelefono,
 } from '../components/EntradaTelefono'
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
@@ -120,8 +120,8 @@ export default function EditarPerfilView() {
       setErrorMsg('El teléfono es obligatorio.')
       return
     }
-    if (!esTelefonoVenezuelaValido(telefono)) {
-      setErrorMsg(mensajeTelefonoVenezuela())
+    if (!esTelefonoValido(telefono)) {
+      setErrorMsg(mensajeTelefono())
       return
     }
     setGuardando(true)

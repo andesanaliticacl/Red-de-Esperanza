@@ -25,30 +25,17 @@ import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   TIPO_META,
+  TIPOS_ALERTA,
   type Necesidad,
   type CentroAcopio,
   type NecesidadTipo,
   type NecesidadUrgencia,
 } from '../lib/types'
 
-// Opciones del filtro por tipo. Incluye las necesidades, los centros de acopio
-// y un valor especial 'hospital' (los acopios cuya descripción dice "hospital").
-const TIPOS_FILTRO: NecesidadTipo[] = [
-  'rescate',
-  'atencion_psicologica',
-  'zona_sin_atender',
-  'zona_aislada',
-  'agua_comida',
-  'medicinas',
-  'refugio',
-  'derrumbe',
-  'inundacion',
-  'incendio',
-  'sacos_arena',
-  'mascota',
-  'otro',
-  'acopio',
-]
+// Opciones del filtro: las alertas reportables (lista única en types.ts) más
+// los centros de acopio. 'hospital' se añade aparte en el desplegable, porque
+// es un subtipo de acopio y no un tipo propio.
+const TIPOS_FILTRO: NecesidadTipo[] = [...TIPOS_ALERTA, 'acopio']
 // Filtro de tipo: necesidad, 'todos', o 'hospital' (subtipo de acopio).
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 

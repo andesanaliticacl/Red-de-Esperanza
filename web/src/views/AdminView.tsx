@@ -11,42 +11,11 @@ import {
 import {
   ROL_META,
   TIPO_META,
-  type NecesidadTipo,
+  TIPOS_ALERTA,
+  COLOR_ROL,
   type Perfil,
   type RolUsuario,
 } from '../lib/types'
-
-// Orden de la tabla de necesidades por tipo (excluye 'acopio': eso no es una
-// alerta reportada, es un centro registrado aparte).
-const TIPOS_ALERTA: NecesidadTipo[] = [
-  'rescate',
-  'atencion_psicologica',
-  'zona_sin_atender',
-  'zona_aislada',
-  'agua_comida',
-  'medicinas',
-  'refugio',
-  'derrumbe',
-  'inundacion',
-  'incendio',
-  'sacos_arena',
-  'mascota',
-  'otro',
-]
-
-// Color de la tarjeta de conteo por rol.
-const COLOR_ROL: Record<RolUsuario, string> = {
-  ciudadano: '#475569',
-  voluntario: '#002FA7',
-  rescatista: '#CC0001',
-  psicologo: '#7C3AED',
-  centro_acopio: '#16A34A',
-  acopio_admin: '#0891B2',
-  lider_voluntarios: '#B45309',
-  lider_psicologo: '#6D28D9',
-  verificador: '#7C3AED',
-  admin: '#CF9B00',
-}
 
 // País de un rescatista según el PREFIJO de su teléfono (+56 Chile, +58
 // Venezuela). Si el número no tiene un prefijo reconocible, se usa el país

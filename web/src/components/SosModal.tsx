@@ -6,8 +6,8 @@ import {
   type FuenteUbicacion,
 } from '../lib/geo'
 import EntradaTelefono, {
-  esTelefonoVenezuelaValido,
-  mensajeTelefonoVenezuela,
+  esTelefonoValido,
+  mensajeTelefono,
 } from './EntradaTelefono'
 
 // Número de emergencias a mostrar según el país detectado (por coordenadas).
@@ -82,8 +82,8 @@ export default function SosModal({
 
   async function enviarSOS() {
     // El teléfono es OBLIGATORIO: sin él, los rescatistas no pueden ubicarte.
-    if (!esTelefonoVenezuelaValido(contacto)) {
-      setErrorMsg(mensajeTelefonoVenezuela())
+    if (!esTelefonoValido(contacto)) {
+      setErrorMsg(mensajeTelefono())
       return
     }
     setEnviando(true)

@@ -235,6 +235,45 @@ export const TIPO_META: Record<
   acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
 }
 
+/**
+ * Tipos que son una ALERTA reportada por alguien, en el orden en que se
+ * muestran. Excluye 'acopio': un centro de acopio se registra aparte, no es
+ * una necesidad. Antes esta lista estaba copiada en CiudadanoView y en
+ * AdminView, y al agregar un tipo nuevo había que acordarse de las dos.
+ */
+export const TIPOS_ALERTA: NecesidadTipo[] = [
+  'rescate',
+  'atencion_psicologica',
+  'zona_sin_atender',
+  'zona_aislada',
+  'agua_comida',
+  'medicinas',
+  'refugio',
+  'derrumbe',
+  'inundacion',
+  'incendio',
+  'sacos_arena',
+  'mascota',
+  'otro',
+]
+
+/**
+ * Color distintivo por rol, para reconocer de un vistazo quién es rescatista,
+ * voluntario, etc. Lo usan el panel de administración y el chat en vivo.
+ */
+export const COLOR_ROL: Record<RolUsuario, string> = {
+  ciudadano: '#475569',
+  voluntario: '#002FA7',
+  rescatista: '#CC0001',
+  psicologo: '#7C3AED',
+  centro_acopio: '#16A34A',
+  acopio_admin: '#0891B2',
+  lider_voluntarios: '#B45309',
+  lider_psicologo: '#6D28D9',
+  verificador: '#7C3AED',
+  admin: '#CF9B00',
+}
+
 export const URGENCIA_META: Record<
   NecesidadUrgencia,
   { etiqueta: string; orden: number }
