@@ -31,7 +31,14 @@ import EntradaTelefono, {
 } from './EntradaTelefono'
 import { paisPorIP } from '../lib/visitas'
 import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
-import { ShoppingBasket, TriangleAlert, type LucideIcon } from 'lucide-react'
+import {
+  ShoppingBasket,
+  TriangleAlert,
+  Ambulance,
+  Globe,
+  HeartHandshake,
+  type LucideIcon,
+} from 'lucide-react'
 import { ICONO_TIPO, ICONO_HOSPITAL } from '../lib/iconosTipo'
 import { subirFotoMascota } from '../lib/fotoMascota'
 
@@ -108,10 +115,7 @@ const TAMANOS_ZONA = [1, 3, 5]
 
 // ===== Ayuda emocional =====
 // Contacto directo del equipo aliado, para quien no quiera esperar.
-const PRAXIS_NOMBRE = 'Praxis Grupos Operativos'
 const PRAXIS_TELEFONO = '+52 1 55 3320 0457'
-const PRAXIS_DESCRIPCION =
-  'Psicólogos · Salud y bienestar · Salud y seguridad ocupacional'
 
 // Perfil del caso: con quién estamos hablando. Le da contexto al equipo
 // psicológico ANTES del primer contacto.
@@ -989,13 +993,10 @@ export default function ReportarModal({
         {/* AYUDA EMOCIONAL — antes del formulario: ¿quién eres? Dos grandes
             preguntas + contacto directo con el equipo aliado (Praxis). */}
         {paso > 1 && esAtencionPsicologica && !perfilPsico && (
-          <div className="space-y-3">
-            <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-sm text-purple-900">
-              💙 En estos momentos de incertidumbre te queremos acompañar. Si
-              sientes que es una emergencia inmediata, llama{' '}
-              <strong>ahora</strong> a los servicios de emergencia de tu país
-              (911 en Venezuela, 131 en Chile). Esta red no reemplaza una
-              atención de urgencia.
+          <div className="space-y-2">
+            <div className="rounded-xl bg-purple-50 border border-purple-200 p-2.5 text-sm text-purple-900">
+              💙 ¿Emergencia inmediata? Llama ya: 911 (Venezuela) o 131
+              (Chile). Esta red no reemplaza atención de urgencia.
             </div>
 
             <p className="font-bold">¿Con cuál situación te identificas?</p>
@@ -1003,55 +1004,39 @@ export default function ReportarModal({
             <button
               type="button"
               onClick={() => setPerfilPsico('rescatista')}
-              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
             >
-              <span className="block text-2xl mb-1">🚑</span>
-              <span className="block font-extrabold text-purple-950">
-                ¿Eres rescatista o voluntario y sientes frustración, culpa o
-                agotamiento por no poder ayudar más?
-              </span>
-              <span className="block text-sm text-purple-900 mt-1">
-                Déjanos ayudarte a ti también. Notifícalo aquí y una psicóloga
-                te contactará.
+              <Ambulance className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">
+                Soy rescatista o voluntario/a agotado/a
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => setPerfilPsico('a_distancia')}
-              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
             >
-              <span className="block text-2xl mb-1">🌎</span>
-              <span className="block font-extrabold text-purple-950">
-                ¿Estás fuera del lugar afectado y sientes que te cuesta dormir,
-                trabajar o hacer tu día a día?
-              </span>
-              <span className="block text-sm text-purple-900 mt-1">
-                Haznos saber y serás contactado/a por una profesional.
+              <Globe className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">
+                Estoy fuera de la zona, pero me está afectando
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => setPerfilPsico('en_zona')}
-              className="w-full text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-4 hover:border-bandera-azul"
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
             >
-              <span className="block text-2xl mb-1">🫂</span>
-              <span className="block font-extrabold text-purple-950">
-                Estoy en la zona afectada: sobreviví, perdí a alguien o tengo
-                miedo, ansiedad o insomnio.
-              </span>
-              <span className="block text-sm text-purple-900 mt-1">
-                No estás solo/a. Pide apoyo con calma, respeto y privacidad.
+              <HeartHandshake className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">
+                Estoy en la zona afectada
               </span>
             </button>
 
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
               <p className="text-sm font-bold text-gray-800">
                 ¿Prefieres hablar ya con alguien?
-              </p>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {PRAXIS_NOMBRE} · {PRAXIS_DESCRIPCION}
               </p>
               <p className="text-sm font-bold text-bandera-azul mt-1">
                 📞 {PRAXIS_TELEFONO}
