@@ -970,7 +970,9 @@ export default function CiudadanoView() {
                   </span>
                 </a>
               )}
-              {ultimaCargaDesap && (
+              {/* Aviso sobre la fuente del scraper: es específico de la
+                  recolección de datos de Venezuela, no aplica a otros países. */}
+              {paisDesap === 'Venezuela' && ultimaCargaDesap && (
                 <p className="mb-2 text-[11px] text-gray-500 text-center">
                   Datos históricos al{' '}
                   {new Date(ultimaCargaDesap).toLocaleDateString('es-VE', {
