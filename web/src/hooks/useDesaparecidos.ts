@@ -15,11 +15,14 @@ export interface Desaparecido {
   estado: 'no_encontrado' | 'encontrado'
   fuente: string | null
   creado_en: string
+  /** País del registro (migración 58). Hasta ahora TODO es del terremoto de
+   *  Venezuela 2026; se agrega para cuando otras catástrofes sumen las suyas. */
+  pais: string | null
 }
 
 // Columnas justas para el mapa (sin traer de más).
 const COLS_DESAP =
-  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en'
+  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais'
 
 export interface ZonaMapa {
   norte: number
@@ -40,25 +43,30 @@ export function useDesaparecidosMapa(
   activo: boolean,
   zona: ZonaMapa | null,
   busqueda: string,
+  // Hasta ahora todo el dataset es de Venezuela (terremoto 2026); cuando
+  // otras catástrofes sumen registros, este filtro evita mezclar países en
+  // el mapa. null = todos.
+  pais: string | null = null,
 ) {
   const [desaparecidos, setDesaparecidos] = useState<Desaparecido[]>([])
   const [total, setTotal] = useState<number | null>(null)
 
-  // Total (una sola vez) para el contador del botón. Consulta barata (head).
+  // Total (una sola vez POR PAÍS) para el contador del botón.
   useEffect(() => {
     let cancel = false
-    supabase
+    let q = supabase
       .from('desaparecidos')
       .select('id', { count: 'exact', head: true })
       .eq('estado', 'no_encontrado')
       .not('lat', 'is', null)
-      .then(({ count }) => {
-        if (!cancel) setTotal(count ?? null)
-      })
+    if (pais) q = q.eq('pais', pais)
+    q.then(({ count }) => {
+      if (!cancel) setTotal(count ?? null)
+    })
     return () => {
       cancel = true
     }
-  }, [])
+  }, [pais])
 
   const term = busqueda.trim()
   const zk = zona
@@ -77,6 +85,7 @@ export function useDesaparecidosMapa(
         .select(COLS_DESAP)
         .eq('estado', 'no_encontrado')
         .not('lat', 'is', null)
+      if (pais) q = q.eq('pais', pais)
       if (term) {
         q = q.ilike('nombre', `%${term}%`).limit(300)
       } else if (zona) {
@@ -96,7 +105,7 @@ export function useDesaparecidosMapa(
       cancel = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activo, term, zk])
+  }, [activo, term, zk, pais])
 
   return { desaparecidos, total }
 }

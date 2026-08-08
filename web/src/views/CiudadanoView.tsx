@@ -355,6 +355,11 @@ export default function CiudadanoView() {
     // por sondeo → no abren websocket → escala a miles a la vez.
     !!session,
   )
+  // País de la capa de desaparecidos. Hasta ahora TODO el dataset es del
+  // terremoto de Venezuela 2026 (por eso arranca ahí), pero cuando otras
+  // catástrofes sumen sus propios registros, esto evita mezclarlos en el
+  // mapa. Se puede cambiar libremente.
+  const [paisDesap, setPaisDesap] = useState('Venezuela')
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
   const [totalDesap, setTotalDesap] = useState<number | null>(null)
@@ -366,6 +371,7 @@ export default function CiudadanoView() {
         .select('id', { count: 'exact', head: true })
         .eq('estado', 'no_encontrado')
         .not('lat', 'is', null)
+        .eq('pais', paisDesap)
         .then(({ count }) => {
           if (!cancel) setTotalDesap(count ?? null)
         })
@@ -374,7 +380,7 @@ export default function CiudadanoView() {
       cancel = true
       window.clearTimeout(t)
     }
-  }, [])
+  }, [paisDesap])
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
   const { notificar } = useNotificaciones()
@@ -538,9 +544,10 @@ export default function CiudadanoView() {
       const { data } = await supabase
         .from('desaparecidos')
         .select(
-          'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en',
+          'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais',
         )
         .eq('estado', 'no_encontrado')
+        .eq('pais', paisDesap)
         .ilike('nombre', `%${term}%`)
         .not('lat', 'is', null)
         .limit(50)
@@ -553,7 +560,7 @@ export default function CiudadanoView() {
       cancel = true
       window.clearTimeout(t)
     }
-  }, [busqDesap])
+  }, [busqDesap, paisDesap])
 
   // Tocar a una persona del listado: vuela el mapa a su punto y cierra la lista.
   function irAPersona(d: Desaparecido) {
@@ -747,6 +754,7 @@ export default function CiudadanoView() {
             resaltadaAcopioId={resaltadaAcopioId}
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
+            paisDesap={paisDesap}
             irACoordenada={irACoordenada}
             desaparecidoResaltadoId={desaparecidoSeleccionadoId}
             // Tocar el mapa cierra el panel de filtros, que en el teléfono
@@ -909,6 +917,31 @@ export default function CiudadanoView() {
           {/* Buscador de desaparecidos (solo si la capa está visible) */}
           {verDesap && (
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
+              {/* País: hoy solo Venezuela tiene datos (terremoto 2026), pero
+                  futuras catástrofes sumarán los suyos, así que el selector
+                  ya está listo para no mezclarlos en el mapa. */}
+              <div className="flex gap-1.5 mb-2">
+                {(['Venezuela', 'Chile'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPaisDesap(p)}
+                    aria-pressed={paisDesap === p}
+                    className={`flex-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
+                      paisDesap === p
+                        ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                        : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              {paisDesap === 'Venezuela' && (
+                <p className="mb-2 text-[11px] font-semibold text-gray-500 text-center">
+                  Terremoto Venezuela 2026
+                </p>
+              )}
               <a
                 href="https://tebusco.app/"
                 target="_blank"
