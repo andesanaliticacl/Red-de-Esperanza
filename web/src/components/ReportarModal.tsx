@@ -224,9 +224,27 @@ export default function ReportarModal({
   // Reportes comunes: recorrido de 3 tramos. Los tres tipos con campos muy
   // propios (perfil psicológico, foto del animal, buscador de Google Maps)
   // conservan su pantalla única, que ya está afinada.
-  const usaPasos = !esHospital && !esAtencionPsicologica && !esMascota
+  // Todos los reportes van por tramos menos "hospital", que es un registro
+  // interno del equipo (buscador de Google Maps) y no una petición de ayuda.
+  const usaPasos = !esHospital
   /** ¿Toca pintar lo del tramo n? Sin tramos (pantalla única), siempre. */
   const enTramo = (n: number) => !usaPasos || subPaso === n
+
+  // Lo IMPRESCINDIBLE de cada tramo, para no dejar avanzar con lo vacío y que
+  // el error salte al final (cuando ya se olvidó qué faltaba).
+  const tramoCompleto = (() => {
+    if (subPaso === 1) {
+      if (esAtencionPsicologica) {
+        return Boolean(nombrePaciente.trim() && cedulaPaciente.trim())
+      }
+      // El resto necesita un punto: pin en el mapa o una dirección escrita.
+      return Boolean(coord || zona.trim())
+    }
+    if (subPaso === 2 && esAtencionPsicologica) {
+      return Boolean(descripcion.trim())
+    }
+    return true
+  })()
   const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
   // Opciones del grupo abierto. "Zona aislada" solo la ven quienes pueden
   // crearla (admin / líder de voluntarios), dentro del grupo de peligros.
@@ -645,8 +663,7 @@ export default function ReportarModal({
   const bloqueDatosMascota = (
     <div className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
       <p className="text-sm text-amber-950">
-        🐾 Reporta una mascota o animal (perdido, encontrado o que necesita
-        ayuda). Una foto ayuda muchísimo a reconocerlo.
+        Una foto ayuda muchísimo a reconocerlo.
       </p>
       <div>
         <p className="font-bold mb-1">¿Qué animal es?</p>
@@ -782,17 +799,22 @@ export default function ReportarModal({
           Ayuda al equipo a verificar e identificar tu caso.
         </span>
       </label>
-      <div>
-        <p className="font-bold mb-1">
-          Un teléfono donde podamos contactarte{' '}
-          <span className="text-bandera-rojo">*</span>
-        </p>
-        <p className="text-xs text-gray-600 mb-2">
-          Es privado y solo lo verá el equipo psicológico para coordinar el
-          primer contacto contigo.
-        </p>
-        <EntradaTelefono valor={contacto} onChange={setContacto} requerido />
-      </div>
+    </div>
+  )
+
+  // El teléfono de psicología va en su propio tramo (el último), como en el
+  // resto de reportes: así ninguna pantalla obliga a desplazarse.
+  const bloqueContactoPsicologia = (
+    <div>
+      <p className="font-bold mb-1">
+        Un teléfono donde podamos contactarte{' '}
+        <span className="text-bandera-rojo">*</span>
+      </p>
+      <p className="text-xs text-gray-600 mb-2">
+        Es privado y solo lo verá el equipo psicológico para coordinar el
+        primer contacto contigo.
+      </p>
+      <EntradaTelefono valor={contacto} onChange={setContacto} requerido />
     </div>
   )
 
@@ -1056,7 +1078,7 @@ export default function ReportarModal({
             ¿teléfono?). Hospital, apoyo emocional y mascota conservan su
             pantalla única: sus campos propios no encajan en este recorrido. */}
         {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {usaPasos && (
               <div>
                 <div
@@ -1078,9 +1100,13 @@ export default function ReportarModal({
                 </div>
                 <p className="font-extrabold text-lg leading-tight">
                   {subPaso === 1
-                    ? '¿Dónde es?'
+                    ? esAtencionPsicologica
+                      ? '¿Quién eres?'
+                      : '¿Dónde es?'
                     : subPaso === 2
-                      ? '¿Qué pasa?'
+                      ? esAtencionPsicologica
+                        ? '¿Qué estás viviendo?'
+                        : '¿Qué pasa?'
                       : '¿Cómo te contactamos?'}
                 </p>
               </div>
@@ -1181,9 +1207,9 @@ export default function ReportarModal({
               </div>
             )}
 
-            {esAtencionPsicologica && bloqueDatosPsicologia}
+            {esAtencionPsicologica && enTramo(1) && bloqueDatosPsicologia}
 
-            {esMascota && bloqueDatosMascota}
+            {esMascota && enTramo(2) && bloqueDatosMascota}
 
             {requiereUbicacion && enTramo(1) && (
               <div>
@@ -1249,6 +1275,7 @@ export default function ReportarModal({
               !esAtencionPsicologica &&
               enTramo(3) &&
               bloqueContacto}
+            {esAtencionPsicologica && enTramo(3) && bloqueContactoPsicologia}
             {avisoError}
 
             {usaPasos ? (
@@ -1266,10 +1293,12 @@ export default function ReportarModal({
                     onClick={() => setSubPaso(subPaso + 1)}
                     // El punto es lo único imprescindible del primer tramo:
                     // sin él (ni dirección escrita) no se puede seguir.
-                    disabled={subPaso === 1 && !coord && !zona.trim()}
+                    disabled={!tramoCompleto}
                     className="btn-azul flex-1 disabled:opacity-60"
                   >
-                    {subPaso === 1 ? '✅ Es aquí' : 'Siguiente →'}
+                    {subPaso === 1 && !esAtencionPsicologica
+                      ? '✅ Es aquí'
+                      : 'Siguiente →'}
                   </button>
                 ) : (
                   <button
