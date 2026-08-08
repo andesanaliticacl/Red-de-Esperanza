@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Smartphone } from 'lucide-react'
 
 // El evento `beforeinstallprompt` no está tipado en el DOM estándar. Lo dispara
 // Chrome/Android (y Edge). En iOS NO existe: allí la instalación es manual desde
@@ -100,9 +101,9 @@ export default function BotonInstalar({
       {variante === 'menu' ? (
         <button
           onClick={instalar}
-          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-white/85 transition-colors hover:bg-white/10 hover:text-white"
         >
-          <span className="text-lg">📲</span>
+          <Smartphone className="h-5 w-5 shrink-0 text-white/60" aria-hidden="true" />
           <span className="font-medium">Instalar app</span>
         </button>
       ) : (

@@ -20,6 +20,7 @@ import ChatGlobal from '../components/ChatGlobal'
 import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
+import Paloma from '../components/Paloma'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
 import { geocodificarDireccion } from '../lib/geo'
@@ -768,8 +769,12 @@ export default function CiudadanoView() {
           {/* Marca + Filtrar en la misma fila: usa mejor el espacio de arriba.
               Desaparecidos queda dentro del panel (no tapa la parte de arriba). */}
           <div className="flex items-center gap-2 mb-2 pointer-events-auto">
-            <span className="bg-bandera-azul text-white font-extrabold px-3 py-2 rounded-xl shadow whitespace-nowrap text-sm sm:text-base">
-              🕊️ Red de Esperanza
+            {/* Cromo oscuro: enmarca sin competir con el mapa, y le da a la
+                app el aire de herramienta profesional. El contenido que se
+                lee (mapa, formularios) se queda en claro. */}
+            <span className="inline-flex items-center gap-2 bg-tinta-900 text-white font-extrabold px-3 py-2 rounded-xl shadow-media whitespace-nowrap text-sm sm:text-base">
+              <Paloma className="h-5 w-5 text-white" />
+              Red de Esperanza
             </span>
             <button
               onClick={() => setVerFiltros((v) => !v)}
@@ -1015,10 +1020,7 @@ export default function CiudadanoView() {
           className="absolute bottom-0 left-0 right-0 z-[1000] pointer-events-none"
           data-map-overlay="bottom"
         >
-          {/* Velo degradado: separa los botones del mapa para que se lean
-              siempre, caiga encima lo que caiga (mar, ciudad, carretera). */}
-          <div className="h-24 bg-gradient-to-t from-white/85 to-transparent" />
-          <div className="px-4 pb-4 -mt-16">
+          <div className="px-4 pb-4 pt-2">
             <div className="mx-auto w-full max-w-md flex flex-col gap-2.5 pointer-events-auto">
               {/* "Crear Cuenta" desaparece para quien ya tiene sesión. */}
               {!session && (

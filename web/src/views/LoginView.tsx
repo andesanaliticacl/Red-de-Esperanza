@@ -1,5 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  Eye,
+  EyeOff,
+  LogIn,
+  UserRoundPlus,
+  TriangleAlert,
+} from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { ROL_META, type RolRegistro } from '../lib/types'
 
@@ -87,16 +94,16 @@ export default function LoginView() {
                 aria-label={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
                 title={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
               >
-                {verPass ? '🙈' : '👁️'}
+                {verPass ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
-            {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
+            {errorMsg && <p className="flex items-center gap-1.5 text-bandera-rojo text-sm"><TriangleAlert className="h-4 w-4 shrink-0" />{errorMsg}</p>}
             <button
               type="submit"
               disabled={cargando}
               className="btn-azul w-full text-xl py-4 disabled:opacity-60"
             >
-              {cargando ? 'Entrando…' : '➡️ Entrar'}
+              {cargando ? ( 'Entrando…' ) : ( <><LogIn className="h-5 w-5" />Entrar</> )}
             </button>
             <Link
               to="/recuperar"
@@ -112,7 +119,7 @@ export default function LoginView() {
             to={rol ? `/registro?rol=${rol}` : '/registro'}
             className="btn-verde w-full text-xl py-4 no-underline"
           >
-            ✨ Crear cuenta{rol ? ` como ${ROL_META[rol].etiqueta}` : ''}
+            <UserRoundPlus className="h-5 w-5" />Crear cuenta{rol ? ` como ${ROL_META[rol].etiqueta}` : ''}
           </Link>
         </div>
         <Link
