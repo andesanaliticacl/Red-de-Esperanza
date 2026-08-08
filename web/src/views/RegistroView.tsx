@@ -1,5 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  Heart,
+  Ambulance,
+  Package,
+  Brain,
+  MapPin,
+  Eye,
+  EyeOff,
+  TriangleAlert,
+  UserRoundPlus,
+  LogIn,
+  type LucideIcon,
+} from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { obtenerUbicacion, lugarPorCoordenadas } from '../lib/geo'
 import EntradaTelefono, {
@@ -57,31 +70,31 @@ function buscarCoincidencia(
 type OpcionParticipar = 'voluntario' | 'rescatista' | 'centro_acopio' | 'psicologo'
 const OPCIONES_PARTICIPAR: {
   v: OpcionParticipar
-  emoji: string
+  icono: LucideIcon
   titulo: string
   descripcion: string
 }[] = [
   {
     v: 'voluntario',
-    emoji: '❤️',
+    icono: Heart,
     titulo: 'Voluntario',
     descripcion: 'Apoyo a atender y coordinar reportes.',
   },
   {
     v: 'rescatista',
-    emoji: '🚑',
+    icono: Ambulance,
     titulo: 'Soy rescatista',
     descripcion: 'Atiendo rescates y emergencias en terreno.',
   },
   {
     v: 'centro_acopio',
-    emoji: '📦',
+    icono: Package,
     titulo: 'Represento un centro de acopio',
     descripcion: 'Gestiono donaciones y suministros.',
   },
   {
     v: 'psicologo',
-    emoji: '🧠',
+    icono: Brain,
     titulo: 'Soy psicólogo/a y deseo colaborar',
     descripcion: 'El equipo revisa tu solicitud antes de otorgar el rol.',
   },
@@ -321,7 +334,7 @@ export default function RegistroView() {
           </p>
           {quierePsicologo && (
             <p className="text-sm text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-3">
-              🧠 Tu solicitud para ser psicólogo/a ya quedó registrada. El
+              Tu solicitud para ser psicólogo/a ya quedó registrada. El
               equipo de psicología la revisará y te contactará por teléfono.
             </p>
           )}
@@ -353,7 +366,7 @@ export default function RegistroView() {
           )}
           {!detectando && lugarDetectado && (
             <p className="text-sm rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-bandera-azul">
-              📍 Parece que estás en <b>{lugarDetectado}</b>. Ya lo completamos;
+              <MapPin className="mr-1 inline h-4 w-4 align-[-3px]" aria-hidden="true" />Parece que estás en <b>{lugarDetectado}</b>. Ya lo completamos;
               si no es correcto, cámbialo abajo.
             </p>
           )}
@@ -406,7 +419,8 @@ export default function RegistroView() {
                   }`}
                 >
                   <div className="font-bold text-sm text-tinta-800">
-                    {o.emoji} {o.titulo}
+                    <o.icono className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {o.titulo}
                   </div>
                   <div className="text-xs text-tinta-500 mt-1 leading-snug">
                     {o.descripcion}
@@ -416,7 +430,7 @@ export default function RegistroView() {
             </div>
             {quierePsicologo && (
               <p className="text-xs text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-2">
-                🧠 Tu cuenta se crea como colaborador/a. El equipo de
+                Tu cuenta se crea como colaborador/a. El equipo de
                 psicología revisará tu solicitud, te contactará por teléfono
                 y, si corresponde, te otorgará el rol.
               </p>
@@ -582,12 +596,12 @@ export default function RegistroView() {
               aria-label={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
               title={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
             >
-              {verPass ? '🙈' : '👁️'}
+              {verPass ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
 
           {errorMsg && (
-            <p className="text-bandera-rojo text-sm font-medium">⚠️ {errorMsg}</p>
+            <p className="flex items-center gap-1.5 text-bandera-rojo text-sm font-medium"><TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />{errorMsg}</p>
           )}
 
           <button
@@ -595,7 +609,7 @@ export default function RegistroView() {
             disabled={enviando}
             className="btn-verde w-full text-xl py-4 disabled:opacity-60"
           >
-            {enviando ? 'Creando cuenta…' : '✨ Crear cuenta'}
+            {enviando ? ('Creando cuenta…') : (<><UserRoundPlus className="h-5 w-5" aria-hidden="true" />Crear cuenta</>)}
           </button>
         </form>
 
@@ -605,7 +619,7 @@ export default function RegistroView() {
             to="/login"
             className="btn-azul w-full text-xl py-4 no-underline"
           >
-            ➡️ Iniciar sesión
+            <LogIn className="h-5 w-5" aria-hidden="true" />Iniciar sesión
           </Link>
         </div>
         <Link

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  MessageCircle,
+  MapPin,
+  Settings,
+  X,
+  Send,
+  Heart,
+  TriangleAlert,
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -42,7 +51,7 @@ function EtiquetaRol({
   if (!autor) {
     return (
       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
-        👤 Sin iniciar sesión
+        Sin iniciar sesión
       </span>
     )
   }
@@ -304,13 +313,15 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Encabezado */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b bg-bandera-azul text-white">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10 bg-tinta-900 text-white">
         <span className="font-extrabold flex items-center gap-1.5">
-          💬 Chat en vivo
+          <MessageCircle className="h-5 w-5" aria-hidden="true" />
+          Chat en vivo
         </span>
         {listo && (
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full truncate">
-            📍 {estado}
+            <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {estado}
             {paisChat !== PAISES_CHAT[0].pais ? `, ${paisChat}` : ''}
           </span>
         )}
@@ -321,9 +332,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             <Link
               to="/registro?rol=voluntario"
               onClick={() => onCerrar?.()}
-              className="text-[11px] font-bold bg-white text-bandera-azul px-2.5 py-1 rounded-full whitespace-nowrap no-underline hover:bg-gray-100"
+              className="inline-flex items-center gap-1 text-[11px] font-bold bg-white text-bandera-azul px-2.5 py-1 rounded-full whitespace-nowrap no-underline hover:bg-gray-100"
             >
-              ❤️ Crear Cuenta
+              <Heart className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Crear Cuenta
             </Link>
           )}
           {listo && (
@@ -333,7 +345,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               title={esLogueado ? 'Cambiar estado' : 'Cambiar estado o apodo'}
               aria-label="Ajustes del chat"
             >
-              ⚙️
+              <Settings className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
           {onCerrar && (
@@ -342,7 +354,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               className="text-2xl leading-none"
               aria-label="Cerrar"
             >
-              ✕
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -369,7 +381,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
             // Sin cuenta se puede LEER, no escribir: los mensajes anónimos son
             // la vía fácil para estafas y suplantaciones en una emergencia.
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-              👀 Puedes <b>leer</b> el chat sin cuenta. Para{' '}
+              Puedes <b>leer</b> el chat sin cuenta. Para{' '}
               <b>escribir</b> necesitas una, así se sabe quién dice qué.
             </div>
           )}
@@ -484,7 +496,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                               : 'bg-amber-50 border border-amber-200 text-amber-900'
                           }`}
                         >
-                          ⚠️ {AVISO_DINERO}
+                          <TriangleAlert className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />{AVISO_DINERO}
                         </div>
                       )}
                       {/* Teléfono del invitado: SOLO los líderes/admin lo ven
@@ -561,7 +573,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
           </div>
 
           {errorMsg && (
-            <p className="px-3 text-bandera-rojo text-xs">⚠️ {errorMsg}</p>
+            <p className="flex items-center gap-1 px-3 text-bandera-rojo text-xs"><TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{errorMsg}</p>
           )}
 
           {respuestaA && (
@@ -600,7 +612,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                 disabled={!texto.trim()}
                 className="btn-azul px-4 disabled:opacity-50"
               >
-                ➤
+                <Send className="h-5 w-5" aria-hidden="true" />
               </button>
             </form>
           ) : (
@@ -616,7 +628,7 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                   onClick={() => onCerrar?.()}
                   className="btn-verde flex-1 py-2 text-sm no-underline"
                 >
-                  ❤️ Crear Cuenta
+                  <Heart className="h-4 w-4" aria-hidden="true" />Crear Cuenta
                 </Link>
                 <Link
                   to="/login"
