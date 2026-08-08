@@ -1,5 +1,6 @@
 import L from 'leaflet'
 import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
+import { svgIcono } from './svgTipos'
 
 /**
  * Íconos de Leaflet como divIcon (sin imágenes externas → evita el clásico
@@ -33,7 +34,7 @@ export function iconoNecesidad(
   const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}|${compacto ? 1 : 0}|${atenuar ? 1 : 0}|${sinTelefono ? 1 : 0}`
   const enCache = _cacheNecesidad.get(clave)
   if (enCache) return enCache
-  const { color, emoji } = TIPO_META[tipo]
+  const { color } = TIPO_META[tipo]
   // El marcador NO desaparece al ser atendido: cambia de aspecto.
   //  · en proceso → borde azul (alguien ya lo tomó), sigue bien visible.
   //  · resuelta    → atenuado + check verde.
@@ -127,7 +128,7 @@ export function iconoNecesidad(
           ${sombra}
           opacity:${opacidad};
           display:flex;align-items:center;justify-content:center;">
-          <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
+          <span style="transform:rotate(45deg);color:#fff;display:flex;">${svgIcono(tipo, fuente)}</span>
         </div>
         ${insignia}${insigniaSinTel}${insigniaPeligro}${etiquetaEnCamino}
       </div>`,
@@ -139,10 +140,15 @@ export function iconoNecesidad(
   return icono
 }
 
-// Caja de centro de acopio (gota verde con 📦). El tamaño cambia según el país:
+// Caja de centro de acopio (gota verde). El tamaño cambia según el país:
 // los de DENTRO de Venezuela se ven más grandes (son los relevantes para la
 // emergencia); los de FUERA (donaciones desde la diáspora) van más pequeños.
-function iconoCaja(tam: number, sinSombra = false, emoji = '📦', color = '#16A34A'): L.DivIcon {
+function iconoCaja(
+  tam: number,
+  sinSombra = false,
+  claveIcono = 'acopio',
+  color = '#16A34A',
+): L.DivIcon {
   const fuente = Math.round(tam * 0.46)
   const sombra = sinSombra ? '' : 'box-shadow:0 2px 6px rgba(0,0,0,.4);'
   return L.divIcon({
@@ -154,7 +160,7 @@ function iconoCaja(tam: number, sinSombra = false, emoji = '📦', color = '#16A
           border-radius:50% 50% 50% 0;transform:rotate(-45deg);
           border:3px solid #fff;${sombra}
           display:flex;align-items:center;justify-content:center;">
-          <span style="transform:rotate(45deg);font-size:${fuente}px;line-height:1;">${emoji}</span>
+          <span style="transform:rotate(45deg);color:#fff;display:flex;">${svgIcono(claveIcono, fuente)}</span>
         </div>
       </div>`,
     iconSize: [tam, tam],
@@ -168,10 +174,10 @@ export const iconoAcopioCompacto: L.DivIcon = iconoCaja(30, true) // móvil (men
 export const iconoAcopioFuera: L.DivIcon = iconoCaja(TAM_FUERA) // fuera (pequeño)
 
 // Acopio que ADEMÁS atiende animales: MISMA gota verde que el acopio normal
-// pero con la huella 🐾 en vez de la caja 📦, para reconocerlo de un vistazo.
-export const iconoAcopioAnimal: L.DivIcon = iconoCaja(36, false, '🐾', '#16A34A')
-export const iconoAcopioAnimalCompacto: L.DivIcon = iconoCaja(30, true, '🐾', '#16A34A')
-export const iconoAcopioAnimalFuera: L.DivIcon = iconoCaja(TAM_FUERA, false, '🐾', '#16A34A')
+// pero con la huella en vez de la caja, para reconocerlo de un vistazo.
+export const iconoAcopioAnimal: L.DivIcon = iconoCaja(36, false, 'mascota', '#16A34A')
+export const iconoAcopioAnimalCompacto: L.DivIcon = iconoCaja(30, true, 'mascota', '#16A34A')
+export const iconoAcopioAnimalFuera: L.DivIcon = iconoCaja(TAM_FUERA, false, 'mascota', '#16A34A')
 
 // Hospital: pin rojo con cruz médica blanca, para distinguirlo a simple vista
 // del centro de acopio (caja verde).
