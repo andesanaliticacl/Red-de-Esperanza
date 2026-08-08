@@ -679,6 +679,7 @@ export default function MapaNecesidades({
   ajustarVista = false,
   verDesaparecidos = false,
   busquedaDesap = '',
+  paisDesap = null,
   irACoordenada = null,
   desaparecidoResaltadoId,
   onHospitalSeleccionado,
@@ -695,6 +696,8 @@ export default function MapaNecesidades({
   verDesaparecidos?: boolean
   /** Texto de búsqueda por nombre de desaparecido. */
   busquedaDesap?: string
+  /** País a mostrar en la capa de desaparecidos (null = todos). */
+  paisDesap?: string | null
   /** Si se pasa, el mapa vuela a esta coordenada (al tocar a una persona del
    *  listado de búsqueda de desaparecidos). */
   irACoordenada?: [number, number] | null
@@ -899,6 +902,7 @@ export default function MapaNecesidades({
     verDesap,
     zona,
     busquedaDesap,
+    paisDesap,
   )
   // Esparcir los que comparten coordenada (ciudad) para que se puedan ver y
   // abrir uno por uno al acercar, sin apilar cientos en un pixel.
