@@ -21,6 +21,7 @@ import { ROL_META } from '../lib/types'
 import ChatGlobal from './ChatGlobal'
 import TutorialModal from './TutorialModal'
 import BotonInstalar from './BotonInstalar'
+import BotonAvisosPush from './BotonAvisosPush'
 
 /**
  * Menú de usuario: un solo botón que despliega el perfil y todas las opciones
@@ -210,6 +211,10 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                 <HelpCircle className="h-5 w-5 shrink-0 text-white/60" aria-hidden="true" />
                 <span className="font-medium">¿Cómo funciona?</span>
               </button>
+              {/* Avisos con la app cerrada: es configuración del aparato,
+                  igual que instalar. Antes vivía dentro de la campana y
+                  ocupaba su tercio superior cada vez que se abría a leer. */}
+              <BotonAvisosPush onAccion={cerrar} />
               {/* Solo aparece si la app se puede instalar (Android/iOS). */}
               <BotonInstalar variante="menu" onAccion={cerrar} />
             </nav>
