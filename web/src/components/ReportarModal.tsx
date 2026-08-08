@@ -31,6 +31,8 @@ import EntradaTelefono, {
 } from './EntradaTelefono'
 import { paisPorIP } from '../lib/visitas'
 import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
+import { ShoppingBasket, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { ICONO_TIPO, ICONO_HOSPITAL } from '../lib/iconosTipo'
 import { subirFotoMascota } from '../lib/fotoMascota'
 
 // Menú de "Reportar necesidad". El rescate NO va aquí: tiene su propio botón
@@ -49,21 +51,21 @@ type GrupoReporte = 'necesito' | 'peligro'
 
 const GRUPOS: {
   v: GrupoReporte
-  emoji: string
+  icono: LucideIcon
   titulo: string
   ejemplos: string
   tipos: NecesidadTipo[]
 }[] = [
   {
     v: 'necesito',
-    emoji: '🥫',
+    icono: ShoppingBasket,
     titulo: 'Necesito algo',
     ejemplos: 'Agua, comida, medicinas, refugio…',
     tipos: ['agua_comida', 'medicinas', 'refugio', 'sacos_arena'],
   },
   {
     v: 'peligro',
-    emoji: '⚠️',
+    icono: TriangleAlert,
     titulo: 'Aviso de un peligro',
     ejemplos: 'Inundación, incendio, derrumbe, zona sin ayuda…',
     tipos: ['inundacion', 'incendio', 'derrumbe', 'zona_sin_atender'],
@@ -73,19 +75,16 @@ const GRUPOS: {
 // Van directo al formulario: no tiene sentido hacerlos elegir dos veces.
 const DIRECTOS: {
   tipo: NecesidadTipo
-  emoji: string
   titulo: string
   ejemplos: string
 }[] = [
   {
     tipo: 'atencion_psicologica',
-    emoji: '💙',
     titulo: 'Me siento mal, quiero hablar',
     ejemplos: 'Apoyo emocional, gratuito y privado',
   },
   {
     tipo: 'mascota',
-    emoji: '🐾',
     titulo: 'Un animal necesita ayuda',
     ejemplos: 'Perdido, herido o abandonado',
   },
@@ -890,7 +889,7 @@ export default function ReportarModal({
             {GRUPOS.map((g) => (
               <BloqueOpcion
                 key={g.v}
-                emoji={g.emoji}
+                icono={g.icono}
                 titulo={g.titulo}
                 ejemplos={g.ejemplos}
                 onClick={() => setGrupo(g.v)}
@@ -901,7 +900,8 @@ export default function ReportarModal({
             {DIRECTOS.map((d) => (
               <BloqueOpcion
                 key={d.tipo}
-                emoji={d.emoji}
+                icono={ICONO_TIPO[d.tipo]}
+                color={TIPO_META[d.tipo].color}
                 titulo={d.titulo}
                 ejemplos={d.ejemplos}
                 onClick={() => elegirTipo(d.tipo)}
@@ -922,9 +922,10 @@ export default function ReportarModal({
                 <button
                   type="button"
                   onClick={() => elegirTipo('hospital')}
-                  className="ml-auto rounded-xl px-3 py-2 text-sm font-semibold text-tinta-500 transition-colors hover:bg-tinta-50"
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-tinta-500 transition-colors hover:bg-tinta-50"
                 >
-                  🏥 Registrar un hospital
+                  <ICONO_HOSPITAL className="h-4 w-4" aria-hidden="true" />
+                  Registrar un hospital
                 </button>
               )}
             </div>
@@ -934,13 +935,15 @@ export default function ReportarModal({
         {/* PASO 1-B: opciones del grupo elegido */}
         {paso === 1 && grupoAbierto && (
           <div className="space-y-2">
-            <p className="font-bold mb-1">
-              {grupoAbierto.emoji} {grupoAbierto.titulo}
+            <p className="font-bold mb-1 flex items-center gap-2 text-tinta-800">
+              <grupoAbierto.icono className="h-5 w-5 text-tinta-500" aria-hidden="true" />
+              {grupoAbierto.titulo}
             </p>
             {tiposDelGrupo.map((t) => (
               <BloqueOpcion
                 key={t}
-                emoji={TIPO_META[t].emoji}
+                icono={ICONO_TIPO[t]}
+                color={TIPO_META[t].color}
                 titulo={TIPO_META[t].etiqueta}
                 onClick={() => elegirTipo(t)}
               />
@@ -1316,13 +1319,17 @@ export default function ReportarModal({
  * incluso con estrés o poca vista.
  */
 function BloqueOpcion({
-  emoji,
+  icono: Icono,
+  color,
   titulo,
   ejemplos,
   onClick,
   flecha = false,
 }: {
-  emoji: string
+  /** Icono de trazo (lucide). Un solo color: nada de emojis multicolor. */
+  icono: LucideIcon
+  /** Color del tipo (TIPO_META). Tiñe el disco del icono, muy diluido. */
+  color?: string
   titulo: string
   ejemplos?: string
   onClick: () => void
@@ -1338,14 +1345,18 @@ function BloqueOpcion({
                  hover:border-bandera-azul/40 hover:shadow-media hover:-translate-y-[1px]
                  active:translate-y-0 active:scale-[0.99]"
     >
-      {/* El emoji sobre un disco de color: le da peso y alinea todas las
-          filas, en vez de que cada icono flote a su aire. */}
+      {/* El icono sobre un disco apenas teñido con el color del tipo: da
+          peso, alinea las filas y mete el color con cuentagotas (un fondo
+          saturado se vería de juguete). */}
       <span
-        className="h-12 w-12 shrink-0 grid place-items-center rounded-xl bg-tinta-50 text-2xl leading-none
-                   transition-colors duration-200 group-hover:bg-bandera-azul/[0.06]"
+        className="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-colors duration-200"
+        style={{
+          backgroundColor: color ? `${color}14` : '#F0F1F5',
+          color: color ?? '#4B5468',
+        }}
         aria-hidden="true"
       >
-        {emoji}
+        <Icono className="h-6 w-6" strokeWidth={2} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block font-extrabold text-base leading-tight text-tinta-800">

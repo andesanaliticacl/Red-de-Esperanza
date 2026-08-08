@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  Siren,
+  MessageSquarePlus,
+  Heart,
+  SlidersHorizontal,
+  ChevronDown,
+  Check,
+  UserSearch,
+  MapPin,
+  Search,
+} from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import MapaNecesidades from '../components/MapaNecesidades'
 import CampanaNotificaciones from '../components/CampanaNotificaciones'
@@ -768,8 +779,14 @@ export default function CiudadanoView() {
                   : 'bg-white/95 backdrop-blur text-gray-700'
               }`}
             >
-              🔎 Filtrar{hayFiltro ? ' •' : ''}
-              <span className="text-[10px] leading-none">{verFiltros ? '▲' : '▼'}</span>
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Filtrar{hayFiltro ? ' •' : ''}
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                  verFiltros ? 'rotate-180' : ''
+                }`}
+                aria-hidden="true"
+              />
             </button>
             <div className="ml-auto flex items-center gap-2">
               {session && <CampanaNotificaciones claro />}
@@ -790,7 +807,7 @@ export default function CiudadanoView() {
                   value={tipoFiltro}
                   onChange={(e) => setTipoFiltro(e.target.value as FiltroTipo)}
                 >
-                  <option value="todos">🗂️ Todo tipo de ayuda</option>
+                  <option value="todos">Todo tipo de ayuda</option>
                   {TIPOS_FILTRO.filter((t) =>
                     t === 'atencion_psicologica' ? esRolPsicologia(rol) : true,
                   ).map((t) => (
@@ -813,8 +830,12 @@ export default function CiudadanoView() {
                       : 'border-gray-200 text-gray-600'
                   }`}
                 >
-                  {verDesap && <span className="leading-none">✓</span>}
-                  🔍 Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
+                  {verDesap ? (
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <UserSearch className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
                 </button>
               </div>
               <select
@@ -824,16 +845,17 @@ export default function CiudadanoView() {
                   setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
                 }
               >
-                <option value="todas">⏱️ Cualquier urgencia</option>
-                <option value="alta">🔴 Urgencia alta</option>
-                <option value="media">🟠 Urgencia media</option>
-                <option value="baja">🟢 Urgencia baja</option>
+                <option value="todas">Cualquier urgencia</option>
+                <option value="alta">Urgencia alta</option>
+                <option value="media">Urgencia media</option>
+                <option value="baja">Urgencia baja</option>
               </select>
 
               {/* Buscador de direcciones: vuela el mapa al punto encontrado. */}
               <form onSubmit={buscarDireccionEnMapa} className="mt-2">
-                <p className="text-xs font-bold text-gray-600 mb-1">
-                  📍 Buscar una dirección en el mapa
+                <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 mb-1">
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                  Buscar una dirección en el mapa
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -851,7 +873,11 @@ export default function CiudadanoView() {
                     disabled={buscandoDireccion || !buscarDireccionTexto.trim()}
                     className="btn-azul px-4 text-sm disabled:opacity-60"
                   >
-                    {buscandoDireccion ? '…' : '🔎'}
+                    {buscandoDireccion ? (
+                      '…'
+                    ) : (
+                      <Search className="h-4 w-4" aria-hidden="true" />
+                    )}
                   </button>
                 </div>
                 {errorBuscarDireccion && (
@@ -884,8 +910,8 @@ export default function CiudadanoView() {
                 rel="noopener noreferrer"
                 className="mb-2 flex items-center gap-3 rounded-2xl border-2 border-bandera-azul/15 bg-white px-3 py-2.5 no-underline shadow-sm hover:border-bandera-azul/30 hover:bg-bandera-azul/5"
               >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bandera-azul text-white text-lg shadow-sm">
-                  🔎
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bandera-azul text-white shadow-sm">
+                  <Search className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[11px] font-extrabold uppercase text-bandera-rojo tracking-wide">
@@ -1000,7 +1026,8 @@ export default function CiudadanoView() {
                   onClick={() => navigate('/registro?rol=voluntario')}
                   className="btn-verde self-center w-auto text-sm py-2 px-6"
                 >
-                  ❤️ Crear Cuenta
+                  <Heart className="h-4 w-4" aria-hidden="true" />
+                  Crear Cuenta
                 </button>
               )}
               {/* SOS + Reportar lado a lado: más compacto y deja más mapa
@@ -1013,13 +1040,15 @@ export default function CiudadanoView() {
                     pulsoSos ? 'animate-pulse' : ''
                   }`}
                 >
-                  🆘 SOS / Necesito rescate
+                  <Siren className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  SOS / Necesito rescate
                 </button>
                 <button
                   onClick={() => setAbrirReporte(true)}
                   className="btn-azul flex-1 min-h-[3.5rem] px-3 text-sm sm:text-base leading-tight"
                 >
-                  📝 Reportar
+                  <MessageSquarePlus className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  Reportar
                 </button>
               </div>
             </div>
