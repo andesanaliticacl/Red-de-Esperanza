@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Bell, ChevronRight } from 'lucide-react'
 import { useNotificaciones, type Aviso } from '../context/NotificacionesContext'
+import { avisarPanelAbierto, alAbrirOtroPanel } from '../lib/panelUnico'
 
 /**
  * Campana de notificaciones. Muestra cuántos avisos hay sin leer y, al
@@ -20,6 +21,15 @@ export default function CampanaNotificaciones({ claro = false }: { claro?: boole
     useNotificaciones()
   const navigate = useNavigate()
   const [abierto, setAbierto] = useState(false)
+
+  // Si se abre el menú de usuario (u otro panel), este se cierra: los dos
+  // se anclan en la misma esquina y quedaban tapándose.
+  useEffect(() => alAbrirOtroPanel('campana', () => setAbierto(false)), [])
+
+  function abrir() {
+    avisarPanelAbierto('campana')
+    setAbierto(true)
+  }
 
   function cerrar() {
     setAbierto(false)
@@ -40,7 +50,7 @@ export default function CampanaNotificaciones({ claro = false }: { claro?: boole
   return (
     <>
       <button
-        onClick={() => setAbierto((v) => !v)}
+        onClick={() => (abierto ? cerrar() : abrir())}
         className={`relative flex items-center justify-center h-10 w-10 rounded-xl ${disparador}`}
         aria-label={
           noLeidas > 0 ? `Notificaciones (${noLeidas} sin leer)` : 'Notificaciones'

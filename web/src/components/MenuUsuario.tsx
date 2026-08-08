@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { avisarPanelAbierto, alAbrirOtroPanel } from '../lib/panelUnico'
 import { createPortal } from 'react-dom'
 import {
   User,
@@ -52,6 +53,15 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
     ? 'bg-white/95 text-bandera-azul shadow'
     : 'bg-white/15 hover:bg-white/25 text-white'
 
+  // Si se abre la campana (u otro panel), este se cierra: los dos se anclan
+  // en la misma esquina y quedaban tapándose.
+  useEffect(() => alAbrirOtroPanel('menu', () => setAbierto(false)), [])
+
+  function abrir() {
+    avisarPanelAbierto('menu')
+    setAbierto(true)
+  }
+
   function cerrar() {
     setAbierto(false)
   }
@@ -65,7 +75,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
   return (
     <>
       <button
-        onClick={() => setAbierto((v) => !v)}
+        onClick={() => (abierto ? cerrar() : abrir())}
         className={`flex items-center gap-2 font-semibold px-3 py-2 rounded-xl ${disparador}`}
         aria-label="Menú"
       >
