@@ -852,7 +852,10 @@ export default function ReportarModal({
         ? '💙 Si sobreviviste al terremoto, si perdiste a alguien, si tienes miedo, ansiedad, insomnio o solo necesitas hablar, no estás solo/a. Este espacio es para pedir apoyo psicológico con calma, respeto y privacidad.'
       : esHospital
         ? '🏥 Registra un hospital para que aparezca en el mapa y en el filtro de hospitales.'
-        : `${metaTipo.emoji} Indica qué necesitas y el lugar exacto. Ajusta el pin si hace falta.`
+        // Sin aviso genérico: con el flujo por pasos, el título "¿Dónde es?"
+        // ya dice de qué trata esta pantalla. Repetirlo solo alargaba la
+        // vista y obligaba a hacer scroll.
+        : null
 
   const etiquetaDir = esDerrumbe
     ? 'Dirección del edificio'
@@ -860,7 +863,10 @@ export default function ReportarModal({
       ? 'Dirección o referencia de la zona'
       : esHospital
         ? 'Dirección del hospital'
-        : 'Dirección o lugar (opcional)'
+        // No es opcional (hace falta el pin o esta dirección): se quita la
+        // aclaración equivocada. Va más chica porque el mapa de abajo ya dice
+        // "arrastra el pin"; no hace falta repetir la idea dos veces.
+        : 'Dirección o lugar'
 
   const placeholderDir = esDerrumbe
     ? 'Calle, número, edificio, urbanización...'
@@ -1112,7 +1118,11 @@ export default function ReportarModal({
               </div>
             )}
 
-            {enTramo(1) && (
+            {/* Sin aviso genérico: solo se muestra cuando hay algo que de
+                verdad hace falta aclarar (zona aislada, zona, derrumbe,
+                hospital, apoyo emocional). El título del paso ya dice de qué
+                trata la pantalla. */}
+            {enTramo(1) && (esZonaAislada || esZona || intro) && (
             <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
               {esZonaAislada ? (
                 <>
@@ -1213,7 +1223,15 @@ export default function ReportarModal({
 
             {requiereUbicacion && enTramo(1) && (
               <div>
-                <p className="font-bold mb-2">{etiquetaDir}</p>
+                <p
+                  className={
+                    esDerrumbe || esZona || esHospital
+                      ? 'font-bold mb-2'
+                      : 'text-xs font-semibold text-gray-500 mb-1'
+                  }
+                >
+                  {etiquetaDir}
+                </p>
                 <input
                   className={`input ${esHospital ? 'bg-gray-50 text-gray-700' : ''}`}
                   placeholder={placeholderDir}
