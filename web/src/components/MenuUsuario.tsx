@@ -100,9 +100,9 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
         <>
           {/* Capa para cerrar al tocar fuera */}
           <div className="fixed inset-0 z-[2400]" onClick={cerrar} />
-          <div className="fixed right-2 top-16 z-[2500] w-64 max-w-[88vw] bg-tinta-900 rounded-2xl shadow-alta border border-white/10 overflow-hidden text-white">
+          <div className="fixed right-2 top-16 bottom-4 z-[2500] w-64 max-w-[88vw] flex flex-col overflow-hidden bg-tinta-900 rounded-2xl shadow-alta border border-white/10 text-white">
             {/* Cabecera de identidad */}
-            <div className="p-4 bg-white/[0.06] border-b border-white/10">
+            <div className="shrink-0 p-4 bg-white/[0.06] border-b border-white/10">
               {session ? (
                 <>
                   <div className="font-bold truncate">
@@ -122,7 +122,15 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
               )}
             </div>
 
-            <nav className="py-1">
+            {/* min-h-0 es lo que deja que un hijo flex se achique y active su
+                propio scroll: sin él, el panel entero se salía de la pantalla
+                y lo de abajo quedaba recortado e inalcanzable (el contenedor
+                tenía overflow-hidden y nada con qué desplazarse). */}
+            <nav className="py-1 flex-1 min-h-0 overflow-y-auto">
+              {/* Centro de acopio va casi primero: lo usa cualquiera, con o
+                  sin roles de equipo, y antes quedaba enterrado debajo de
+                  varias opciones que solo ve el staff. */}
+              <ItemLink to="/acopios" icono={Package} texto="Centros de acopio" onClick={cerrar} />
               {session && (
                 <ItemLink to="/perfil" icono={User} texto="Mi perfil" onClick={cerrar} />
               )}
@@ -174,7 +182,6 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                   onClick={cerrar}
                 />
               )}
-              <ItemLink to="/acopios" icono={Package} texto="Centros de acopio" onClick={cerrar} />
               {/* El admin NO usa el chat en vivo: en su lugar monitorea TODAS
                   las conversaciones (solo lectura). El resto sí ve el chat. */}
               {rol === 'admin' ? (
@@ -229,7 +236,7 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
               <BotonInstalar variante="menu" onAccion={cerrar} />
             </nav>
 
-            <div className="border-t border-white/10 p-2">
+            <div className="shrink-0 border-t border-white/10 p-2">
               {session ? (
                 <button
                   onClick={salir}
