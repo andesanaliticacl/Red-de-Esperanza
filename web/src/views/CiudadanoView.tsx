@@ -942,30 +942,34 @@ export default function CiudadanoView() {
                   Terremoto Venezuela 2026
                 </p>
               )}
-              <a
-                href="https://tebusco.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mb-2 flex items-center gap-3 rounded-2xl border-2 border-bandera-azul/15 bg-white px-3 py-2.5 no-underline shadow-sm hover:border-bandera-azul/30 hover:bg-bandera-azul/5"
-              >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bandera-azul text-white shadow-sm">
-                  <Search className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[11px] font-extrabold uppercase text-bandera-rojo tracking-wide">
-                    Alianza activa
+              {/* Tebusco.app es una alianza específica de Venezuela: no aplica
+                  cuando se está viendo el dataset de otro país. */}
+              {paisDesap === 'Venezuela' && (
+                <a
+                  href="https://tebusco.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-2 flex items-center gap-3 rounded-2xl border-2 border-bandera-azul/15 bg-white px-3 py-2.5 no-underline shadow-sm hover:border-bandera-azul/30 hover:bg-bandera-azul/5"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bandera-azul text-white shadow-sm">
+                    <Search className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <span className="block text-sm font-extrabold text-bandera-azul leading-tight">
-                    Busca tambien en Tebusco.app
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] font-extrabold uppercase text-bandera-rojo tracking-wide">
+                      Alianza activa
+                    </span>
+                    <span className="block text-sm font-extrabold text-bandera-azul leading-tight">
+                      Busca tambien en Tebusco.app
+                    </span>
+                    <span className="block text-xs font-medium text-gray-600 leading-snug">
+                      Plataforma aliada para ampliar la busqueda de personas desaparecidas.
+                    </span>
                   </span>
-                  <span className="block text-xs font-medium text-gray-600 leading-snug">
-                    Plataforma aliada para ampliar la busqueda de personas desaparecidas.
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-bandera-amarillo text-white text-base font-black" aria-hidden="true">
+                    ↗
                   </span>
-                </span>
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-bandera-amarillo text-white text-base font-black" aria-hidden="true">
-                  ↗
-                </span>
-              </a>
+                </a>
+              )}
               {ultimaCargaDesap && (
                 <p className="mb-2 text-[11px] text-gray-500 text-center">
                   Datos históricos al{' '}
