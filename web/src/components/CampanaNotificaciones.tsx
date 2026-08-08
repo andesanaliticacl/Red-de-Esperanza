@@ -1,68 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { Bell, ChevronRight } from 'lucide-react'
 import { useNotificaciones, type Aviso } from '../context/NotificacionesContext'
-import { useAuth } from '../context/AuthContext'
-import {
-  pushSoportado,
-  permisoPush,
-  yaSuscrito,
-  activarPush,
-  desactivarPush,
-} from '../lib/push'
 
 /**
- * Campana de notificaciones de la barra superior. Muestra el número de avisos
- * sin leer y, al abrirse, la lista de todo lo recibido en la sesión. Tocar un
- * aviso con acción lleva a la pantalla correspondiente. Para todos los roles.
+ * Campana de notificaciones. Muestra cuántos avisos hay sin leer y, al
+ * abrirse, la lista. Tocar uno lleva a su pantalla.
+ *
+ * Hace UNA cosa: mostrar avisos. Antes también traía dentro la configuración
+ * de las notificaciones push, que ocupaba el tercio superior del panel cada
+ * vez que alguien abría solo a leer. Eso se mudó al menú (BotonAvisosPush),
+ * junto a "Instalar app", que es configuración de la misma familia.
  *
  * `claro` = variante para fondos claros (la cabecera del mapa de inicio).
  */
 export default function CampanaNotificaciones({ claro = false }: { claro?: boolean }) {
   const { historial, noLeidas, marcarTodasLeidas, marcarLeida, limpiar } =
     useNotificaciones()
-  const { perfil } = useAuth()
   const navigate = useNavigate()
   const [abierto, setAbierto] = useState(false)
-
-  // Estado de las notificaciones push (las que llegan con la app cerrada).
-  const soporta = pushSoportado()
-  const [suscrito, setSuscrito] = useState(false)
-  const [trabajando, setTrabajando] = useState(false)
-  const [avisoPush, setAvisoPush] = useState('')
-
-  useEffect(() => {
-    if (abierto && soporta) void yaSuscrito().then(setSuscrito)
-  }, [abierto, soporta])
-
-  async function alternarPush() {
-    if (!perfil?.id) return
-    setTrabajando(true)
-    setAvisoPush('')
-    try {
-      if (suscrito) {
-        await desactivarPush()
-        setSuscrito(false)
-      } else {
-        const r = await activarPush(perfil.id)
-        if (r.ok) {
-          setSuscrito(true)
-        } else if (r.motivo === 'denegado') {
-          setAvisoPush(
-            'Bloqueaste los avisos. Actívalos en los permisos del navegador.',
-          )
-        } else if (r.motivo === 'no-soportado') {
-          setAvisoPush(
-            'En iPhone, primero instala la página (Compartir → Agregar a inicio).',
-          )
-        } else {
-          setAvisoPush('No se pudo activar: ' + (r.motivo ?? 'error'))
-        }
-      }
-    } finally {
-      setTrabajando(false)
-    }
-  }
 
   function cerrar() {
     setAbierto(false)
@@ -85,10 +42,12 @@ export default function CampanaNotificaciones({ claro = false }: { claro?: boole
       <button
         onClick={() => setAbierto((v) => !v)}
         className={`relative flex items-center justify-center h-10 w-10 rounded-xl ${disparador}`}
-        aria-label="Notificaciones"
+        aria-label={
+          noLeidas > 0 ? `Notificaciones (${noLeidas} sin leer)` : 'Notificaciones'
+        }
         title="Notificaciones"
       >
-        <span className="text-lg leading-none">🔔</span>
+        <Bell className="h-5 w-5" aria-hidden="true" />
         {noLeidas > 0 && (
           <span className="absolute -top-1 -right-1 bg-bandera-rojo text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
             {noLeidas > 9 ? '9+' : noLeidas}
@@ -100,62 +59,22 @@ export default function CampanaNotificaciones({ claro = false }: { claro?: boole
         createPortal(
           <>
             <div className="fixed inset-0 z-[2400]" onClick={cerrar} />
-            <div className="fixed right-2 top-16 z-[2500] w-80 max-w-[92vw] bg-white rounded-2xl shadow-2xl border overflow-hidden text-gray-800">
-              <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
+            <div className="fixed right-2 top-16 z-[2500] w-80 max-w-[92vw] bg-tinta-900 rounded-2xl shadow-alta border border-white/10 overflow-hidden text-white">
+              <div className="p-3 bg-white/[0.06] border-b border-white/10 flex items-center justify-between">
                 <span className="font-bold">Notificaciones</span>
-                {historial.length > 0 && (
+                {noLeidas > 0 && (
                   <button
                     onClick={marcarTodasLeidas}
-                    className="text-xs text-bandera-azul font-semibold"
+                    className="text-xs font-semibold text-white/70 transition-colors hover:text-white"
                   >
                     Marcar leídas
                   </button>
                 )}
               </div>
 
-              {/* Activar/desactivar avisos que llegan con la app cerrada. */}
-              {perfil?.id && (
-                <div className="p-3 border-b bg-blue-50/50">
-                  {soporta ? (
-                    <>
-                      <button
-                        onClick={alternarPush}
-                        disabled={trabajando}
-                        className={`w-full text-sm font-bold py-2 rounded-lg disabled:opacity-60 ${
-                          suscrito
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-bandera-azul text-white'
-                        }`}
-                      >
-                        {trabajando
-                          ? '…'
-                          : suscrito
-                            ? '🔔 Avisos activados — tocar para desactivar'
-                            : '🔔 Activar avisos en este dispositivo'}
-                      </button>
-                      <p className="text-[11px] text-gray-500 mt-1">
-                        Recibe alertas aunque tengas la página cerrada.
-                        {permisoPush() === 'denied' &&
-                          ' (Están bloqueados en el navegador.)'}
-                      </p>
-                      {avisoPush && (
-                        <p className="text-[11px] text-bandera-rojo mt-1 font-semibold">
-                          {avisoPush}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-[11px] text-gray-500">
-                      📱 Para recibir avisos con la app cerrada en iPhone, primero
-                      instálala (Compartir → “Agregar a inicio”).
-                    </p>
-                  )}
-                </div>
-              )}
-
               <div className="max-h-[60vh] overflow-y-auto">
                 {historial.length === 0 ? (
-                  <div className="p-6 text-center text-gray-500 text-sm">
+                  <div className="p-6 text-center text-white/50 text-sm">
                     No tienes notificaciones todavía.
                   </div>
                 ) : (
@@ -163,33 +82,42 @@ export default function CampanaNotificaciones({ claro = false }: { claro?: boole
                     <button
                       key={a.id}
                       onClick={() => alClic(a)}
-                      className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-gray-50 flex gap-2 ${
-                        a.leido ? 'opacity-60' : ''
+                      className={`w-full text-left px-4 py-3 border-b border-white/5 last:border-0 flex items-start gap-2 transition-colors hover:bg-white/10 ${
+                        a.leido ? 'opacity-55' : ''
                       }`}
                     >
-                      {!a.leido && (
-                        <span className="mt-1.5 h-2 w-2 rounded-full bg-bandera-rojo shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm">{a.mensaje}</div>
-                        <div className="text-[11px] text-gray-400 mt-0.5">
+                      <span
+                        className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                          a.leido ? 'bg-transparent' : 'bg-bandera-rojo'
+                        }`}
+                      />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm leading-snug">
+                          {a.mensaje}
+                        </span>
+                        <span className="block text-[11px] text-white/45 mt-0.5">
                           {new Date(a.ts).toLocaleTimeString('es-VE', {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
-                          {a.accion ? ` · ${a.accion.etiqueta} →` : ''}
-                        </div>
-                      </div>
+                        </span>
+                      </span>
+                      {a.accion && (
+                        <ChevronRight
+                          className="h-4 w-4 shrink-0 text-white/40 mt-1"
+                          aria-hidden="true"
+                        />
+                      )}
                     </button>
                   ))
                 )}
               </div>
 
               {historial.length > 0 && (
-                <div className="p-2 border-t">
+                <div className="p-2 border-t border-white/10">
                   <button
                     onClick={limpiar}
-                    className="w-full text-center text-xs text-gray-500 py-1 hover:text-bandera-rojo"
+                    className="w-full text-center text-xs text-white/50 py-1 transition-colors hover:text-red-300"
                   >
                     Borrar todas
                   </button>
