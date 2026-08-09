@@ -40,6 +40,7 @@ import {
   UserSearch,
   PawPrint,
   User,
+  Heart,
   type LucideIcon,
 } from 'lucide-react'
 import { ICONO_TIPO, ICONO_HOSPITAL } from '../lib/iconosTipo'
@@ -83,23 +84,11 @@ const GRUPOS: {
   },
 ]
 
-// Van directo al formulario: no tiene sentido hacerlos elegir dos veces.
-const DIRECTOS: {
-  tipo: NecesidadTipo
-  titulo: string
-  ejemplos: string
-}[] = [
-  {
-    tipo: 'atencion_psicologica',
-    titulo: 'Me siento mal, quiero hablar',
-    ejemplos: 'Apoyo emocional, gratuito y privado',
-  },
-  {
-    tipo: 'mascota',
-    titulo: 'Un animal necesita ayuda',
-    ejemplos: 'Perdido, herido o abandonado',
-  },
-]
+// Antes había un tercer grupo de "directos" (atención psicológica y
+// mascota) que iban a su propio formulario sin pasar por una lista. Ahora
+// "Me siento mal" es un botón chico aparte (no compite por espacio con las
+// opciones grandes) y "mascota" se fusionó con "desaparecido" en un solo
+// bloque persona/mascota — ver más abajo.
 
 // Tipos de animal para el reporte de mascota.
 const ANIMALES: { v: string; etiqueta: string; emoji: string }[] = [
@@ -174,6 +163,13 @@ export default function ReportarModal({
   // grandes). Se conserva al volver del formulario, para caer en la misma
   // lista de la que se salió y no obligar a empezar de cero.
   const [grupo, setGrupo] = useState<GrupoReporte | null>(null)
+  // Mini-recorrido del bloque combinado "Persona o mascota": primero elige
+  // a quién busca, y si es mascota, si está perdida (va a `desaparecidos`)
+  // o necesita ayuda estando presente (va al reporte de mascota de siempre).
+  // null = no está en este recorrido (se ve la lista de bloques grandes).
+  const [pasoPersonaAnimal, setPasoPersonaAnimal] = useState<
+    'elegir' | 'mascota' | null
+  >(null)
   // Tramo del formulario en los reportes comunes: 1 ¿dónde? · 2 ¿qué pasa? ·
   // 3 ¿tu teléfono? Una sola pregunta por pantalla se sigue mucho mejor bajo
   // estrés que un formulario largo. Apoyo emocional, mascota y hospital NO lo
@@ -413,9 +409,8 @@ export default function ReportarModal({
       setUrgencia('media')
       setPerfilPsico('') // vuelve a mostrar las tarjetas de ayuda emocional
     }
-    if (t === 'desaparecido') {
-      setTipoSerDesap('') // vuelve a mostrar las tarjetas ¿persona o mascota?
-    }
+    // 'desaparecido' NO resetea tipoSerDesap: el bloque combinado "Persona o
+    // mascota" ya lo eligió antes de llamar aquí (ver pasoPersonaAnimal).
     // Derrumbe / zona / desaparecido: el pin NO empieza en la ubicación de
     // quien reporta, sino donde se vio a la persona/mascota por última vez.
     setCoord(
@@ -1126,9 +1121,22 @@ export default function ReportarModal({
         </div>
 
         {/* PASO 1-A: bloques grandes (pocas opciones, lenguaje de persona) */}
-        {paso === 1 && !grupo && (
+        {paso === 1 && !grupo && !pasoPersonaAnimal && (
           <div className="space-y-2">
-            <p className="font-bold mb-1">¿Qué deseas reportar?</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-bold">¿Qué deseas reportar?</p>
+              {/* Ayuda emocional aparte, chica: no es un reporte de daño
+                  material y no debe competir por espacio con esos bloques. */}
+              <button
+                type="button"
+                onClick={() => elegirTipo('atencion_psicologica')}
+                aria-label="Me siento mal, quiero hablar"
+                title="Me siento mal, quiero hablar"
+                className="h-9 w-9 shrink-0 grid place-items-center rounded-full bg-purple-50 text-purple-600 transition-colors hover:bg-purple-100"
+              >
+                <Heart className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
 
             {GRUPOS.map((g) => (
               <BloqueOpcion
@@ -1141,23 +1149,12 @@ export default function ReportarModal({
               />
             ))}
 
-            {DIRECTOS.map((d) => (
-              <BloqueOpcion
-                key={d.tipo}
-                icono={ICONO_TIPO[d.tipo]}
-                color={TIPO_META[d.tipo].color}
-                titulo={d.titulo}
-                ejemplos={d.ejemplos}
-                onClick={() => elegirTipo(d.tipo)}
-              />
-            ))}
-
             <BloqueOpcion
               icono={UserSearch}
               color={DESAPARECIDO_META.color}
-              titulo="Reportar un desaparecido"
-              ejemplos="Persona o mascota, con nombre y foto"
-              onClick={() => elegirTipo('desaparecido')}
+              titulo="Persona o mascota"
+              ejemplos="Perdida, desaparecida o necesita ayuda"
+              onClick={() => setPasoPersonaAnimal('elegir')}
             />
 
             {/* Salidas poco frecuentes: presentes, pero sin competir con las
@@ -1181,6 +1178,79 @@ export default function ReportarModal({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Bloque combinado "Persona o mascota": a quién busca, y si es
+            mascota, si está perdida o solo necesita ayuda estando presente. */}
+        {paso === 1 && pasoPersonaAnimal === 'elegir' && (
+          <div className="space-y-2">
+            <p className="font-bold mb-1">¿Es una persona o una mascota?</p>
+            <button
+              type="button"
+              onClick={() => {
+                setTipoSerDesap('persona')
+                setPasoPersonaAnimal(null)
+                elegirTipo('desaparecido')
+              }}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
+            >
+              <User className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">Es una persona</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPasoPersonaAnimal('mascota')}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
+            >
+              <PawPrint className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">Es una mascota</span>
+            </button>
+            <button
+              onClick={() => setPasoPersonaAnimal(null)}
+              className="btn-gris w-full"
+            >
+              ← Atrás
+            </button>
+          </div>
+        )}
+
+        {paso === 1 && pasoPersonaAnimal === 'mascota' && (
+          <div className="space-y-2">
+            <p className="font-bold mb-1">¿Está perdida o necesita ayuda?</p>
+            <button
+              type="button"
+              onClick={() => {
+                setTipoSerDesap('mascota')
+                setPasoPersonaAnimal(null)
+                elegirTipo('desaparecido')
+              }}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
+            >
+              <UserSearch className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">
+                Está perdida o desaparecida
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPasoPersonaAnimal(null)
+                elegirTipo('mascota')
+              }}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
+            >
+              <PawPrint className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">
+                Está aquí, pero necesita ayuda
+              </span>
+            </button>
+            <button
+              onClick={() => setPasoPersonaAnimal('elegir')}
+              className="btn-gris w-full"
+            >
+              ← Atrás
+            </button>
           </div>
         )}
 
