@@ -37,10 +37,14 @@ import {
   Ambulance,
   Globe,
   HeartHandshake,
+  UserSearch,
+  PawPrint,
+  User,
   type LucideIcon,
 } from 'lucide-react'
 import { ICONO_TIPO, ICONO_HOSPITAL } from '../lib/iconosTipo'
 import { subirFotoMascota } from '../lib/fotoMascota'
+import { subirFotoDesaparecido } from '../lib/fotoDesaparecido'
 
 // Menú de "Reportar necesidad". El rescate NO va aquí: tiene su propio botón
 // rojo "🆘 SOS" (SosModal).
@@ -103,11 +107,19 @@ const ANIMALES: { v: string; etiqueta: string; emoji: string }[] = [
   { v: 'gato', etiqueta: 'Gato', emoji: '🐈' },
   { v: 'otro', etiqueta: 'Otro', emoji: '🐾' },
 ]
-type TipoReporte = NecesidadTipo | 'hospital'
+// 'desaparecido' NO es un NecesidadTipo: no va a `necesidades`, sino a la
+// tabla `desaparecidos` (la misma que alimenta la capa del mapa), para que
+// el reporte aparezca junto con los que ya trae el scraper.
+type TipoReporte = NecesidadTipo | 'hospital' | 'desaparecido'
 const HOSPITAL_META = {
   etiqueta: 'Hospital',
   emoji: '🏥',
   color: '#CC0001',
+}
+const DESAPARECIDO_META = {
+  etiqueta: 'Desaparecido',
+  emoji: '🔎',
+  color: '#7C3AED',
 }
 // Tamaños (DIÁMETRO aprox.) de una "zona sin atender", en km. Por defecto 3.
 // Guardamos el radio = diámetro / 2 para que el círculo sea fino y proporcional.
@@ -179,6 +191,14 @@ export default function ReportarModal({
   const [nombreMascota, setNombreMascota] = useState('')
   const [mascotaFile, setMascotaFile] = useState<File | null>(null)
   const [mascotaPreview, setMascotaPreview] = useState<string>('')
+  // Desaparecido: persona o mascota, nombre + foto (obligatorios), y
+  // documento (obligatorio SOLO si es persona).
+  const [tipoSerDesap, setTipoSerDesap] = useState<'persona' | 'mascota' | ''>('')
+  const [nombreDesap, setNombreDesap] = useState('')
+  const [edadDesap, setEdadDesap] = useState('')
+  const [documentoDesap, setDocumentoDesap] = useState('')
+  const [fotoDesapFile, setFotoDesapFile] = useState<File | null>(null)
+  const [fotoDesapPreview, setFotoDesapPreview] = useState<string>('')
   const [nombreHospital, setNombreHospital] = useState('')
   const [hospitalConfirmado, setHospitalConfirmado] =
     useState<HospitalGoogle | null>(null)
@@ -224,6 +244,7 @@ export default function ReportarModal({
   const esZona = tipo === 'zona_sin_atender' || esZonaAislada
   const esAtencionPsicologica = tipo === 'atencion_psicologica'
   const esHospital = tipo === 'hospital'
+  const esDesaparecido = tipo === 'desaparecido'
   const requiereUbicacion = !esAtencionPsicologica
   // Reportes comunes: recorrido de 3 tramos. Los tres tipos con campos muy
   // propios (perfil psicológico, foto del animal, buscador de Google Maps)
@@ -241,15 +262,30 @@ export default function ReportarModal({
       if (esAtencionPsicologica) {
         return Boolean(nombrePaciente.trim() && cedulaPaciente.trim())
       }
+      if (esDesaparecido) {
+        return Boolean(
+          nombreDesap.trim() &&
+            fotoDesapFile &&
+            (tipoSerDesap === 'mascota' || documentoDesap.trim()),
+        )
+      }
       // El resto necesita un punto: pin en el mapa o una dirección escrita.
       return Boolean(coord || zona.trim())
     }
     if (subPaso === 2 && esAtencionPsicologica) {
       return Boolean(descripcion.trim())
     }
+    if (subPaso === 2 && esDesaparecido) {
+      return Boolean(coord || zona.trim())
+    }
     return true
   })()
-  const metaTipo = tipo === 'hospital' ? HOSPITAL_META : TIPO_META[tipo]
+  const metaTipo =
+    tipo === 'hospital'
+      ? HOSPITAL_META
+      : tipo === 'desaparecido'
+        ? DESAPARECIDO_META
+        : TIPO_META[tipo]
   // Opciones del grupo abierto. "Zona aislada" solo la ven quienes pueden
   // crearla (admin / líder de voluntarios), dentro del grupo de peligros.
   const grupoAbierto = GRUPOS.find((g) => g.v === grupo) ?? null
@@ -377,13 +413,18 @@ export default function ReportarModal({
       setUrgencia('media')
       setPerfilPsico('') // vuelve a mostrar las tarjetas de ayuda emocional
     }
-    // Derrumbe / zona: el pin NO empieza en la ubicación de quien reporta.
+    if (t === 'desaparecido') {
+      setTipoSerDesap('') // vuelve a mostrar las tarjetas ¿persona o mascota?
+    }
+    // Derrumbe / zona / desaparecido: el pin NO empieza en la ubicación de
+    // quien reporta, sino donde se vio a la persona/mascota por última vez.
     setCoord(
       t === 'derrumbe' ||
         t === 'zona_sin_atender' ||
         t === 'zona_aislada' ||
         t === 'hospital' ||
-        t === 'atencion_psicologica'
+        t === 'atencion_psicologica' ||
+        t === 'desaparecido'
         ? null
         : coordAuto,
     )
@@ -476,6 +517,32 @@ export default function ReportarModal({
         )
       }
 
+      if (esDesaparecido) {
+        if (!nombreDesap.trim()) {
+          throw new Error('Escribe el nombre de la persona o mascota.')
+        }
+        if (!fotoDesapFile) {
+          throw new Error('Una foto es obligatoria para poder reconocerlo/a.')
+        }
+        if (tipoSerDesap === 'persona') {
+          const doc = documentoDesap.trim()
+          if (!doc) {
+            throw new Error('Escribe su cédula (Venezuela) o RUT (Chile).')
+          }
+          if (!esCedulaVenezolanaValida(doc) && !esRutChilenoValido(doc)) {
+            throw new Error(
+              'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678) o un RUT chileno (ej. 12.345.678-5).',
+            )
+          }
+        }
+        if (edadDesap.trim()) {
+          const edad = Number(edadDesap)
+          if (!Number.isFinite(edad) || edad < 0 || edad > 120) {
+            throw new Error('La edad no parece válida. Escribe solo el número.')
+          }
+        }
+      }
+
       let lat = esAtencionPsicologica ? null : coord?.lat ?? null
       let lng = esAtencionPsicologica ? null : coord?.lng ?? null
 
@@ -517,6 +584,56 @@ export default function ReportarModal({
         })
         if (error) throw error
         onCreado('hospital')
+        return
+      }
+
+      // Desaparecido: va a la tabla `desaparecidos` (no a `necesidades`), la
+      // misma que alimenta la capa del mapa, para que aparezca junto con los
+      // que ya trae el scraper. El documento (si es persona) es privado y va
+      // a una tabla aparte.
+      if (esDesaparecido) {
+        let fotoUrlDesap: string
+        try {
+          fotoUrlDesap = await subirFotoDesaparecido(fotoDesapFile!)
+        } catch (e) {
+          throw new Error(
+            'No se pudo subir la foto. Revisa tu conexión e inténtalo de nuevo. ' +
+              ((e as Error).message ?? ''),
+          )
+        }
+        const { data: auth } = await supabase.auth.getUser()
+        const pais = lat !== null && lng !== null ? paisPorCoordenadas(lat, lng) : null
+        const { data: fila, error } = await supabase
+          .from('desaparecidos')
+          .insert({
+            nombre: nombreDesap.trim(),
+            edad: edadDesap.trim() ? Number(edadDesap) : null,
+            genero: null,
+            fecha_desaparicion: new Date().toISOString().slice(0, 10),
+            ultima_ubicacion: zona.trim() || null,
+            lat,
+            lng,
+            foto_url: fotoUrlDesap,
+            contacto_familiar: contacto,
+            estado: 'no_encontrado',
+            fuente: 'reporte_ciudadano',
+            pais,
+            tipo_ser: tipoSerDesap,
+            reportado_por: auth?.user?.id ?? null,
+          })
+          .select('id')
+          .single()
+        if (error) throw error
+        if (tipoSerDesap === 'persona' && documentoDesap.trim()) {
+          const { error: errDoc } = await supabase
+            .from('desaparecidos_documento')
+            .insert({
+              desaparecido_id: fila.id,
+              documento: documentoDesap.trim(),
+            })
+          if (errDoc) throw errDoc
+        }
+        onCreado('desaparecido')
         return
       }
 
@@ -741,6 +858,97 @@ export default function ReportarModal({
     </div>
   )
 
+  const bloqueDatosDesaparecido = (
+    <div className="space-y-3 rounded-2xl border border-purple-100 bg-purple-50/60 p-3">
+      <p className="text-sm text-purple-950">
+        Una foto reciente ayuda muchísimo a reconocerlo/a.
+      </p>
+      <label className="block">
+        <span className="font-bold">
+          Nombre <span className="text-bandera-rojo">*</span>
+        </span>
+        <input
+          className="input mt-1"
+          placeholder={tipoSerDesap === 'mascota' ? 'Ej: Firulais' : 'Nombre y apellido'}
+          maxLength={60}
+          value={nombreDesap}
+          onChange={(e) => setNombreDesap(e.target.value)}
+        />
+      </label>
+      <label className="block">
+        <span className="font-bold">Edad</span>
+        <input
+          className="input mt-1"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={3}
+          placeholder="Ej: 34"
+          value={edadDesap}
+          onChange={(e) => setEdadDesap(e.target.value.replace(/\D/g, ''))}
+        />
+      </label>
+      {tipoSerDesap === 'persona' && (
+        <label className="block">
+          <span className="font-bold">
+            Cédula (Venezuela) o RUT (Chile){' '}
+            <span className="text-bandera-rojo">*</span>
+          </span>
+          <input
+            className="input mt-1"
+            placeholder="Ej: V-12345678 o 12.345.678-5"
+            value={documentoDesap}
+            onChange={(e) => setDocumentoDesap(e.target.value)}
+          />
+          <span className="text-xs text-gray-500 mt-1 block">
+            Ayuda al equipo a verificar e identificar el caso. Es privado.
+          </span>
+        </label>
+      )}
+      <div>
+        <p className="font-bold mb-1">
+          Foto <span className="text-bandera-rojo">*</span>
+        </p>
+        {fotoDesapPreview ? (
+          <div className="flex items-center gap-3">
+            <img
+              src={fotoDesapPreview}
+              alt=""
+              className="h-20 w-20 rounded-xl object-cover border"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setFotoDesapFile(null)
+                setFotoDesapPreview('')
+              }}
+              className="text-sm font-semibold text-bandera-rojo"
+            >
+              Quitar foto
+            </button>
+          </div>
+        ) : (
+          <label className="btn-gris inline-flex py-2 px-4 cursor-pointer">
+            📷 Elegir foto
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                setFotoDesapFile(f)
+                setFotoDesapPreview(URL.createObjectURL(f))
+              }}
+            />
+          </label>
+        )}
+        <p className="text-[11px] text-gray-500 mt-1">
+          La foto se comprime automáticamente para que pese poco.
+        </p>
+      </div>
+    </div>
+  )
+
   const bloqueContacto = (
     <div>
       <p className="font-bold mb-1">
@@ -867,6 +1075,8 @@ export default function ReportarModal({
       ? 'Dirección o referencia de la zona'
       : esHospital
         ? 'Dirección del hospital'
+        : esDesaparecido
+          ? 'Dónde se le vio por última vez'
         // No es opcional (hace falta el pin o esta dirección): se quita la
         // aclaración equivocada. Va más chica porque el mapa de abajo ya dice
         // "arrastra el pin"; no hace falta repetir la idea dos veces.
@@ -878,6 +1088,8 @@ export default function ReportarModal({
       ? 'Sector, urbanización, pueblo, carretera...'
       : esHospital
         ? 'Calle, avenida, sector o referencia'
+        : esDesaparecido
+          ? 'Sector, calle, pueblo, referencia...'
         : 'Calle, número, sector, referencia...'
 
   const etiquetaDetalle =
@@ -939,6 +1151,14 @@ export default function ReportarModal({
                 onClick={() => elegirTipo(d.tipo)}
               />
             ))}
+
+            <BloqueOpcion
+              icono={UserSearch}
+              color={DESAPARECIDO_META.color}
+              titulo="Reportar un desaparecido"
+              ejemplos="Persona o mascota, con nombre y foto"
+              onClick={() => elegirTipo('desaparecido')}
+            />
 
             {/* Salidas poco frecuentes: presentes, pero sin competir con las
                 opciones grandes de arriba. */}
@@ -1065,10 +1285,39 @@ export default function ReportarModal({
           </div>
         )}
 
+        {/* DESAPARECIDO — antes del formulario: ¿persona o mascota? Define
+            qué campos pedir (el documento solo aplica a personas). */}
+        {paso > 1 && esDesaparecido && !tipoSerDesap && (
+          <div className="space-y-2">
+            <p className="font-bold">¿Es una persona o una mascota?</p>
+            <button
+              type="button"
+              onClick={() => setTipoSerDesap('persona')}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
+            >
+              <User className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">Es una persona</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipoSerDesap('mascota')}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
+            >
+              <PawPrint className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
+              <span className="font-extrabold text-purple-950">Es una mascota</span>
+            </button>
+            <button onClick={() => setPaso(1)} className="btn-gris w-full">
+              ← Atrás
+            </button>
+          </div>
+        )}
+
         {/* PASO 2: reportes comunes en 3 tramos (¿dónde? · ¿qué pasa? ·
             ¿teléfono?). Hospital, apoyo emocional y mascota conservan su
             pantalla única: sus campos propios no encajan en este recorrido. */}
-        {paso > 1 && !(esAtencionPsicologica && !perfilPsico) && (
+        {paso > 1 &&
+          !(esAtencionPsicologica && !perfilPsico) &&
+          !(esDesaparecido && !tipoSerDesap) && (
           <div className="space-y-3">
             {usaPasos && (
               <div>
@@ -1093,11 +1342,15 @@ export default function ReportarModal({
                   {subPaso === 1
                     ? esAtencionPsicologica
                       ? '¿Quién eres?'
-                      : '¿Dónde es?'
+                      : esDesaparecido
+                        ? '¿Quién es?'
+                        : '¿Dónde es?'
                     : subPaso === 2
                       ? esAtencionPsicologica
                         ? '¿Qué estás viviendo?'
-                        : '¿Qué pasa?'
+                        : esDesaparecido
+                          ? '¿Dónde se le vio por última vez?'
+                          : '¿Qué pasa?'
                       : '¿Cómo te contactamos?'}
                 </p>
               </div>
@@ -1204,13 +1457,15 @@ export default function ReportarModal({
 
             {esAtencionPsicologica && enTramo(1) && bloqueDatosPsicologia}
 
+            {esDesaparecido && enTramo(1) && bloqueDatosDesaparecido}
+
             {esMascota && enTramo(2) && bloqueDatosMascota}
 
-            {requiereUbicacion && enTramo(1) && (
+            {requiereUbicacion && enTramo(esDesaparecido ? 2 : 1) && (
               <div>
                 <p
                   className={
-                    esDerrumbe || esZona || esHospital
+                    esDerrumbe || esZona || esHospital || esDesaparecido
                       ? 'font-bold mb-2'
                       : 'text-xs font-semibold text-gray-500 mb-1'
                   }
@@ -1253,9 +1508,11 @@ export default function ReportarModal({
               </div>
             )}
 
-            {requiereUbicacion && enTramo(1) && bloqueUbicacionMapa}
+            {requiereUbicacion &&
+              enTramo(esDesaparecido ? 2 : 1) &&
+              bloqueUbicacionMapa}
 
-            {enTramo(2) && (
+            {!esDesaparecido && enTramo(2) && (
               <div>
                 <p className="font-bold mb-2">{etiquetaDetalle}</p>
                 <textarea
@@ -1269,6 +1526,7 @@ export default function ReportarModal({
 
             {!esHospital &&
               !esAtencionPsicologica &&
+              !esDesaparecido &&
               enTramo(2) &&
               selectorUrgencia}
             {/* La catástrofe ya no se pregunta: se asigna sola según el país
@@ -1299,7 +1557,7 @@ export default function ReportarModal({
                     disabled={!tramoCompleto}
                     className="btn-azul flex-1 disabled:opacity-60"
                   >
-                    {subPaso === 1 && !esAtencionPsicologica
+                    {subPaso === 1 && !esAtencionPsicologica && !esDesaparecido
                       ? '✅ Es aquí'
                       : 'Siguiente →'}
                   </button>

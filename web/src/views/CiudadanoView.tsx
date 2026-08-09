@@ -1120,7 +1120,9 @@ export default function CiudadanoView() {
                 ? 'Hospital registrado correctamente. Gracias por ayudar a mantener la información actualizada.'
                 : tipo === 'atencion_psicologica'
                   ? 'Solicitud creada. Gracias por confiar en la red: el equipo psicológico revisará tu caso y te contactará lo antes posible.'
-                  : 'Reporte creado correctamente. Gracias por avisar: el equipo revisará la solicitud y te contactará lo antes posible.',
+                  : tipo === 'desaparecido'
+                    ? 'Reporte creado. Gracias por avisar: ya aparece en el mapa, en la capa de Desaparecidos.'
+                    : 'Reporte creado correctamente. Gracias por avisar: el equipo revisará la solicitud y te contactará lo antes posible.',
               'exito',
             )
             if (tipo === 'hospital') {
