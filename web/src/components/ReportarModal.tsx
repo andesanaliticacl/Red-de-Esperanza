@@ -73,7 +73,10 @@ const GRUPOS: {
     icono: ShoppingBasket,
     titulo: 'Necesito algo',
     ejemplos: 'Agua, comida, medicinas, refugio…',
-    tipos: ['agua_comida', 'medicinas', 'refugio', 'sacos_arena'],
+    // 'mascota' aquí es para un animal PRESENTE que necesita ayuda (herido,
+    // atrapado, sin dueño) — no confundir con "Desaparecidos", que es para
+    // reportar que no se sabe dónde está.
+    tipos: ['agua_comida', 'medicinas', 'refugio', 'sacos_arena', 'mascota'],
   },
   {
     v: 'peligro',
@@ -163,13 +166,13 @@ export default function ReportarModal({
   // grandes). Se conserva al volver del formulario, para caer en la misma
   // lista de la que se salió y no obligar a empezar de cero.
   const [grupo, setGrupo] = useState<GrupoReporte | null>(null)
-  // Mini-recorrido del bloque combinado "Persona o mascota": primero elige
-  // a quién busca, y si es mascota, si está perdida (va a `desaparecidos`)
-  // o necesita ayuda estando presente (va al reporte de mascota de siempre).
+  // Mini-recorrido del bloque "Desaparecidos": ¿a quién busca? (persona o
+  // mascota). El animal que necesita ayuda ESTANDO PRESENTE va aparte,
+  // dentro de "Necesito algo" → "Para mi mascota".
   // null = no está en este recorrido (se ve la lista de bloques grandes).
-  const [pasoPersonaAnimal, setPasoPersonaAnimal] = useState<
-    'elegir' | 'mascota' | null
-  >(null)
+  const [pasoPersonaAnimal, setPasoPersonaAnimal] = useState<'elegir' | null>(
+    null,
+  )
   // Tramo del formulario en los reportes comunes: 1 ¿dónde? · 2 ¿qué pasa? ·
   // 3 ¿tu teléfono? Una sola pregunta por pantalla se sigue mucho mejor bajo
   // estrés que un formulario largo. Apoyo emocional, mascota y hospital NO lo
@@ -1157,8 +1160,8 @@ export default function ReportarModal({
             <BloqueOpcion
               icono={UserSearch}
               color={DESAPARECIDO_META.color}
-              titulo="Persona o mascota"
-              ejemplos="Perdida, desaparecida o necesita ayuda"
+              titulo="Desaparecidos"
+              ejemplos="Persona o mascota, con nombre y foto"
               onClick={() => setPasoPersonaAnimal('elegir')}
             />
 
@@ -1186,8 +1189,9 @@ export default function ReportarModal({
           </div>
         )}
 
-        {/* Bloque combinado "Persona o mascota": a quién busca, y si es
-            mascota, si está perdida o solo necesita ayuda estando presente. */}
+        {/* Bloque "Desaparecidos": a quién busca. Va directo al formulario
+            de desaparecido en ambos casos (el animal que necesita ayuda
+            ESTANDO PRESENTE vive aparte, dentro de "Necesito algo"). */}
         {paso === 1 && pasoPersonaAnimal === 'elegir' && (
           <div className="space-y-2">
             <p className="font-bold mb-1">¿Es una persona o una mascota?</p>
@@ -1205,26 +1209,6 @@ export default function ReportarModal({
             </button>
             <button
               type="button"
-              onClick={() => setPasoPersonaAnimal('mascota')}
-              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
-            >
-              <PawPrint className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
-              <span className="font-extrabold text-purple-950">Es una mascota</span>
-            </button>
-            <button
-              onClick={() => setPasoPersonaAnimal(null)}
-              className="btn-gris w-full"
-            >
-              ← Atrás
-            </button>
-          </div>
-        )}
-
-        {paso === 1 && pasoPersonaAnimal === 'mascota' && (
-          <div className="space-y-2">
-            <p className="font-bold mb-1">¿Está perdida o necesita ayuda?</p>
-            <button
-              type="button"
               onClick={() => {
                 setTipoSerDesap('mascota')
                 setPasoPersonaAnimal(null)
@@ -1232,26 +1216,11 @@ export default function ReportarModal({
               }}
               className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
             >
-              <UserSearch className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
-              <span className="font-extrabold text-purple-950">
-                Está perdida o desaparecida
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPasoPersonaAnimal(null)
-                elegirTipo('mascota')
-              }}
-              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-200 bg-purple-50/60 p-3.5 hover:border-bandera-azul"
-            >
               <PawPrint className="h-6 w-6 text-purple-700 shrink-0" aria-hidden="true" />
-              <span className="font-extrabold text-purple-950">
-                Está aquí, pero necesita ayuda
-              </span>
+              <span className="font-extrabold text-purple-950">Es una mascota</span>
             </button>
             <button
-              onClick={() => setPasoPersonaAnimal('elegir')}
+              onClick={() => setPasoPersonaAnimal(null)}
               className="btn-gris w-full"
             >
               ← Atrás
@@ -1271,7 +1240,10 @@ export default function ReportarModal({
                 key={t}
                 icono={ICONO_TIPO[t]}
                 color={TIPO_META[t].color}
-                titulo={TIPO_META[t].etiqueta}
+                // "mascota" aquí es un animal presente que necesita ayuda:
+                // texto propio para no confundirlo con "Desaparecidos".
+                titulo={t === 'mascota' ? 'Para mi mascota' : TIPO_META[t].etiqueta}
+                ejemplos={t === 'mascota' ? 'Está herida, atrapada o sin dueño' : undefined}
                 onClick={() => elegirTipo(t)}
               />
             ))}
