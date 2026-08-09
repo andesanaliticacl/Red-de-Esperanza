@@ -1126,15 +1126,20 @@ export default function ReportarModal({
             <div className="flex items-center justify-between mb-1">
               <p className="font-bold">¿Qué deseas reportar?</p>
               {/* Ayuda emocional aparte, chica: no es un reporte de daño
-                  material y no debe competir por espacio con esos bloques. */}
+                  material y no debe competir por espacio con esos bloques.
+                  Lleva su propio texto (no solo el ícono) para que se
+                  entienda de un vistazo qué es. */}
               <button
                 type="button"
                 onClick={() => elegirTipo('atencion_psicologica')}
                 aria-label="Me siento mal, quiero hablar"
                 title="Me siento mal, quiero hablar"
-                className="h-9 w-9 shrink-0 grid place-items-center rounded-full bg-purple-50 text-purple-600 transition-colors hover:bg-purple-100"
+                className="shrink-0 flex items-center gap-1.5 rounded-full bg-purple-50 pl-2.5 pr-3 py-1.5 text-purple-700 transition-colors hover:bg-purple-100"
               >
-                <Heart className="h-5 w-5" aria-hidden="true" />
+                <Heart className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="text-xs font-bold leading-tight">
+                  Quiero hablar
+                </span>
               </button>
             </div>
 
