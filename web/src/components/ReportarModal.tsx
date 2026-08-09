@@ -41,6 +41,7 @@ import {
   PawPrint,
   User,
   Heart,
+  Dog,
   type LucideIcon,
 } from 'lucide-react'
 import { ICONO_TIPO, ICONO_HOSPITAL } from '../lib/iconosTipo'
@@ -1238,12 +1239,13 @@ export default function ReportarModal({
             {tiposDelGrupo.map((t) => (
               <BloqueOpcion
                 key={t}
-                icono={ICONO_TIPO[t]}
-                color={TIPO_META[t].color}
                 // "mascota" aquí es un animal presente que necesita ayuda:
-                // texto propio para no confundirlo con "Desaparecidos".
+                // ícono propio (Dog) para distinguirlo de la patita (PawPrint)
+                // que usa "Desaparecidos" — ambos hablan de mascotas, pero
+                // cada uno de una situación distinta.
+                icono={t === 'mascota' ? Dog : ICONO_TIPO[t]}
+                color={TIPO_META[t].color}
                 titulo={t === 'mascota' ? 'Para mi mascota' : TIPO_META[t].etiqueta}
-                ejemplos={t === 'mascota' ? 'Está herida, atrapada o sin dueño' : undefined}
                 onClick={() => elegirTipo(t)}
               />
             ))}
