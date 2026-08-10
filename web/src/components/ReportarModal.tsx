@@ -65,6 +65,7 @@ type GrupoReporte = 'necesito' | 'peligro'
 const GRUPOS: {
   v: GrupoReporte
   icono: LucideIcon
+  color: string
   titulo: string
   ejemplos: string
   tipos: NecesidadTipo[]
@@ -72,6 +73,9 @@ const GRUPOS: {
   {
     v: 'necesito',
     icono: ShoppingBasket,
+    // Azul de marca: se explica bien en video ("el ícono azul es para pedir
+    // ayuda") sin competir con el rojo de peligro/emergencia.
+    color: '#002FA7',
     titulo: 'Necesito algo',
     ejemplos: 'Agua, comida, medicinas, refugio…',
     // 'mascota' aquí es para un animal PRESENTE que necesita ayuda (herido,
@@ -82,6 +86,9 @@ const GRUPOS: {
   {
     v: 'peligro',
     icono: TriangleAlert,
+    // Rojo de alerta: coincide con el color que ya usan los tipos de peligro
+    // en el mapa (derrumbe, inundación, incendio…).
+    color: '#CC0001',
     titulo: 'Aviso de un peligro',
     ejemplos: 'Inundación, incendio, derrumbe, zona sin ayuda…',
     tipos: ['inundacion', 'incendio', 'derrumbe', 'zona_sin_atender'],
@@ -1158,6 +1165,7 @@ export default function ReportarModal({
               <BloqueOpcion
                 key={g.v}
                 icono={g.icono}
+                color={g.color}
                 titulo={g.titulo}
                 ejemplos={g.ejemplos}
                 onClick={() => setGrupo(g.v)}
@@ -1701,14 +1709,16 @@ function BloqueOpcion({
                  hover:border-bandera-azul/40 hover:shadow-media hover:-translate-y-[1px]
                  active:translate-y-0 active:scale-[0.99]"
     >
-      {/* El icono sobre un disco apenas teñido con el color del tipo: da
-          peso, alinea las filas y mete el color con cuentagotas (un fondo
-          saturado se vería de juguete). */}
+      {/* El icono sobre un disco apenas teñido con el color del tipo, más un
+          halo suave detrás: da peso, alinea las filas y mete el color con
+          cuentagotas (un fondo saturado se vería de juguete). El halo ayuda
+          a señalar el ícono al explicarlo en video, sin gritar. */}
       <span
         className="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-colors duration-200"
         style={{
           backgroundColor: color ? `${color}14` : '#F0F1F5',
           color: color ?? '#4B5468',
+          boxShadow: color ? `0 0 0 6px ${color}0D, 0 2px 10px -2px ${color}40` : undefined,
         }}
         aria-hidden="true"
       >
