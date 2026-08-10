@@ -459,3 +459,81 @@ export async function listarEntidadesCompletas(): Promise<EntidadCompleta[]> {
   if (error) throw error
   return (data ?? []) as EntidadCompleta[]
 }
+
+// ============================================================
+// Equipo verificado (migración 64): la entidad avala a sus propios
+// rescatistas/voluntarios. Distinto de `entidad_miembros` (que es para
+// quienes ADMINISTRAN la ficha pública, un permiso mucho más fuerte).
+// ============================================================
+
+/** Candidato encontrado al buscar por teléfono (para verificar). */
+export interface CandidatoEquipo {
+  id: string
+  nombre: string | null
+  rol: string
+  telefono: string | null
+  pais: string | null
+  ciudad: string | null
+  /** Si ya está verificado (por esta u otra entidad). */
+  ya_verificado_por: string | null
+  ya_verificado_entidad: string | null
+}
+
+/** Un miembro ya verificado del equipo de una entidad. */
+export interface MiembroEquipo {
+  perfil_id: string
+  nombre: string | null
+  rol: string
+  telefono: string | null
+  verificado_en: string
+  verificado_por: string | null
+  nota: string | null
+}
+
+/**
+ * Busca a alguien por su teléfono EXACTO (tal como está guardado, con
+ * prefijo) para verificarlo. Solo devuelve resultados con rol voluntario o
+ * rescatista — no es un buscador libre de usuarios.
+ */
+export async function buscarCandidatoEquipo(
+  telefono: string,
+): Promise<CandidatoEquipo[]> {
+  const { data, error } = await supabase.rpc('entidad_buscar_candidato', {
+    p_telefono: telefono.trim(),
+  })
+  if (error) throw error
+  return (data ?? []) as CandidatoEquipo[]
+}
+
+/** Verifica (o re-confirma) a una persona como parte del equipo de la entidad. */
+export async function verificarMiembroEquipo(args: {
+  entidadId: string
+  perfilId: string
+  nota?: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('entidad_verificar_miembro', {
+    p_entidad_id: args.entidadId,
+    p_perfil_id: args.perfilId,
+    p_nota: args.nota?.trim() || null,
+  })
+  if (error) throw error
+}
+
+/** Quita la verificación de una persona (deja de aparecer como del equipo). */
+export async function quitarVerificacionEquipo(perfilId: string): Promise<void> {
+  const { error } = await supabase.rpc('entidad_quitar_verificacion', {
+    p_perfil_id: perfilId,
+  })
+  if (error) throw error
+}
+
+/** Equipo verificado de una entidad (con teléfono — solo para quien la administra). */
+export async function listarEquipoEntidad(
+  entidadId: string,
+): Promise<MiembroEquipo[]> {
+  const { data, error } = await supabase.rpc('entidad_listar_equipo', {
+    p_entidad_id: entidadId,
+  })
+  if (error) throw error
+  return (data ?? []) as MiembroEquipo[]
+}

@@ -32,6 +32,7 @@ const AdminConversacionesView = lazy(
 )
 const NotasCierreView = lazy(() => import('./views/NotasCierreView'))
 const ScrapingAdminView = lazy(() => import('./views/ScrapingAdminView'))
+const EntidadView = lazy(() => import('./views/EntidadView'))
 
 function Cargando() {
   return (
@@ -156,6 +157,18 @@ export default function App() {
                   ]}
                 >
                   <HistoricoSosView />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Entidad: verifica a su propio equipo de rescatistas/voluntarios.
+                El admin de la red también entra aquí para gestionar la
+                entidad que elija (el selector vive dentro de la vista). */}
+            <Route
+              path="/mi-entidad"
+              element={
+                <ProtectedRoute roles={['entidad', 'admin']}>
+                  <EntidadView />
                 </ProtectedRoute>
               }
             />

@@ -23,6 +23,7 @@ import MenuUsuario from '../components/MenuUsuario'
 import Paloma from '../components/Paloma'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
+import { nombresPublicos } from '../lib/perfiles'
 import { geocodificarDireccion } from '../lib/geo'
 import {
   esRolPsicologia,
@@ -355,6 +356,22 @@ export default function CiudadanoView() {
     // por sondeo → no abren websocket → escala a miles a la vez.
     !!session,
   )
+  // Ids de perfil (asignado_a) verificados por una entidad (migración 64):
+  // sus necesidades muestran un anillo celeste en el pin del mapa.
+  const [idsVerificados, setIdsVerificados] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    const ids = [...new Set(necesidades.map((n) => n.asignado_a).filter(Boolean))]
+    if (ids.length === 0) return
+    nombresPublicos(ids).then((m) => {
+      setIdsVerificados(
+        new Set(
+          [...m.values()]
+            .filter((p) => p.verificado_entidad_id)
+            .map((p) => p.id),
+        ),
+      )
+    })
+  }, [necesidades])
   // País de la capa de desaparecidos. Hasta ahora TODO el dataset es del
   // terremoto de Venezuela 2026 (por eso arranca ahí), pero cuando otras
   // catástrofes sumen sus propios registros, esto evita mezclarlos en el
@@ -749,6 +766,7 @@ export default function CiudadanoView() {
               puedeEliminarDelMapa ? eliminarDelMapaHandler : undefined
             }
             onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
+            idsAsignadoVerificado={idsVerificados}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}

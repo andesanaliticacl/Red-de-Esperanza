@@ -684,6 +684,7 @@ export default function MapaNecesidades({
   desaparecidoResaltadoId,
   onHospitalSeleccionado,
   onTocarMapa,
+  idsAsignadoVerificado,
 }: {
   /** Se llama al tocar el mapa (no un marcador): sirve para que la vista
    *  cierre los paneles que estén tapándolo. */
@@ -704,6 +705,9 @@ export default function MapaNecesidades({
   desaparecidoResaltadoId?: string | null
   /** Permite abrir un panel con personas asociadas a un hospital. */
   onHospitalSeleccionado?: (hospital: CentroAcopio) => void
+  /** Ids de perfil (asignado_a) verificados por una entidad (migración 64):
+   *  sus necesidades muestran un anillo celeste en el pin. */
+  idsAsignadoVerificado?: Set<string>
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
   onMensaje?: (n: Necesidad) => void
   /**
@@ -999,6 +1003,7 @@ export default function MapaNecesidades({
                 n.eliminada_del_mapa ||
                 n.estado === 'rechazada',
               idsSinTel.has(n.id),
+              !!n.asignado_a && !!idsAsignadoVerificado?.has(n.asignado_a),
             )}
             pane="primerPlano"
             zIndexOffset={n.id === resaltadaId ? 2000 : 0}

@@ -113,6 +113,11 @@ export interface PerfilPublico {
   rol: RolUsuario
   foto_url?: string | null
   ciudad?: string | null
+  /** Si una entidad verificó a esta persona como su rescatista/voluntario
+   *  (migración 64). Null en los tres si nadie la verificó. */
+  verificado_entidad_id?: string | null
+  verificado_entidad_nombre?: string | null
+  verificado_entidad_tier?: string | null
 }
 
 export type EventoTipo =

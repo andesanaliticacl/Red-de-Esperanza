@@ -13,7 +13,9 @@ export async function nombresPublicos(
   if (limpios.length === 0) return mapa
   const { data, error } = await supabase
     .from('perfiles_publicos')
-    .select('id, nombre, rol')
+    .select(
+      'id, nombre, rol, verificado_entidad_id, verificado_entidad_nombre, verificado_entidad_tier',
+    )
     .in('id', limpios)
   if (error) return mapa
   for (const p of (data ?? []) as PerfilPublico[]) mapa.set(p.id, p)

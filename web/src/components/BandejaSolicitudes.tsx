@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ShieldCheck, Brain, Check, X, Clock } from 'lucide-react'
 import {
   listarSolicitudesEntidad,
@@ -280,6 +281,19 @@ function FichaEntidad({
         <p className="mt-2 text-xs text-tinta-500">
           Nota: {s.nota_revision}
         </p>
+      )}
+
+      {/* Aprobada: acceso directo para verificar a su equipo de rescatistas/
+          voluntarios (migración 64). No requiere pasar por el selector de
+          entidad de /mi-entidad. */}
+      {s.estado === 'aprobada' && s.entidad_id && (
+        <Link
+          to={`/mi-entidad?entidad=${s.entidad_id}`}
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border-2 border-sky-200 bg-sky-50 py-2 text-sm font-bold text-sky-700 no-underline hover:border-sky-300"
+        >
+          <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Gestionar su
+          equipo verificado
+        </Link>
       )}
 
       {pendiente && !abierto && (

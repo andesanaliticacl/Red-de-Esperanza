@@ -12,6 +12,7 @@ import {
   Package,
   NotebookPen,
   Shield,
+  ShieldCheck,
   HelpCircle,
   ChevronDown,
   type LucideIcon,
@@ -182,6 +183,14 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
                   onClick={cerrar}
                 />
               )}
+              {rol === 'entidad' && (
+                <ItemLink
+                  to="/mi-entidad"
+                  icono={ShieldCheck}
+                  texto="Mi equipo verificado"
+                  onClick={cerrar}
+                />
+              )}
               {/* El admin NO usa el chat en vivo: en su lugar monitorea TODAS
                   las conversaciones (solo lectura). El resto sí ve el chat. */}
               {rol === 'admin' ? (
@@ -215,6 +224,14 @@ export default function MenuUsuario({ claro = false }: { claro?: boolean }) {
               )}
               {rol === 'admin' && (
                 <ItemLink to="/panel-x7k2" icono={Shield} texto="Administración" onClick={cerrar} />
+              )}
+              {rol === 'admin' && (
+                <ItemLink
+                  to="/mi-entidad"
+                  icono={ShieldCheck}
+                  texto="Equipos de entidades"
+                  onClick={cerrar}
+                />
               )}
 
               {/* Ayuda e instalación (antes estaban sueltas en el mapa). */}

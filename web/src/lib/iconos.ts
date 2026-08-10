@@ -30,8 +30,11 @@ export function iconoNecesidad(
   atenuar = false,
   // sinTelefono: añade una insignia 📵 para distinguir los que no dejaron número.
   sinTelefono = false,
+  // verificado: quien la está atendiendo (asignado_a) fue verificado por una
+  // entidad (migración 64) — se ve un anillo celeste alrededor del pin.
+  verificado = false,
 ): L.DivIcon {
-  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}|${compacto ? 1 : 0}|${atenuar ? 1 : 0}|${sinTelefono ? 1 : 0}`
+  const clave = `${tipo}|${estado}|${resaltada ? 1 : 0}|${fuera ? 1 : 0}|${compacto ? 1 : 0}|${atenuar ? 1 : 0}|${sinTelefono ? 1 : 0}|${verificado ? 1 : 0}`
   const enCache = _cacheNecesidad.get(clave)
   if (enCache) return enCache
   const { color } = TIPO_META[tipo]
@@ -86,8 +89,16 @@ export function iconoNecesidad(
   )
   // En móvil quitamos la SOMBRA del pin: es de lo más caro de repintar al mover
   // el mapa. Sin ella el teléfono dibuja cada marcador mucho más rápido (mismo
-  // color, forma y emoji). En escritorio se mantiene la sombra.
-  const sombra = compacto ? '' : 'box-shadow:0 2px 6px rgba(0,0,0,.4);'
+  // color, forma y emoji). En escritorio se mantiene la sombra. El anillo de
+  // "verificado" SÍ se conserva en móvil (es la señal importante, y es una
+  // sola capa extra, barata comparada con el drop-shadow).
+  const sombra = [
+    verificado ? '0 0 0 3px #0EA5E9' : '',
+    compacto ? '' : '0 2px 6px rgba(0,0,0,.4)',
+  ]
+    .filter(Boolean)
+    .join(', ')
+  const estiloSombra = sombra ? `box-shadow:${sombra};` : ''
   const halo = resaltada
     ? '<span class="pulso-resaltado"></span>'
     : esDerrumbe
@@ -125,7 +136,7 @@ export function iconoNecesidad(
           width:${tam}px;height:${tam}px;border-radius:50% 50% 50% 0;
           transform:rotate(-45deg);
           border:${borde};
-          ${sombra}
+          ${estiloSombra}
           opacity:${opacidad};
           display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);color:#fff;display:flex;">${svgIcono(tipo, fuente)}</span>

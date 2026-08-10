@@ -9,6 +9,9 @@ import MapaNecesidades from '../components/MapaNecesidades'
 import ChatNecesidad from '../components/ChatNecesidad'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TextoExpandible from '../components/TextoExpandible'
+import InsigniaVerificado, {
+  estiloContornoVerificado,
+} from '../components/InsigniaVerificado'
 import { cargarContactosNecesidad } from '../lib/contactos'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
 import {
@@ -291,6 +294,20 @@ export default function VoluntarioView() {
 
   const quienAtiende = (n: Necesidad): string | null =>
     n.asignado_a ? nombres.get(n.asignado_a)?.nombre ?? 'Voluntario' : null
+  // Entidad que verificó a quien atiende (migración 64), para la insignia.
+  const entidadDeQuienAtiende = (n: Necesidad): string | null =>
+    (n.asignado_a && nombres.get(n.asignado_a)?.verificado_entidad_nombre) ||
+    null
+  // Para el anillo celeste en el mapa: ids de personas verificadas.
+  const idsVerificados = useMemo(
+    () =>
+      new Set(
+        [...nombres.values()]
+          .filter((p) => p.verificado_entidad_id)
+          .map((p) => p.id),
+      ),
+    [nombres],
+  )
 
   // Conjunto combinado: las necesidades cargadas (tope 500) + MIS casos
   // asignados (sin tope), sin duplicar. Garantiza que "Me asigné" no se vacíe.
@@ -678,6 +695,7 @@ export default function VoluntarioView() {
           }}
           onEliminarDelMapa={puedeEliminar ? eliminarDelMapaHandler : undefined}
           onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
+          idsAsignadoVerificado={idsVerificados}
           puedeVerContacto
           ajustarVista
         />
@@ -730,6 +748,7 @@ export default function VoluntarioView() {
                 onRetirar={esAdmin ? () => setARetirar(n) : undefined}
                 retirarEtiqueta={esAdmin ? 'Liberar' : 'Retirarme'}
                 atendidaPor={quienAtiende(n)}
+                atendidaPorEntidad={entidadDeQuienAtiende(n)}
                 onChat={() => setChat(n)}
               />
             ))}
@@ -1018,6 +1037,7 @@ function Fila({
   onRetirar,
   retirarEtiqueta,
   atendidaPor,
+  atendidaPorEntidad,
 }: {
   n: Necesidad
   numero?: number
@@ -1037,9 +1057,14 @@ function Fila({
   // un caso ajeno, p. ej. abandonado hace semanas).
   retirarEtiqueta?: string
   atendidaPor?: string | null
+  /** Entidad que verificó a quien atiende (migración 64), si aplica. */
+  atendidaPorEntidad?: string | null
 }) {
   return (
-    <div className="card flex items-center gap-3">
+    <div
+      className="card flex items-center gap-3"
+      style={estiloContornoVerificado(!!atendidaPorEntidad)}
+    >
       {numero != null && (
         <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bandera-azul text-white text-xs font-bold">
           {numero}
@@ -1069,8 +1094,11 @@ function Fila({
           🕒 {fechaCorta(n.creado_en)} · {hace(n.creado_en)}
         </div>
         {atendidaPor && (
-          <div className="text-xs font-semibold text-bandera-azul mt-0.5">
+          <div className="text-xs font-semibold text-bandera-azul mt-0.5 flex items-center gap-1.5 flex-wrap">
             🤝 Atiende: {atendidaPor}
+            {atendidaPorEntidad && (
+              <InsigniaVerificado entidadNombre={atendidaPorEntidad} compacta />
+            )}
           </div>
         )}
         <InfoContacto
