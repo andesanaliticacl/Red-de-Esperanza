@@ -497,12 +497,13 @@ export default function ReportarModal({
           'Escribe tu nombre o el nombre de la persona que necesita apoyo.',
         )
       }
-      // La cédula/RUT es OBLIGATORIA: acepta cédula venezolana o RUT chileno.
+      // La cédula/RUT es OBLIGATORIA: acepta cédula venezolana, RUT chileno
+      // o cédula colombiana.
       if (esAtencionPsicologica) {
         const doc = cedulaPaciente.trim()
         if (!doc) {
           throw new Error(
-            'Escribe tu cédula (Venezuela) o RUT (Chile) para poder identificar tu caso.',
+            'Escribe tu cédula (Venezuela o Colombia) o RUT (Chile) para poder identificar tu caso.',
           )
         }
         const check = validarDocumentoFlexible(doc)
@@ -530,7 +531,9 @@ export default function ReportarModal({
         if (tipoSerDesap === 'persona') {
           const doc = documentoDesap.trim()
           if (!doc) {
-            throw new Error('Escribe su cédula (Venezuela) o RUT (Chile).')
+            throw new Error(
+              'Escribe su cédula (Venezuela o Colombia) o RUT (Chile).',
+            )
           }
           const check = validarDocumentoFlexible(doc)
           if (!check.valido) throw new Error(check.mensaje)
@@ -893,12 +896,12 @@ export default function ReportarModal({
       {tipoSerDesap === 'persona' && (
         <label className="block">
           <span className="font-bold">
-            Cédula (Venezuela) o RUT (Chile){' '}
+            Cédula (Venezuela o Colombia) o RUT (Chile){' '}
             <span className="text-bandera-rojo">*</span>
           </span>
           <input
             className="input mt-1"
-            placeholder="Ej: V-12345678 o 12.345.678-5"
+            placeholder="Ej: V-12345678, 1023456789 o 12.345.678-5"
             value={documentoDesap}
             onChange={(e) => setDocumentoDesap(e.target.value)}
           />
@@ -1001,12 +1004,12 @@ export default function ReportarModal({
       </label>
       <label className="block">
         <span className="font-bold">
-          Cédula (Venezuela) o RUT (Chile){' '}
+          Cédula (Venezuela o Colombia) o RUT (Chile){' '}
           <span className="text-bandera-rojo">*</span>
         </span>
         <input
           className="input mt-1"
-          placeholder="Ej: V-12345678 o 12.345.678-5"
+          placeholder="Ej: V-12345678, 1023456789 o 12.345.678-5"
           value={cedulaPaciente}
           onChange={(e) => setCedulaPaciente(e.target.value)}
         />
@@ -1268,8 +1271,9 @@ export default function ReportarModal({
         {paso > 1 && esAtencionPsicologica && !perfilPsico && (
           <div className="space-y-2">
             <div className="rounded-xl bg-purple-50 border border-purple-200 p-2.5 text-sm text-purple-900">
-              💙 ¿Emergencia inmediata? Llama ya: 911 (Venezuela) o 131
-              (Chile). Esta red no reemplaza atención de urgencia.
+              💙 ¿Emergencia inmediata? Llama ya: 911 (Venezuela), 131
+              (Chile) o 123 (Colombia). Esta red no reemplaza atención de
+              urgencia.
             </div>
 
             <p className="font-bold">¿Con cuál situación te identificas?</p>

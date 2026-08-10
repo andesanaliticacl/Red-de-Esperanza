@@ -15,7 +15,7 @@ const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
  * Formulario para pedir ser psicólogo/a: NO otorga el rol, crea una
  * solicitud que revisa el equipo de psicología (admin o líder de
  * psicología). Teléfono obligatorio; documento validado (cédula/pasaporte
- * venezolano o RUT/pasaporte chileno).
+ * venezolano, RUT/pasaporte chileno o cédula/pasaporte colombiano).
  */
 export default function SolicitarPsicologoModal({
   nombreInicial,

@@ -129,9 +129,9 @@ export function pareceRut(valor: string): boolean {
 /**
  * Documento de una persona SIN saber su país (formularios abiertos, como
  * reportar un desaparecido o pedir apoyo emocional). Acepta cédula
- * venezolana o RUT chileno, pero si el texto tiene pinta de RUT se exige que
- * el dígito verificador calce: si no, cualquier RUT inventado se colaría
- * haciéndose pasar por cédula.
+ * venezolana, RUT chileno o cédula colombiana, pero si el texto tiene pinta
+ * de RUT se exige que el dígito verificador calce: si no, cualquier RUT
+ * inventado se colaría haciéndose pasar por cédula.
  */
 export function validarDocumentoFlexible(
   valor: string,
@@ -149,23 +149,27 @@ export function validarDocumentoFlexible(
         }
   }
 
-  if (esCedulaVenezolanaValida(v) || esRutChilenoValido(v)) {
+  if (
+    esCedulaVenezolanaValida(v) ||
+    esRutChilenoValido(v) ||
+    esCedulaColombianaValida(v)
+  ) {
     return { valido: true, mensaje: '' }
   }
   return {
     valido: false,
     mensaje:
-      'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678) o un RUT chileno (ej. 12.345.678-5).',
+      'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678), un RUT chileno (ej. 12.345.678-5) o una cédula colombiana (ej. 1023456789).',
   }
 }
 
 /**
  * Documento de identidad de una PERSONA, según el país.
  *
- * Solo Chile y Venezuela tienen reglas definidas aquí. La red es global, así
- * que para el resto de los países no se inventa una validación: se acepta
- * cualquier cosa con forma razonable. Rechazar un documento legítimo de un
- * país cuyo formato no conocemos sería peor que aceptarlo.
+ * Solo Chile, Venezuela y Colombia tienen reglas definidas aquí. La red es
+ * global, así que para el resto de los países no se inventa una validación:
+ * se acepta cualquier cosa con forma razonable. Rechazar un documento
+ * legítimo de un país cuyo formato no conocemos sería peor que aceptarlo.
  */
 export function validarDocumentoPersona(
   pais: string,
@@ -224,8 +228,9 @@ export function validarDocumentoPersona(
 
 /**
  * Identificador FISCAL de una organización (para facturar): RUT de empresa
- * en Chile, RIF en Venezuela. Los dos tienen dígito verificador y los dos se
- * comprueban de verdad — una factura emitida a un RUT inventado no sirve.
+ * en Chile, RIF en Venezuela, NIT en Colombia. Los tres tienen dígito
+ * verificador y los tres se comprueban de verdad — una factura emitida a un
+ * identificador inventado no sirve.
  */
 export function validarIdFiscal(
   pais: string,
