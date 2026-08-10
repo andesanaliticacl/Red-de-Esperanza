@@ -226,6 +226,10 @@ export interface SolicitudEntidad {
   tipo_documento: string | null
   documento: string | null
   mensaje: string | null
+  /** Sede marcada en el mapa (migración 63). Null en las que no tienen local. */
+  direccion: string | null
+  lat: number | null
+  lng: number | null
   // Datos para facturar (migración 62). Se piden en el registro solo a las
   // categorías que se cobran; el resto los deja vacíos.
   razon_social: string | null
@@ -241,12 +245,12 @@ export interface SolicitudEntidad {
 }
 
 const COLS_ENTIDAD =
-  'id, nombre, categoria, tier, profesion, descripcion, logo_url, contacto_publico, web, pais, zona, ciudad, lat, lng, verificada_en, verificada_por, metodo_verificacion, suspendida, creado_en'
+  'id, nombre, categoria, tier, profesion, descripcion, logo_url, contacto_publico, web, pais, zona, ciudad, direccion, lat, lng, verificada_en, verificada_por, metodo_verificacion, suspendida, creado_en'
 
 const COLS_ENTIDAD_COMPLETA = `${COLS_ENTIDAD}, razon_social, id_fiscal, direccion_fiscal, contacto_facturacion, facturable`
 
 const COLS_SOLICITUD =
-  'id, perfil_id, nombre, categoria, profesion, descripcion, pais, zona, ciudad, telefono, email_contacto, web, tipo_documento, documento, mensaje, razon_social, id_fiscal, direccion_fiscal, contacto_facturacion, estado, revisado_por, revisado_en, nota_revision, entidad_id, creado_en'
+  'id, perfil_id, nombre, categoria, profesion, descripcion, pais, zona, ciudad, telefono, email_contacto, web, tipo_documento, documento, mensaje, direccion, lat, lng, razon_social, id_fiscal, direccion_fiscal, contacto_facturacion, estado, revisado_por, revisado_en, nota_revision, entidad_id, creado_en'
 
 /** Datos que se mandan al registrarse como entidad (van en la metadata). */
 export interface DatosSolicitudEntidad {
@@ -258,6 +262,10 @@ export interface DatosSolicitudEntidad {
   email_contacto?: string
   web?: string
   mensaje?: string
+  /** Sede: dirección escrita y punto exacto marcado en el mapa. */
+  direccion?: string
+  lat?: number | null
+  lng?: number | null
   razon_social?: string
   id_fiscal?: string
   direccion_fiscal?: string
@@ -327,6 +335,9 @@ export async function crearSolicitudEntidad(
     email_contacto: d.email_contacto?.trim() || null,
     web: d.web?.trim() || null,
     mensaje: d.mensaje?.trim() || null,
+    direccion: d.direccion?.trim() || null,
+    lat: d.lat ?? null,
+    lng: d.lng ?? null,
     razon_social: d.razon_social?.trim() || null,
     id_fiscal: d.id_fiscal?.trim() || null,
     direccion_fiscal: d.direccion_fiscal?.trim() || null,

@@ -14,7 +14,12 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { obtenerUbicacion, lugarPorCoordenadas } from '../lib/geo'
+import {
+  obtenerUbicacion,
+  lugarPorCoordenadas,
+  geocodificarDireccion,
+} from '../lib/geo'
+import SelectorPunto from '../components/SelectorPunto'
 import EntradaTelefono, {
   esTelefonoValido,
   mensajeTelefono,
@@ -90,6 +95,7 @@ type PasoRegistro =
   | 'participar'
   | 'categoria'
   | 'organizacion'
+  | 'sede'
   | 'facturacion'
   | 'lugar'
   | 'identidad'
@@ -198,6 +204,15 @@ export default function RegistroView() {
   // Datos de facturación. Se piden SOLO a las categorías que se cobran
   // (municipalidad, empresa): perseguirlos después de aprobar no funciona
   // nunca, y sin ellos no se puede emitir la factura.
+  // Sede de la entidad: dirección + punto exacto en el mapa. Solo se pide a
+  // las categorías con local físico (`sede` en CATEGORIA_META): un cuartel de
+  // bomberos tiene dónde llegar; un veterinario voluntario, no.
+  const [direccionSede, setDireccionSede] = useState('')
+  const [coordSede, setCoordSede] = useState<{ lat: number; lng: number } | null>(
+    null,
+  )
+  const [buscandoDir, setBuscandoDir] = useState(false)
+  const [avisoSede, setAvisoSede] = useState('')
   const [razonSocial, setRazonSocial] = useState('')
   const [idFiscal, setIdFiscal] = useState('')
   const [direccionFiscal, setDireccionFiscal] = useState('')
@@ -223,6 +238,8 @@ export default function RegistroView() {
   // ¿Esta categoría se factura? Define si se piden los datos fiscales.
   const pideFacturacion =
     esEntidad && !!categoria && CATEGORIA_META[categoria].facturablePorDefecto
+  /** ¿Tiene local físico? Entonces hay que saber DÓNDE está exactamente. */
+  const pideSede = esEntidad && !!categoria && CATEGORIA_META[categoria].sede
 
   // Rol con el que NACE la cuenta:
   //  · psicólogo/a → colaborador/a mientras el equipo revisa (como siempre).
@@ -332,6 +349,7 @@ export default function RegistroView() {
     ...(participa === 'entidad' && categoria
       ? (['organizacion'] as PasoRegistro[])
       : []),
+    ...(pideSede ? (['sede'] as PasoRegistro[]) : []),
     ...(pideFacturacion ? (['facturacion'] as PasoRegistro[]) : []),
     'lugar',
     'identidad',
@@ -356,6 +374,10 @@ export default function RegistroView() {
         return categoria === 'profesional'
           ? !!profesionFinal
           : !!nombreEntidad.trim()
+      case 'sede':
+        // Sin punto no sirve de nada: la gracia es que la gente sepa dónde
+        // llegar, y una región entera no es una ubicación.
+        return !!coordSede
       case 'facturacion':
         // El identificador fiscal se comprueba de verdad (dígito verificador):
         // una factura emitida a un RUT inventado no sirve para nada.
@@ -386,10 +408,34 @@ export default function RegistroView() {
     categoria: '¿Qué representas?',
     organizacion:
       categoria === 'profesional' ? '¿Cuál es tu profesión?' : 'Tu organización',
+    sede: '¿Dónde están ubicados?',
     facturacion: 'Datos para facturar',
     lugar: '¿Dónde estás?',
     identidad: '¿Quién eres?',
     cuenta: 'Tu cuenta',
+  }
+
+  /** Busca la dirección escrita y centra el pin ahí; luego se arrastra al
+   *  punto exacto. Si no la encuentra, avisa sin bloquear: siempre se puede
+   *  tocar el mapa a mano. */
+  async function buscarSede() {
+    const dir = direccionSede.trim()
+    if (!dir) {
+      setAvisoSede('Escribe primero la dirección para buscarla.')
+      return
+    }
+    setBuscandoDir(true)
+    setAvisoSede('')
+    // Se acota la búsqueda a la ciudad y el país ya elegidos: "Los Aromos"
+    // hay en media Latinoamérica, y sin contexto el pin cae en otro país.
+    const consulta = [dir, ciudad, estado, pais].filter(Boolean).join(', ')
+    const g = await geocodificarDireccion(consulta, { pais: '', cc: '' })
+    setBuscandoDir(false)
+    if (g) {
+      setCoordSede(g)
+    } else {
+      setAvisoSede('No encontramos esa dirección. Toca el mapa para marcarla.')
+    }
   }
 
   async function registrar(e: React.FormEvent) {
@@ -443,6 +489,12 @@ export default function RegistroView() {
         )
         return
       }
+      if (pideSede && !coordSede) {
+        setErrorMsg(
+          'Marca en el mapa dónde están ubicados, para que la gente sepa dónde llegar.',
+        )
+        return
+      }
       if (pideFacturacion) {
         if (!razonSocial.trim()) {
           setErrorMsg(
@@ -490,6 +542,9 @@ export default function RegistroView() {
                     telefono: telefono.trim(),
                     email_contacto: email.trim(),
                     web: webEntidad.trim(),
+                    direccion: direccionSede.trim(),
+                    lat: coordSede?.lat ?? null,
+                    lng: coordSede?.lng ?? null,
                     razon_social: razonSocial.trim(),
                     id_fiscal: idFiscal.trim(),
                     direccion_fiscal: direccionFiscal.trim(),
@@ -765,7 +820,54 @@ export default function RegistroView() {
             </>
           )}
 
-          {/* ---------- 4. Facturación (solo categorías que se cobran) ---------- */}
+          {/* ---------- 4. Sede (solo categorías con local físico) ---------- */}
+          {paso === 'sede' && (
+            <>
+              <p className="text-xs leading-snug text-tinta-500">
+                Marca el punto exacto: es lo que verá la gente en el mapa para
+                saber dónde llegar.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Calle, número, sector…"
+                  maxLength={160}
+                  value={direccionSede}
+                  onChange={(e) => setDireccionSede(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={buscarSede}
+                  disabled={buscandoDir}
+                  className="btn-azul shrink-0 px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  {buscandoDir ? '…' : 'Buscar'}
+                </button>
+              </div>
+              <SelectorPunto
+                coord={coordSede}
+                onCambio={(lat, lng) => {
+                  setCoordSede({ lat, lng })
+                  setAvisoSede('')
+                }}
+                altura={190}
+              />
+              {avisoSede && (
+                <p className="text-xs font-semibold text-amber-700">{avisoSede}</p>
+              )}
+              {coordSede ? (
+                <p className="text-xs text-green-700">
+                  Punto fijado. Arrastra el pin si no quedó exacto.
+                </p>
+              ) : (
+                <p className="text-xs text-amber-700">
+                  Busca la dirección o toca el mapa para fijar el punto.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* ---------- 5. Facturación (solo categorías que se cobran) ---------- */}
           {paso === 'facturacion' && (
             <>
               <label className="block">
