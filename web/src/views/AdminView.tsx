@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useNecesidades } from '../hooks/useNecesidades'
 import ConfirmDialog from '../components/ConfirmDialog'
+import BandejaSolicitudes from '../components/BandejaSolicitudes'
 import {
   listarCatastrofes,
   crearCatastrofe,
@@ -44,11 +45,12 @@ const ROLES: RolUsuario[] = [
   'admin',
 ]
 
-type Pestana = 'resumen' | 'alertas' | 'usuarios' | 'visitas'
+type Pestana = 'resumen' | 'alertas' | 'solicitudes' | 'usuarios' | 'visitas'
 
 const PESTANAS: { v: Pestana; etiqueta: string }[] = [
   { v: 'resumen', etiqueta: '📊 Resumen' },
   { v: 'alertas', etiqueta: '🔔 Alertas' },
+  { v: 'solicitudes', etiqueta: '🛡️ Solicitudes' },
   { v: 'usuarios', etiqueta: '👥 Usuarios' },
   { v: 'visitas', etiqueta: '🌍 Visitas' },
 ]
@@ -337,6 +339,11 @@ export default function AdminView() {
           </div>
         </section>
       )}
+
+      {/* Bandeja única: entidades y psicólogos en un solo lugar. */}
+      <section className={tab('solicitudes')}>
+        <BandejaSolicitudes />
+      </section>
 
       {/* Usuarios registrados por rol */}
       <section className={tab('usuarios')}>
