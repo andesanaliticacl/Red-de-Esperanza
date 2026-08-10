@@ -35,6 +35,26 @@ export const CENTRO_COLOMBIA: [number, number] = [4.6, -74.1] // Bogotá
 export const ZOOM_INICIAL_COLOMBIA = 5
 
 /**
+ * Vista (centro + zoom) a la que "vuela" el mapa al elegir un país en la
+ * capa de Desaparecidos. Sin esto, el filtro por país queda aplicado pero
+ * el mapa se queda donde estaba: si el punto real está del otro lado del
+ * continente, el marcador parece "desaparecer" sin que en realidad se haya
+ * movido nada.
+ */
+export const VISTA_PAIS_DESAP: Record<
+  string,
+  { lat: number; lng: number; zoom: number }
+> = {
+  Venezuela: { lat: CENTRO_VENEZUELA[0], lng: CENTRO_VENEZUELA[1], zoom: 6 },
+  Chile: { lat: CENTRO_CHILE[0], lng: CENTRO_CHILE[1], zoom: ZOOM_INICIAL_CHILE },
+  Colombia: {
+    lat: CENTRO_COLOMBIA[0],
+    lng: CENTRO_COLOMBIA[1],
+    zoom: ZOOM_INICIAL_COLOMBIA,
+  },
+}
+
+/**
  * Enlace de navegación hacia un punto. Abre Google Maps con la ruta y el
  * tiempo estimado desde la ubicación actual del usuario (turn-by-turn).
  * Funciona en móvil (abre la app de Maps) y en escritorio (web).

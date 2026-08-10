@@ -96,6 +96,27 @@ function CentrarEn({ posicion }: { posicion: [number, number] | null }) {
   return null
 }
 
+/** Igual que CentrarEn, pero con zoom configurable (nivel país, no persona):
+ *  se usa al elegir un país en la capa de Desaparecidos. */
+function CentrarVista({
+  vista,
+}: {
+  vista: { lat: number; lng: number; zoom: number } | null
+}) {
+  const map = useMap()
+  const clave = vista ? `${vista.lat},${vista.lng},${vista.zoom}` : ''
+  useEffect(() => {
+    // setView (instantáneo), no flyTo: es un salto de PAÍS (miles de km), y
+    // flyTo depende de requestAnimationFrame — en pestañas en segundo plano,
+    // modo ahorro de energía o "reducir movimiento" del sistema, el
+    // navegador puede pausar esos frames y la animación se queda a medias
+    // (el mapa nunca llega a destino). setView no tiene ese riesgo.
+    if (vista) map.setView([vista.lat, vista.lng], vista.zoom)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+  return null
+}
+
 /** Avisa cuando se toca el mapa (no un marcador ni un control). */
 function AlTocarMapa({ onTocar }: { onTocar: () => void }) {
   useMapEvents({ click: () => onTocar() })
@@ -685,6 +706,7 @@ export default function MapaNecesidades({
   onHospitalSeleccionado,
   onTocarMapa,
   idsAsignadoVerificado,
+  vistaPaisDesap,
 }: {
   /** Se llama al tocar el mapa (no un marcador): sirve para que la vista
    *  cierre los paneles que estén tapándolo. */
@@ -708,6 +730,9 @@ export default function MapaNecesidades({
   /** Ids de perfil (asignado_a) verificados por una entidad (migración 64):
    *  sus necesidades muestran un anillo celeste en el pin. */
   idsAsignadoVerificado?: Set<string>
+  /** Si se pasa, el mapa vuela a esta vista (país + zoom) al elegir un país
+   *  en la capa de Desaparecidos. */
+  vistaPaisDesap?: { lat: number; lng: number; zoom: number } | null
   /** Si se pasa, el popup muestra un botón para escribirle a esa necesidad. */
   onMensaje?: (n: Necesidad) => void
   /**
@@ -1333,6 +1358,7 @@ export default function MapaNecesidades({
       {/* Ya no volamos automáticamente a TODOS los resultados de la búsqueda:
           ahora se muestra un listado y solo volamos al tocar a una persona. */}
       <CentrarEn posicion={irACoordenada} />
+      <CentrarVista vista={vistaPaisDesap ?? null} />
       {verDesap && (
       <Suspense fallback={null}>
       <MarkerClusterGroup
