@@ -154,7 +154,14 @@ export default function ReportarModal({
   puedeReportarZonaAislada = false,
 }: {
   onCerrar: () => void
-  onCreado: (tipo?: TipoReporte) => void
+  // `extra` solo se llena para 'desaparecido': permite al padre encender la
+  // capa del mapa, elegir el país correcto y resaltar el registro recién
+  // creado (antes se le decía al usuario "ya aparece en el mapa" sin hacer
+  // ninguna de esas tres cosas).
+  onCreado: (
+    tipo?: TipoReporte,
+    extra?: { id?: string; pais?: string | null },
+  ) => void
   coordInicial?: { lat: number; lng: number } | null
   fuenteInicial?: FuenteUbicacion | null
   puedeReportarHospital?: boolean
@@ -626,7 +633,7 @@ export default function ReportarModal({
             })
           if (errDoc) throw errDoc
         }
-        onCreado('desaparecido')
+        onCreado('desaparecido', { id: fila.id, pais })
         return
       }
 
@@ -734,7 +741,10 @@ export default function ReportarModal({
 
       <SelectorPunto
         coord={coord}
-        onCambio={(la, ln) => setCoord({ lat: la, lng: ln })}
+        onCambio={(la, ln) => {
+          setCoord({ lat: la, lng: ln })
+          setErrorMsg('')
+        }}
       />
 
       {coord ? (
@@ -1585,16 +1595,25 @@ export default function ReportarModal({
             {usaPasos ? (
               <div className="flex gap-2">
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    // El aviso de error (p. ej. "no encontramos esa
+                    // dirección") es propio del tramo donde ocurrió: si no se
+                    // limpia aquí, queda pegado en pantallas donde ya no
+                    // aplica y da la sensación de un error que no se puede
+                    // quitar.
+                    setErrorMsg('')
                     subPaso === 1 ? setPaso(1) : setSubPaso(subPaso - 1)
-                  }
+                  }}
                   className="btn-gris flex-1"
                 >
                   ← Atrás
                 </button>
                 {subPaso < 3 ? (
                   <button
-                    onClick={() => setSubPaso(subPaso + 1)}
+                    onClick={() => {
+                      setErrorMsg('')
+                      setSubPaso(subPaso + 1)
+                    }}
                     // El punto es lo único imprescindible del primer tramo:
                     // sin él (ni dirección escrita) no se puede seguir.
                     disabled={!tramoCompleto}

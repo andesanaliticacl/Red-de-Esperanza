@@ -10,11 +10,11 @@ export interface OpcionBandera {
   etiquetaCorta?: string
 }
 
-// Atajo: sin escribir nada, el panel muestra solo estos países (los dos
-// donde opera la red) en vez de la lista completa de ~190. En el teléfono,
-// desplazarse por la lista entera para llegar a "Venezuela" o "Chile" era
-// muy incómodo. Escribir sigue buscando en TODOS los países normalmente.
-const ISO_DESTACADOS = ['ve', 'cl']
+// Atajo: sin escribir nada, el panel muestra solo estos países (donde opera
+// la red) en vez de la lista completa de ~190. En el teléfono, desplazarse
+// por la lista entera para llegar a "Venezuela", "Chile" o "Colombia" era muy
+// incómodo. Escribir sigue buscando en TODOS los países normalmente.
+const ISO_DESTACADOS = ['ve', 'cl', 'co']
 
 /**
  * Dropdown personalizado que muestra banderas como imágenes (a diferencia de un

@@ -256,8 +256,8 @@ function RastreadorVista({
 
 import {
   CENTRO_VENEZUELA,
-  CENTRO_CHILE,
-  ZOOM_INICIAL_CHILE,
+  CENTRO_COLOMBIA,
+  ZOOM_INICIAL_COLOMBIA,
   enlaceComoLlegar,
   dentroDelRecuadroVE,
   geocodificarPais,
@@ -919,8 +919,8 @@ export default function MapaNecesidades({
   return (
     <MapContainer
       ref={mapaRef}
-      center={CENTRO_CHILE}
-      zoom={ZOOM_INICIAL_CHILE}
+      center={CENTRO_COLOMBIA}
+      zoom={ZOOM_INICIAL_COLOMBIA}
       className="h-full w-full"
       zoomControl={false}
     >

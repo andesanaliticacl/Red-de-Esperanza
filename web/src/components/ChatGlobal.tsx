@@ -91,15 +91,15 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // escribe), pero sirve para reconocer como propios los mensajes viejos que
   // esta persona dejó cuando el chat aún admitía invitados.
   const nombre = guardada?.nombre ?? ''
-  // País de la sala: Venezuela y Chile por ahora (se pueden sumar más en
-  // lib/regionesChat.ts). Se preselecciona con el país detectado por IP si
-  // está entre los disponibles; si no, Chile (la emergencia activa ahora
-  // mismo), con Coquimbo como región inicial. Todo se puede cambiar.
+  // País de la sala: Colombia, Chile y Venezuela por ahora (se pueden sumar
+  // más en lib/regionesChat.ts). Se preselecciona con el país detectado por
+  // IP si está entre los disponibles; si no, Colombia (la emergencia activa
+  // ahora mismo), con Bogotá D.C. como región inicial. Todo se puede cambiar.
   const [paisChat, setPaisChat] = useState(
     guardada?.pais ?? PAISES_CHAT[0].pais,
   )
   const [estado, setEstado] = useState(
-    guardada?.estado ?? perfil?.estado ?? 'Coquimbo',
+    guardada?.estado ?? perfil?.estado ?? 'Bogotá D.C.',
   )
   const [listo, setListo] = useState(Boolean(guardada))
   const tokenPruebaChat = import.meta.env.DEV

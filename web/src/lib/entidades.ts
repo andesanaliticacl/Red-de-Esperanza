@@ -203,7 +203,7 @@ export interface EntidadCompleta extends Entidad {
    *  se muestra "Bomberos de Coquimbo" pero se factura a "Cuerpo de
    *  Bomberos de Coquimbo". Facturar con el nombre público rebota. */
   razon_social: string | null
-  /** RUT de empresa (Chile) o RIF (Venezuela). */
+  /** RUT de empresa (Chile), NIT (Colombia) o RIF (Venezuela). */
   id_fiscal: string | null
   direccion_fiscal: string | null
   contacto_facturacion: string | null
@@ -299,7 +299,7 @@ export function validarSolicitudEntidad(
       return 'Escribe la razón social (el nombre legal que va en la factura).'
     }
     if (!d.id_fiscal?.trim()) {
-      return 'Escribe el RUT de la empresa (Chile) o el RIF (Venezuela).'
+      return 'Escribe el RUT de la empresa (Chile), el NIT (Colombia) o el RIF (Venezuela).'
     }
   }
   return null

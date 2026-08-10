@@ -29,6 +29,11 @@ export const ZOOM_INICIAL = 11
 export const CENTRO_CHILE: [number, number] = [-33.45, -70.65] // Santiago
 export const ZOOM_INICIAL_CHILE = 5
 
+// Vista inicial para quien entra desde Colombia (terremoto 2026): centrado
+// en el país, con zoom alejado para ver la mayoría del territorio.
+export const CENTRO_COLOMBIA: [number, number] = [4.6, -74.1] // Bogotá
+export const ZOOM_INICIAL_COLOMBIA = 5
+
 /**
  * Enlace de navegación hacia un punto. Abre Google Maps con la ruta y el
  * tiempo estimado desde la ubicación actual del usuario (turn-by-turn).

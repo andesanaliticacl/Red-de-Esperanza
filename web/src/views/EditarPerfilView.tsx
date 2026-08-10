@@ -289,7 +289,9 @@ export default function EditarPerfilView() {
               tipoDoc === 'cedula'
                 ? pais === 'Chile'
                   ? 'Ej: 12.345.678-5'
-                  : 'Ej: V-12345678'
+                  : pais === 'Colombia'
+                    ? 'Ej: 1023456789'
+                    : 'Ej: V-12345678'
                 : 'N.º de pasaporte'
             }
           />

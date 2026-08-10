@@ -135,12 +135,15 @@ export default function SolicitarPsicologoModal({
               tipoDoc === 'cedula'
                 ? pais === 'Chile'
                   ? 'Ej: 12.345.678-5'
-                  : 'Ej: V-12345678'
+                  : pais === 'Colombia'
+                    ? 'Ej: 1023456789'
+                    : 'Ej: V-12345678'
                 : 'N.º de pasaporte'
             }
           />
           <p className="text-xs text-gray-500 mt-1">
-            Se valida: cédula/pasaporte venezolano o RUT/pasaporte chileno.
+            Se valida: cédula/pasaporte venezolano, RUT/pasaporte chileno o
+            cédula/pasaporte colombiano.
           </p>
         </div>
 

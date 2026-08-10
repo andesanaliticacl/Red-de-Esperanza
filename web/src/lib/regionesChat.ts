@@ -1,4 +1,5 @@
 import { ESTADOS_VENEZUELA } from './types'
+import { zonasDePais } from './zonas'
 
 /**
  * Países y regiones/estados que puede elegir el chat en vivo. La red arrancó
@@ -34,9 +35,14 @@ export const REGIONES_CHILE = [
   'Magallanes y de la Antártica Chilena',
 ] as const
 
-// Chile va primero: es el país por defecto mientras la emergencia activa es
-// el temporal de lluvias en Chile (se puede cambiar libremente en el selector).
+// 32 departamentos de Colombia + Bogotá D.C. (misma lista que zonas.ts, para
+// no duplicarla ni desincronizarla).
+export const REGIONES_COLOMBIA = zonasDePais('co').opciones
+
+// Colombia va primero: es el país por defecto mientras la emergencia activa
+// es el terremoto de Colombia (se puede cambiar libremente en el selector).
 export const PAISES_CHAT: PaisChat[] = [
+  { pais: 'Colombia', regiones: REGIONES_COLOMBIA },
   { pais: 'Chile', regiones: REGIONES_CHILE },
   { pais: 'Venezuela', salaSinPrefijo: true, regiones: ESTADOS_VENEZUELA },
 ]

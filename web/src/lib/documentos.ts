@@ -1,9 +1,9 @@
 import type { TipoDocumento } from './types'
 
 /**
- * Validación de documentos de identidad. Hoy solo cubre los dos países donde
- * la red tiene equipo de psicología (Venezuela y Chile): registrarse como
- * psicólogo/a exige uno de estos cuatro documentos válidos.
+ * Validación de documentos de identidad. Hoy solo cubre los países donde la
+ * red tiene equipo de psicología (Venezuela, Chile y Colombia): registrarse
+ * como psicólogo/a exige uno de estos documentos válidos.
  */
 
 /** Cédula venezolana: prefijo opcional V/E + 6 a 8 dígitos. Ej: V-12345678. */
@@ -49,6 +49,40 @@ export function esRutChilenoValido(valor: string): boolean {
 export function esPasaporteChilenoValido(valor: string): boolean {
   const limpio = valor.trim().toUpperCase().replace(/[^0-9A-Z]/g, '')
   return /^[A-Z0-9]{6,9}$/.test(limpio) && /\d/.test(limpio)
+}
+
+/** Cédula de ciudadanía colombiana: solo dígitos, 6 a 10 (no tiene dígito
+ *  verificador — la Registraduría no publica un algoritmo comprobable). */
+export function esCedulaColombianaValida(valor: string): boolean {
+  const limpio = valor.trim().replace(/[^0-9]/g, '')
+  return /^\d{6,10}$/.test(limpio)
+}
+
+/** Pasaporte colombiano: validación laxa, igual criterio que el venezolano. */
+export function esPasaporteColombianoValido(valor: string): boolean {
+  const limpio = valor.trim().toUpperCase().replace(/[^0-9A-Z]/g, '')
+  return /^[A-Z0-9]{6,9}$/.test(limpio) && /\d/.test(limpio)
+}
+
+/**
+ * NIT colombiano (identificador fiscal de organizaciones): valida el dígito
+ * verificador con el algoritmo oficial de la DIAN (módulo 11 con pesos
+ * primos). Ej: 900.123.456-7.
+ */
+export function esNitColombianoValido(valor: string): boolean {
+  const limpio = valor.trim().replace(/[^0-9]/g, '')
+  if (limpio.length < 9 || limpio.length > 16) return false
+  const cuerpo = limpio.slice(0, -1)
+  const dv = limpio.slice(-1)
+  const PESOS = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71]
+  let suma = 0
+  for (let i = 0; i < cuerpo.length; i++) {
+    const digito = Number(cuerpo[cuerpo.length - 1 - i])
+    suma += digito * PESOS[i]
+  }
+  const resto = suma % 11
+  const dvEsperado = resto > 1 ? 11 - resto : resto
+  return Number(dv) === dvEsperado
 }
 
 /**
@@ -173,6 +207,16 @@ export function validarDocumentoPersona(
         }
   }
 
+  if (pais === 'Colombia') {
+    // La cédula colombiana tampoco tiene dígito verificador comprobable.
+    return esCedulaColombianaValida(v)
+      ? { valido: true, mensaje: '' }
+      : {
+          valido: false,
+          mensaje: 'La cédula no es válida. Ejemplo: 1023456789.',
+        }
+  }
+
   return /^[A-Z0-9-]{5,20}$/i.test(v)
     ? { valido: true, mensaje: '' }
     : { valido: false, mensaje: 'Ese documento no parece válido.' }
@@ -213,6 +257,16 @@ export function validarIdFiscal(
         }
   }
 
+  if (pais === 'Colombia') {
+    return esNitColombianoValido(v)
+      ? { valido: true, mensaje: '' }
+      : {
+          valido: false,
+          mensaje:
+            'Ese NIT no es válido: el dígito verificador no calza. Ejemplo: 900.123.456-7.',
+        }
+  }
+
   // Otro país: sin regla conocida, solo se exige algo con forma de código.
   return /^[A-Z0-9.\-/]{5,20}$/i.test(v)
     ? { valido: true, mensaje: '' }
@@ -221,9 +275,10 @@ export function validarIdFiscal(
 
 /**
  * Valida el documento requerido para registrarse (o mantenerse) como
- * psicólogo/a: cédula o pasaporte venezolano, o RUT o pasaporte chileno.
- * Cualquier otro país queda bloqueado con un mensaje claro, porque hoy no
- * hay una regla de validación definida para su documento.
+ * psicólogo/a: cédula o pasaporte venezolano, RUT o pasaporte chileno, o
+ * cédula o pasaporte colombiano. Cualquier otro país queda bloqueado con un
+ * mensaje claro, porque hoy no hay una regla de validación definida para su
+ * documento.
  */
 export function validarDocumentoPsicologo(
   pais: string,
@@ -235,7 +290,7 @@ export function validarDocumentoPsicologo(
     return {
       valido: false,
       mensaje:
-        'El documento es obligatorio para registrarte como psicólogo/a: cédula o pasaporte venezolano, o RUT o pasaporte chileno.',
+        'El documento es obligatorio para registrarte como psicólogo/a: cédula o pasaporte venezolano, RUT o pasaporte chileno, o cédula o pasaporte colombiano.',
     }
   }
   if (pais === 'Venezuela') {
@@ -272,9 +327,26 @@ export function validarDocumentoPsicologo(
             'El pasaporte chileno no es válido. Escribe solo letras y números.',
         }
   }
+  if (pais === 'Colombia') {
+    if (tipoDoc === 'cedula') {
+      return esCedulaColombianaValida(v)
+        ? { valido: true, mensaje: '' }
+        : {
+            valido: false,
+            mensaje: 'La cédula colombiana no es válida. Ejemplo: 1023456789.',
+          }
+    }
+    return esPasaporteColombianoValido(v)
+      ? { valido: true, mensaje: '' }
+      : {
+          valido: false,
+          mensaje:
+            'El pasaporte colombiano no es válido. Escribe solo letras y números.',
+        }
+  }
   return {
     valido: false,
     mensaje:
-      'Por ahora, para registrarte como psicólogo/a necesitas estar en Venezuela (cédula o pasaporte) o Chile (RUT o pasaporte).',
+      'Por ahora, para registrarte como psicólogo/a necesitas estar en Venezuela (cédula o pasaporte), Chile (RUT o pasaporte) o Colombia (cédula o pasaporte).',
   }
 }

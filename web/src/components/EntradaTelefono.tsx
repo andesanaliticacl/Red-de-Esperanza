@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import SelectorBandera from './SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
 
 // La red ya no es solo Venezuela: el teléfono acepta CUALQUIER país.
-// Chile es el país por defecto cuando no hay número guardado (emergencia
+// Colombia es el país por defecto cuando no hay número guardado (emergencia
 // activa ahora mismo); se puede cambiar libremente en el selector.
-const ISO_DEFECTO = 'cl'
+const ISO_DEFECTO = 'co'
 
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   value: p.iso,
@@ -71,6 +71,13 @@ export default function EntradaTelefono({
   const [iso, setIso] = useState(inicial.iso)
   const [numero, setNumero] = useState(inicial.numero)
   const [tocado, setTocado] = useState(false)
+  // Cuenta los intentos SEGUIDOS que la persona deja el campo con un número
+  // inválido (cada blur sobre un error ya visible). A partir del segundo,
+  // se dispara una sacudida para reforzar "te volviste a equivocar" — antes
+  // el único aviso era el mismo texto estático de siempre, fácil de pasar
+  // por alto en un reintento.
+  const [reintentosFallidos, setReintentosFallidos] = useState(0)
+  const [sacudir, setSacudir] = useState(false)
 
   const pais = PAISES_MUNDO.find((p) => p.iso === iso) ?? PAISES_MUNDO[0]
 
@@ -85,6 +92,29 @@ export default function EntradaTelefono({
   const mostrarError =
     tocado && numero.length > 0 && !esTelefonoValido(`${pais.codigo} ${numero}`)
 
+  function manejarBlur() {
+    const yaMostrabaError = tocado && mostrarError
+    setTocado(true)
+    const sigueInvalido =
+      numero.length > 0 && !esTelefonoValido(`${pais.codigo} ${numero}`)
+    if (sigueInvalido) {
+      setReintentosFallidos((n) => (yaMostrabaError ? n + 1 : 1))
+    } else {
+      setReintentosFallidos(0)
+    }
+  }
+
+  // Se dispara con cada reintento fallido a partir del segundo. Al depender
+  // de `reintentosFallidos` (un valor nuevo cada vez), el efecto vuelve a
+  // correr en cada error consecutivo y repite la animación aunque la clase
+  // ya estuviera puesta.
+  useEffect(() => {
+    if (reintentosFallidos < 2) return
+    setSacudir(true)
+    const t = setTimeout(() => setSacudir(false), 400)
+    return () => clearTimeout(t)
+  }, [reintentosFallidos])
+
   return (
     <div>
       <div className="flex gap-2">
@@ -95,15 +125,23 @@ export default function EntradaTelefono({
           onChange={(nuevoIso) => emitir(nuevoIso, numero)}
         />
         <input
-          className={`input flex-1 ${mostrarError ? 'border-bandera-rojo' : ''}`}
+          className={`input flex-1 ${mostrarError ? 'border-bandera-rojo' : ''} ${
+            mostrarError && reintentosFallidos >= 2 ? 'bg-red-50' : ''
+          } ${sacudir ? 'campo-sacudida' : ''}`}
           inputMode="numeric"
           pattern="[0-9]*"
           autoComplete="tel-national"
-          placeholder={iso === 've' ? 'Ej: 04121234567' : 'Ej: 912345678'}
+          placeholder={
+            iso === 've'
+              ? 'Ej: 04121234567'
+              : iso === 'co'
+                ? 'Ej: 3001234567'
+                : 'Ej: 912345678'
+          }
           required={requerido}
           value={numero}
           maxLength={14}
-          onBlur={() => setTocado(true)}
+          onBlur={manejarBlur}
           onChange={(e) => emitir(iso, e.target.value)}
         />
       </div>

@@ -917,11 +917,11 @@ export default function CiudadanoView() {
           {/* Buscador de desaparecidos (solo si la capa está visible) */}
           {verDesap && (
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
-              {/* País: hoy solo Venezuela tiene datos (terremoto 2026), pero
-                  futuras catástrofes sumarán los suyos, así que el selector
-                  ya está listo para no mezclarlos en el mapa. */}
+              {/* País: cada catástrofe suma su propio dataset (Venezuela
+                  2026, Colombia 2026…), así que el selector evita
+                  mezclarlos en el mapa. */}
               <div className="flex gap-1.5 mb-2">
-                {(['Venezuela', 'Chile'] as const).map((p) => (
+                {(['Venezuela', 'Chile', 'Colombia'] as const).map((p) => (
                   <button
                     key={p}
                     type="button"
@@ -1113,7 +1113,7 @@ export default function CiudadanoView() {
           puedeReportarHospital={puedeReportarHospital}
           puedeReportarZonaAislada={esAdmin || rol === 'lider_voluntarios'}
           onCerrar={() => setAbrirReporte(false)}
-          onCreado={(tipo) => {
+          onCreado={(tipo, extra) => {
             setAbrirReporte(false)
             notificar(
               tipo === 'hospital'
@@ -1128,6 +1128,14 @@ export default function CiudadanoView() {
             if (tipo === 'hospital') {
               setTipoFiltro('hospital')
               void recargarAcopios()
+            }
+            if (tipo === 'desaparecido') {
+              // Enciende la capa, cambia al país del registro recién creado
+              // (si se detectó) y lo resalta: antes el mensaje decía "ya
+              // aparece en el mapa" pero nada de esto pasaba de verdad.
+              setVerDesapManual(true)
+              if (extra?.pais) setPaisDesap(extra.pais)
+              if (extra?.id) setDesaparecidoSeleccionadoId(extra.id)
             }
           }}
         />

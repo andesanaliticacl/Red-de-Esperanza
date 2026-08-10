@@ -170,6 +170,20 @@ input::placeholder, textarea::placeholder {
   50% { fill-opacity: 0.30; stroke-opacity: 1; }
 }
 
+/* Sacudida sutil para un campo que vuelve a fallar la validación después de
+   ya haber mostrado error (p. ej. el teléfono): una sola pasada corta, no un
+   loop, para dar a entender "te volviste a equivocar" sin ser molesta. */
+.campo-sacudida {
+  animation: campo-sacudida-key 0.4s ease-in-out;
+}
+@keyframes campo-sacudida-key {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
 /* En TELÉFONOS, las animaciones infinitas de los halos hacen que el mapa se
    repinte sin parar (aunque no lo toques) y se sienta lento/trabado. Las
    quitamos solo en móvil: el marcador se ve igual, únicamente sin el "latido".

@@ -33,9 +33,11 @@ const PATRONES: RegExp[] = [
   /\bdeposit(a|ar|ame|en|o|os)\b/,
   /\bpago\s*movil\b/,
   /\bbanco\b[\s\S]{0,40}\bcuenta\b/,
-  /\bbanco\s+(estado|de\s+chile|santander|bci|scotiabank|itau|falabella|security|mercantil|banesco|provincial|venezuela|bbva)\b/,
+  /\bbanco\s+(estado|de\s+chile|santander|bci|scotiabank|itau|falabella|security|mercantil|banesco|provincial|venezuela|bbva|bogota|de\s+occidente|agrario|caja\s+social|popular|av\s*villas)\b/,
+  /\bbancolombia\b/,
+  /\bdavivienda\b/,
   // Medios de pago digitales
-  /\b(cbu|cvu|zelle|paypal|binance|usdt|bitcoin|criptomonedas?|cripto)\b/,
+  /\b(cbu|cvu|zelle|paypal|binance|usdt|bitcoin|criptomonedas?|cripto|nequi|daviplata)\b/,
   // Peticiones directas de plata
   /\b(envi(a|en|ame)|mand(a|en|ame))\b[\s\S]{0,20}\b(dinero|plata|efectivo)\b/,
 ]

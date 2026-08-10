@@ -11,8 +11,9 @@ import EntradaTelefono, {
 } from './EntradaTelefono'
 
 // Número de emergencias a mostrar según el país detectado (por coordenadas).
-// Chile: solo Carabineros (133), como pidió el equipo. Venezuela y cualquier
-// país no reconocido: 911 (nacional en Venezuela desde 2013), como respaldo.
+// Chile: solo Carabineros (133), como pidió el equipo. Colombia: 123 (número
+// único nacional de emergencias). Venezuela y cualquier país no reconocido:
+// 911 (nacional en Venezuela desde 2013), como respaldo.
 interface EmergenciaPais {
   tel: string
   boton: string
@@ -31,11 +32,19 @@ const EMERGENCIA_CL: EmergenciaPais = {
   enlace: '🚓 ¿Vida o muerte? Llama a Carabineros: 133',
   avisoOffline: 'llama también a Carabineros: 133',
 }
+const EMERGENCIA_CO: EmergenciaPais = {
+  tel: '123',
+  boton: '📞 Llamar al 123',
+  enlace: '📞 ¿Vida o muerte? Llama al 123',
+  avisoOffline: 'llama también al 123',
+}
 function emergenciaPorCoord(
   coord: { lat: number; lng: number } | null,
 ): EmergenciaPais {
   const pais = coord ? paisPorCoordenadas(coord.lat, coord.lng) : null
-  return pais === 'Chile' ? EMERGENCIA_CL : EMERGENCIA_VE
+  if (pais === 'Chile') return EMERGENCIA_CL
+  if (pais === 'Colombia') return EMERGENCIA_CO
+  return EMERGENCIA_VE
 }
 
 /**

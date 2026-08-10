@@ -18,15 +18,19 @@ import {
   type RolUsuario,
 } from '../lib/types'
 
-// País de un rescatista según el PREFIJO de su teléfono (+56 Chile, +58
-// Venezuela). Si el número no tiene un prefijo reconocible, se usa el país
-// del perfil como respaldo; si tampoco, "Otro".
-function paisDeRescatista(p: Perfil): 'Chile' | 'Venezuela' | 'Otro' {
+// País de un rescatista según el PREFIJO de su teléfono (+56 Chile, +57
+// Colombia, +58 Venezuela). Si el número no tiene un prefijo reconocible, se
+// usa el país del perfil como respaldo; si tampoco, "Otro".
+function paisDeRescatista(
+  p: Perfil,
+): 'Chile' | 'Colombia' | 'Venezuela' | 'Otro' {
   const tel = (p.telefono ?? '').replace(/\s+/g, '')
   if (tel.startsWith('+56')) return 'Chile'
+  if (tel.startsWith('+57')) return 'Colombia'
   if (tel.startsWith('+58')) return 'Venezuela'
   const pais = (p.pais ?? '').trim().toLowerCase()
   if (pais === 'chile') return 'Chile'
+  if (pais === 'colombia') return 'Colombia'
   if (pais === 'venezuela') return 'Venezuela'
   return 'Otro'
 }
@@ -223,7 +227,7 @@ export default function AdminView() {
 
   // Rescatistas separados por país (por prefijo del teléfono).
   const rescatistasPorPais = useMemo(() => {
-    const m = { Venezuela: 0, Chile: 0, Otro: 0 }
+    const m = { Venezuela: 0, Chile: 0, Colombia: 0, Otro: 0 }
     for (const r of rescatistas) {
       m[paisDeRescatista(r as Perfil)] += 1
     }
@@ -232,6 +236,7 @@ export default function AdminView() {
   const totalRescatistas =
     rescatistasPorPais.Venezuela +
     rescatistasPorPais.Chile +
+    rescatistasPorPais.Colombia +
     rescatistasPorPais.Otro
 
   const stats = useMemo(() => {
@@ -367,7 +372,7 @@ export default function AdminView() {
         <h2 className="font-bold text-lg mb-2">
           🚑 Rescatistas por país ({totalRescatistas})
         </h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Tarjeta
             n={rescatistasPorPais.Venezuela}
             etiqueta="Venezuela (+58)"
@@ -377,6 +382,11 @@ export default function AdminView() {
             n={rescatistasPorPais.Chile}
             etiqueta="Chile (+56)"
             color="#0033A0"
+          />
+          <Tarjeta
+            n={rescatistasPorPais.Colombia}
+            etiqueta="Colombia (+57)"
+            color="#FCD116"
           />
           <Tarjeta
             n={rescatistasPorPais.Otro}
