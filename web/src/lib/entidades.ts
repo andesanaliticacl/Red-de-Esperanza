@@ -16,6 +16,7 @@ export type CategoriaEntidad =
   | 'animal'
   | 'psicosocial'
   | 'junta_vecinal'
+  | 'empresa'
   | 'profesional'
 
 /**
@@ -62,6 +63,10 @@ export const CATEGORIA_META: Record<
     ejemplos: string
     sede: boolean
     tierSugerido: TierEntidad
+    /** Si por defecto se le factura. Es solo la SUGERENCIA que ve el admin
+     *  al aprobar: una municipalidad chica puede ir liberada y una ONG
+     *  grande puede aportar, así que la decisión final es suya. */
+    facturablePorDefecto: boolean
   }
 > = {
   bomberos: {
@@ -69,42 +74,56 @@ export const CATEGORIA_META: Record<
     ejemplos: 'Cuerpo de bomberos, protección civil',
     sede: true,
     tierSugerido: 'oficial',
+    facturablePorDefecto: false,
   },
   municipalidad: {
     etiqueta: 'Municipalidad o gobierno local',
     ejemplos: 'Alcaldía, gobernación, oficina de emergencias',
     sede: true,
     tierSugerido: 'oficial',
+    facturablePorDefecto: true,
   },
   rescate: {
     etiqueta: 'Organismo de rescate',
     ejemplos: 'Brigada rescatista, Cruz Roja, socorro andino',
     sede: true,
     tierSugerido: 'oficial',
+    facturablePorDefecto: false,
   },
   animal: {
     etiqueta: 'Rescate y ayuda animal',
     ejemplos: 'Refugio, ONG animalista, brigada veterinaria',
     sede: true,
     tierSugerido: 'verificada',
+    facturablePorDefecto: false,
   },
   psicosocial: {
     etiqueta: 'Apoyo psicológico o psicosocial',
     ejemplos: 'Fundación, red de contención emocional',
     sede: false,
     tierSugerido: 'verificada',
+    facturablePorDefecto: false,
   },
   junta_vecinal: {
     etiqueta: 'Junta vecinal u organización comunitaria',
     ejemplos: 'Junta de vecinos, comité de emergencia del barrio',
     sede: true,
     tierSugerido: 'verificada',
+    facturablePorDefecto: false,
+  },
+  empresa: {
+    etiqueta: 'Empresa privada',
+    ejemplos: 'Compañía que aporta recursos, equipos o servicios',
+    sede: true,
+    tierSugerido: 'verificada',
+    facturablePorDefecto: true,
   },
   profesional: {
     etiqueta: 'Soy profesional y ofrezco mi ayuda',
     ejemplos: 'Veterinario/a, médico/a, psicólogo/a…',
     sede: false,
     tierSugerido: 'profesional',
+    facturablePorDefecto: false,
   },
 }
 
@@ -116,6 +135,7 @@ export const CATEGORIAS_ORDEN: CategoriaEntidad[] = [
   'municipalidad',
   'junta_vecinal',
   'psicosocial',
+  'empresa',
   'profesional',
 ]
 
@@ -139,6 +159,7 @@ export const PROFESIONES = [
   'Otra',
 ] as const
 
+/** Lo que ve cualquiera: el perfil público, sin nada fiscal. */
 export interface Entidad {
   id: string
   nombre: string
@@ -161,6 +182,23 @@ export interface Entidad {
   creado_en: string
 }
 
+/**
+ * La entidad COMPLETA, con lo fiscal. Solo la leen el admin y los miembros
+ * de la propia entidad: la dirección fiscal y el correo de facturación no
+ * son datos públicos (migración 62).
+ */
+export interface EntidadCompleta extends Entidad {
+  /** Nombre legal, el que va en la factura. Casi nunca es el público:
+   *  se muestra "Bomberos de Coquimbo" pero se factura a "Cuerpo de
+   *  Bomberos de Coquimbo". Facturar con el nombre público rebota. */
+  razon_social: string | null
+  /** RUT de empresa (Chile) o RIF (Venezuela). */
+  id_fiscal: string | null
+  direccion_fiscal: string | null
+  contacto_facturacion: string | null
+  facturable: boolean
+}
+
 export interface SolicitudEntidad {
   id: string
   perfil_id: string
@@ -177,6 +215,12 @@ export interface SolicitudEntidad {
   tipo_documento: string | null
   documento: string | null
   mensaje: string | null
+  // Datos para facturar (migración 62). Se piden en el registro solo a las
+  // categorías que se cobran; el resto los deja vacíos.
+  razon_social: string | null
+  id_fiscal: string | null
+  direccion_fiscal: string | null
+  contacto_facturacion: string | null
   estado: 'pendiente' | 'aprobada' | 'rechazada'
   revisado_por: string | null
   revisado_en: string | null
@@ -188,8 +232,10 @@ export interface SolicitudEntidad {
 const COLS_ENTIDAD =
   'id, nombre, categoria, tier, profesion, descripcion, logo_url, contacto_publico, web, pais, zona, ciudad, lat, lng, verificada_en, verificada_por, metodo_verificacion, suspendida, creado_en'
 
+const COLS_ENTIDAD_COMPLETA = `${COLS_ENTIDAD}, razon_social, id_fiscal, direccion_fiscal, contacto_facturacion, facturable`
+
 const COLS_SOLICITUD =
-  'id, perfil_id, nombre, categoria, profesion, descripcion, pais, zona, ciudad, telefono, email_contacto, web, tipo_documento, documento, mensaje, estado, revisado_por, revisado_en, nota_revision, entidad_id, creado_en'
+  'id, perfil_id, nombre, categoria, profesion, descripcion, pais, zona, ciudad, telefono, email_contacto, web, tipo_documento, documento, mensaje, razon_social, id_fiscal, direccion_fiscal, contacto_facturacion, estado, revisado_por, revisado_en, nota_revision, entidad_id, creado_en'
 
 /** Datos que se mandan al registrarse como entidad (van en la metadata). */
 export interface DatosSolicitudEntidad {
@@ -201,6 +247,10 @@ export interface DatosSolicitudEntidad {
   email_contacto?: string
   web?: string
   mensaje?: string
+  razon_social?: string
+  id_fiscal?: string
+  direccion_fiscal?: string
+  contacto_facturacion?: string
 }
 
 /**
@@ -218,6 +268,17 @@ export function validarSolicitudEntidad(
   }
   if (d.categoria === 'profesional' && !d.profesion?.trim()) {
     return 'Indica tu profesión.'
+  }
+  // A las categorías que se facturan se les pide el identificador fiscal de
+  // entrada: perseguirlo después de aprobar no funciona nunca, y sin él no
+  // se puede emitir la factura.
+  if (CATEGORIA_META[d.categoria].facturablePorDefecto) {
+    if (!d.razon_social?.trim()) {
+      return 'Escribe la razón social (el nombre legal que va en la factura).'
+    }
+    if (!d.id_fiscal?.trim()) {
+      return 'Escribe el RUT de la empresa (Chile) o el RIF (Venezuela).'
+    }
   }
   return null
 }
@@ -252,6 +313,10 @@ export async function crearSolicitudEntidad(
     email_contacto: d.email_contacto?.trim() || null,
     web: d.web?.trim() || null,
     mensaje: d.mensaje?.trim() || null,
+    razon_social: d.razon_social?.trim() || null,
+    id_fiscal: d.id_fiscal?.trim() || null,
+    direccion_fiscal: d.direccion_fiscal?.trim() || null,
+    contacto_facturacion: d.contacto_facturacion?.trim() || null,
   })
   if (error) {
     if (error.code === '23505') {
@@ -296,6 +361,8 @@ export async function revisarSolicitudEntidad(args: {
   tier?: TierEntidad
   metodo?: string
   nota?: string
+  /** Si se le va a facturar. La base rechaza marcarla sin id_fiscal. */
+  facturable?: boolean
 }): Promise<string | null> {
   const { data, error } = await supabase.rpc('revisar_solicitud_entidad', {
     p_id: args.id,
@@ -303,18 +370,23 @@ export async function revisarSolicitudEntidad(args: {
     p_tier: args.aprobar ? (args.tier ?? null) : null,
     p_metodo_verificacion: args.metodo?.trim() || null,
     p_nota: args.nota?.trim() || null,
+    p_facturable: args.aprobar ? (args.facturable ?? false) : false,
   })
   if (error) throw error
   return (data as string | null) ?? null
 }
 
-/** Entidades visibles (para el mapa y el listado público). */
+/**
+ * Entidades visibles (mapa y listado público). Lee la VISTA
+ * `entidades_publicas`, no la tabla: la tabla tiene la dirección fiscal y
+ * el correo de facturación, que no son datos públicos (migración 62).
+ */
 export async function listarEntidades(filtros?: {
   pais?: string | null
   zona?: string | null
   categoria?: CategoriaEntidad | null
 }): Promise<Entidad[]> {
-  let q = supabase.from('entidades').select(COLS_ENTIDAD)
+  let q = supabase.from('entidades_publicas').select(COLS_ENTIDAD)
   if (filtros?.pais) q = q.eq('pais', filtros.pais)
   if (filtros?.zona) q = q.eq('zona', filtros.zona)
   if (filtros?.categoria) q = q.eq('categoria', filtros.categoria)
@@ -323,10 +395,10 @@ export async function listarEntidades(filtros?: {
   return (data ?? []) as Entidad[]
 }
 
-/** Una entidad por id (perfil público). */
+/** Una entidad por id (perfil público, sin datos fiscales). */
 export async function obtenerEntidad(id: string): Promise<Entidad | null> {
   const { data, error } = await supabase
-    .from('entidades')
+    .from('entidades_publicas')
     .select(COLS_ENTIDAD)
     .eq('id', id)
     .maybeSingle()
@@ -334,17 +406,31 @@ export async function obtenerEntidad(id: string): Promise<Entidad | null> {
   return (data as Entidad) ?? null
 }
 
-/** La entidad a la que pertenece la sesión actual (si es de alguna). */
-export async function miEntidad(): Promise<Entidad | null> {
+/**
+ * La entidad de la sesión actual, COMPLETA: aquí sí van los datos fiscales,
+ * porque la ve su propio equipo en su panel (y el admin).
+ */
+export async function miEntidad(): Promise<EntidadCompleta | null> {
   const { data: auth } = await supabase.auth.getUser()
   if (!auth?.user?.id) return null
   const { data, error } = await supabase
     .from('entidad_miembros')
-    .select(`entidad_id, entidades!inner(${COLS_ENTIDAD})`)
+    .select(`entidad_id, entidades!inner(${COLS_ENTIDAD_COMPLETA})`)
     .eq('perfil_id', auth.user.id)
     .maybeSingle()
   if (error) throw error
   if (!data) return null
-  const fila = data as unknown as { entidades: Entidad }
+  const fila = data as unknown as { entidades: EntidadCompleta }
   return fila.entidades ?? null
+}
+
+/** Todas las entidades con sus datos fiscales (solo admin, por RLS). */
+export async function listarEntidadesCompletas(): Promise<EntidadCompleta[]> {
+  const { data, error } = await supabase
+    .from('entidades')
+    .select(COLS_ENTIDAD_COMPLETA)
+    .order('nombre')
+    .limit(500)
+  if (error) throw error
+  return (data ?? []) as EntidadCompleta[]
 }

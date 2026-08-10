@@ -177,6 +177,13 @@ export default function RegistroView() {
   const [nombreEntidad, setNombreEntidad] = useState('')
   const [descripcionEntidad, setDescripcionEntidad] = useState('')
   const [webEntidad, setWebEntidad] = useState('')
+  // Datos de facturación. Se piden SOLO a las categorías que se cobran
+  // (municipalidad, empresa): perseguirlos después de aprobar no funciona
+  // nunca, y sin ellos no se puede emitir la factura.
+  const [razonSocial, setRazonSocial] = useState('')
+  const [idFiscal, setIdFiscal] = useState('')
+  const [direccionFiscal, setDireccionFiscal] = useState('')
+  const [contactoFacturacion, setContactoFacturacion] = useState('')
 
   // Psicólogo/a se pide desde la lista de profesiones, pero conserva su
   // circuito propio (solicitudes_psicologo), que ya trae la asignación y el
@@ -192,6 +199,9 @@ export default function RegistroView() {
   // persona que ofrece su profesión, es su propio nombre.
   const nombrePublicoEntidad =
     categoria === 'profesional' ? nombre.trim() : nombreEntidad.trim()
+  // ¿Esta categoría se factura? Define si se piden los datos fiscales.
+  const pideFacturacion =
+    esEntidad && !!categoria && CATEGORIA_META[categoria].facturablePorDefecto
 
   // Rol con el que NACE la cuenta:
   //  · psicólogo/a → colaborador/a mientras el equipo revisa (como siempre).
@@ -333,6 +343,18 @@ export default function RegistroView() {
         )
         return
       }
+      if (pideFacturacion) {
+        if (!razonSocial.trim()) {
+          setErrorMsg(
+            'Escribe la razón social (el nombre legal que va en la factura).',
+          )
+          return
+        }
+        if (!idFiscal.trim()) {
+          setErrorMsg('Escribe el RUT de la empresa (Chile) o el RIF (Venezuela).')
+          return
+        }
+      }
     }
     setEnviando(true)
     try {
@@ -367,6 +389,10 @@ export default function RegistroView() {
                     telefono: telefono.trim(),
                     email_contacto: email.trim(),
                     web: webEntidad.trim(),
+                    razon_social: razonSocial.trim(),
+                    id_fiscal: idFiscal.trim(),
+                    direccion_fiscal: direccionFiscal.trim(),
+                    contacto_facturacion: contactoFacturacion.trim(),
                   },
                 }
               : {}),
@@ -620,6 +646,71 @@ export default function RegistroView() {
                         maxLength={120}
                         value={webEntidad}
                         onChange={(e) => setWebEntidad(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {/* Facturación: solo a quienes se les cobra. Pedirlo ahora
+                    evita perseguirlo después, que nunca funciona. */}
+                {pideFacturacion && (
+                  <div className="space-y-2 rounded-xl border border-teal-200 bg-white p-3">
+                    <p className="text-xs font-bold text-tinta-700">
+                      Datos para facturar
+                    </p>
+                    <p className="text-[11px] leading-snug text-tinta-500">
+                      Esta categoría tiene un costo, que se cobra por factura
+                      aparte. La verificación NO depende del pago.
+                    </p>
+                    <label className="block">
+                      <span className="text-xs font-bold text-tinta-700">
+                        Razón social <span className="text-bandera-rojo">*</span>
+                      </span>
+                      <input
+                        className="input mt-1"
+                        placeholder="El nombre legal, como aparece en el SII o el SENIAT"
+                        maxLength={120}
+                        value={razonSocial}
+                        onChange={(e) => setRazonSocial(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold text-tinta-700">
+                        RUT de empresa o RIF{' '}
+                        <span className="text-bandera-rojo">*</span>
+                      </span>
+                      <input
+                        className="input mt-1"
+                        placeholder="Ej: 76.123.456-7 o J-12345678-9"
+                        maxLength={40}
+                        value={idFiscal}
+                        onChange={(e) => setIdFiscal(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold text-tinta-700">
+                        Dirección de facturación{' '}
+                        <span className="font-normal text-tinta-400">(opcional)</span>
+                      </span>
+                      <input
+                        className="input mt-1"
+                        maxLength={160}
+                        value={direccionFiscal}
+                        onChange={(e) => setDireccionFiscal(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold text-tinta-700">
+                        Correo para las facturas{' '}
+                        <span className="font-normal text-tinta-400">(opcional)</span>
+                      </span>
+                      <input
+                        className="input mt-1"
+                        type="email"
+                        placeholder="Si es distinto al de la cuenta"
+                        maxLength={120}
+                        value={contactoFacturacion}
+                        onChange={(e) => setContactoFacturacion(e.target.value)}
                       />
                     </label>
                   </div>

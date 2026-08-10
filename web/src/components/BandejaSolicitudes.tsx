@@ -178,6 +178,11 @@ function FichaEntidad({
   const [tier, setTier] = useState<TierEntidad>(meta?.tierSugerido ?? 'verificada')
   const [metodo, setMetodo] = useState('')
   const [nota, setNota] = useState('')
+  // La categoría solo sugiere: una municipalidad chica puede ir liberada y
+  // una ONG grande puede aportar, así que la decisión final es del admin.
+  const [facturable, setFacturable] = useState(
+    meta?.facturablePorDefecto ?? false,
+  )
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -186,6 +191,13 @@ function FichaEntidad({
     // es peor que no tener insignia, porque la gente confía y no debería.
     if (aprobar && !metodo.trim()) {
       setErrorMsg('Indica cómo verificaste la entidad antes de aprobarla.')
+      return
+    }
+    // La base también lo rechaza, pero avisar aquí evita el viaje.
+    if (aprobar && facturable && !s.id_fiscal) {
+      setErrorMsg(
+        'No se puede marcar como facturable: la solicitud no trae RUT/RIF.',
+      )
       return
     }
     setGuardando(true)
@@ -197,6 +209,7 @@ function FichaEntidad({
         tier,
         metodo,
         nota,
+        facturable,
       })
       onCambio()
     } catch (e) {
@@ -237,6 +250,18 @@ function FichaEntidad({
         <Dato etiqueta="Documento" valor={s.documento} />
         <Dato etiqueta="Mensaje" valor={s.mensaje} />
       </dl>
+
+      {/* Datos de facturación, si los trajo. Se muestran aparte porque son
+          de otra naturaleza: con estos se emite la factura. */}
+      {(s.razon_social || s.id_fiscal) && (
+        <dl className="mt-2 grid grid-cols-1 gap-1 rounded-xl bg-amber-50/70 p-2.5 text-xs text-tinta-700">
+          <p className="font-bold text-amber-900">Facturación</p>
+          <Dato etiqueta="Razón social" valor={s.razon_social} />
+          <Dato etiqueta="RUT / RIF" valor={s.id_fiscal} />
+          <Dato etiqueta="Dirección" valor={s.direccion_fiscal} />
+          <Dato etiqueta="Correo facturas" valor={s.contacto_facturacion} />
+        </dl>
+      )}
 
       {!pendiente && s.nota_revision && (
         <p className="mt-2 text-xs text-tinta-500">
@@ -313,6 +338,25 @@ function FichaEntidad({
               ))}
             </div>
           </div>
+
+          <label className="flex items-start gap-2.5 rounded-xl bg-white p-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-bandera-azul"
+              checked={facturable}
+              onChange={(e) => setFacturable(e.target.checked)}
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-bold text-tinta-800">
+                Se le factura
+              </span>
+              <span className="block text-[11px] leading-snug text-tinta-500">
+                {s.id_fiscal
+                  ? `Se facturará a ${s.razon_social ?? s.nombre} (${s.id_fiscal}).`
+                  : 'No trae RUT/RIF, así que no se puede marcar todavía.'}
+              </span>
+            </span>
+          </label>
 
           <input
             className="input text-sm"
