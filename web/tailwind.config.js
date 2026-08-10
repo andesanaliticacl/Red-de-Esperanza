@@ -53,9 +53,14 @@ export default {
           '100%': { opacity: '1' },
         },
       },
+      // fill-mode `backwards`, NO `both`: con `both` el elemento se queda con
+      // `transform: translateY(0)` para siempre, y un ancestro con transform
+      // hace que sus hijos `position: fixed` se anclen a él en vez de a la
+      // ventana — los desplegables se abrían fuera de la pantalla. Con
+      // `backwards` la animación se ve igual y al terminar no queda transform.
       animation: {
-        entrada: 'entrada 0.32s cubic-bezier(0.22, 1, 0.36, 1) both',
-        'entrada-suave': 'entradaSuave 0.4s ease-out both',
+        entrada: 'entrada 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards',
+        'entrada-suave': 'entradaSuave 0.4s ease-out backwards',
       },
     },
   },
