@@ -179,3 +179,17 @@ input::placeholder, textarea::placeholder {
   .pulso-resaltado { animation: none; }
   .zona-pulsante { animation: none; }
 }
+
+/* Quien pidió menos movimiento en su sistema no debería recibir animaciones
+   de entrada. Se anulan las transiciones y los keyframes de golpe: la
+   interfaz queda igual, solo aparece sin desplazarse. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

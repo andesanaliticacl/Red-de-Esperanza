@@ -9,7 +9,7 @@ import {
   EyeOff,
   TriangleAlert,
   UserRoundPlus,
-  LogIn,
+  MailCheck,
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -79,6 +79,16 @@ function buscarCoincidencia(
 // una sola puerta visible para quien se registra, aunque por detrás siga
 // yendo a su circuito propio (ver esPsicologo más abajo).
 type OpcionParticipar = 'voluntario' | 'rescatista' | 'centro_acopio' | 'entidad'
+
+/** Pantallas del registro. Cuáles se muestran depende del camino elegido. */
+type PasoRegistro =
+  | 'participar'
+  | 'categoria'
+  | 'organizacion'
+  | 'facturacion'
+  | 'lugar'
+  | 'identidad'
+  | 'cuenta'
 const OPCIONES_PARTICIPAR: {
   v: OpcionParticipar
   icono: LucideIcon
@@ -298,6 +308,69 @@ export default function RegistroView() {
   const [listo, setListo] = useState<'no' | 'confirmar' | 'sesion'>('no')
   const [verRoles, setVerRoles] = useState(false)
 
+  // ===== Recorrido por pasos =====
+  // El registro era una sola pantalla larguísima que obligaba a desplazarse
+  // sí o sí. Ahora es una pregunta por pantalla, como en Reportar: se sigue
+  // mucho mejor bajo estrés y cada paso entra completo.
+  //
+  // Los pasos se calculan según el camino: quien entra como voluntario ve
+  // cuatro; una municipalidad ve siete, porque hay más que preguntarle.
+  const pasos: PasoRegistro[] = [
+    'participar',
+    ...(participa === 'entidad' ? (['categoria'] as PasoRegistro[]) : []),
+    ...(participa === 'entidad' && categoria
+      ? (['organizacion'] as PasoRegistro[])
+      : []),
+    ...(pideFacturacion ? (['facturacion'] as PasoRegistro[]) : []),
+    'lugar',
+    'identidad',
+    'cuenta',
+  ]
+  const [pasoIdx, setPasoIdx] = useState(0)
+  // Si el camino se acorta (p. ej. cambia de entidad a voluntario), el índice
+  // podría quedar apuntando fuera de la lista.
+  const idx = Math.min(pasoIdx, pasos.length - 1)
+  const paso = pasos[idx]
+  const esUltimo = idx === pasos.length - 1
+
+  /** Lo imprescindible de cada paso, para no dejar avanzar en vacío y que el
+   *  error salte al final, cuando ya se olvidó qué faltaba. */
+  const pasoCompleto = (() => {
+    switch (paso) {
+      case 'participar':
+        return true // siempre hay una tarjeta elegida
+      case 'categoria':
+        return !!categoria
+      case 'organizacion':
+        return categoria === 'profesional'
+          ? !!profesion
+          : !!nombreEntidad.trim()
+      case 'facturacion':
+        return !!razonSocial.trim() && !!idFiscal.trim()
+      case 'lugar':
+        return !!pais && !!estado.trim() && !!ciudad.trim()
+      case 'identidad':
+        return !!nombre.trim() && !!documento.trim()
+      case 'cuenta':
+        return (
+          !!email.trim() && password.length >= 6 && esTelefonoValido(telefono)
+        )
+      default:
+        return true
+    }
+  })()
+
+  const TITULOS: Record<PasoRegistro, string> = {
+    participar: '¿Cómo quieres participar?',
+    categoria: '¿Qué representas?',
+    organizacion:
+      categoria === 'profesional' ? '¿Cuál es tu profesión?' : 'Tu organización',
+    facturacion: 'Datos para facturar',
+    lugar: '¿Dónde estás?',
+    identidad: '¿Quién eres?',
+    cuenta: 'Tu cuenta',
+  }
+
   async function registrar(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg('')
@@ -428,30 +501,35 @@ export default function RegistroView() {
 
   if (listo === 'confirmar') {
     return (
-      <div className="min-h-full flex items-center justify-center p-6 bg-gray-50">
-        <div className="card w-full max-w-md text-center">
-          <div className="text-4xl mb-3">📩</div>
-          <h1 className="text-xl font-extrabold text-bandera-azul mb-2">
+      <div className="relative min-h-full flex items-center justify-center overflow-hidden bg-tinta-900 p-5">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-bandera-azul/30 blur-3xl"
+        />
+        <div className="relative w-full max-w-sm animate-entrada rounded-3xl bg-white p-6 text-center shadow-alta">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-bandera-azul/10 text-bandera-azul">
+            <MailCheck className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="mt-3 text-xl font-extrabold text-tinta-900">
             Revisa tu correo
           </h1>
-          <p className="text-gray-600">
+          <p className="mt-1 text-sm text-tinta-600">
             Te enviamos un enlace a <b>{email}</b> para confirmar tu cuenta.
-            Ábrelo y luego inicia sesión.
           </p>
           {quierePsicologo && (
-            <p className="text-sm text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-3">
-              Tu solicitud para ser psicólogo/a ya quedó registrada. El
-              equipo de psicología la revisará y te contactará por teléfono.
+            <p className="mt-3 rounded-xl border border-purple-100 bg-purple-50 p-3 text-xs text-purple-900">
+              Tu solicitud para ser psicólogo/a ya quedó registrada. El equipo
+              la revisará y te contactará por teléfono.
             </p>
           )}
           {esEntidad && (
-            <p className="text-sm text-teal-900 bg-teal-50 border border-teal-100 rounded-xl p-3 mt-3">
+            <p className="mt-3 rounded-xl border border-teal-100 bg-teal-50 p-3 text-xs text-teal-900">
               Tu solicitud de <b>{nombrePublicoEntidad}</b> ya quedó
               registrada. El equipo la verificará por el canal oficial de la
               organización y te contactará.
             </p>
           )}
-          <Link to="/login" className="btn-azul w-full mt-5">
+          <Link to="/login" className="btn-azul w-full mt-5 py-3">
             Ir a iniciar sesión
           </Link>
         </div>
@@ -460,59 +538,58 @@ export default function RegistroView() {
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center justify-center p-4 bg-gray-50">
-      <div className="card w-full max-w-md">
-        <h1 className="text-2xl font-extrabold text-bandera-azul mb-1">
-          Crear cuenta
-        </h1>
-        <p className="text-gray-600 mb-5 text-sm">
-          Elige cómo quieres participar en la red.
-        </p>
+    <div className="relative min-h-full flex flex-col items-center justify-center overflow-hidden bg-tinta-900 px-4 py-4">
+      {/* Halo detrás de la tarjeta: profundidad sin dibujar nada que
+          distraiga. Decorativo, fuera del árbol de accesibilidad. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-bandera-azul/30 blur-3xl"
+      />
 
-        <form onSubmit={registrar} className="space-y-4">
-          {/* Ubicación detectada: se rellena sola, pero todo es editable. */}
-          {detectando && (
-            <p className="text-sm text-gray-500 flex items-center gap-2">
-              <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-bandera-azul animate-spin" />
-              Detectando dónde estás para completarlo por ti…
-            </p>
-          )}
-          {!detectando && lugarDetectado && (
-            <p className="text-sm rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-bandera-azul">
-              <MapPin className="mr-1 inline h-4 w-4 align-[-3px]" aria-hidden="true" />Parece que estás en <b>{lugarDetectado}</b>. Ya lo completamos;
-              si no es correcto, cámbialo abajo.
-            </p>
-          )}
-
-          {/* País donde estás */}
-          <div>
-            <p className="font-bold text-sm mb-2">¿En qué país estás?</p>
-            <SelectorBandera
-              opciones={OPCIONES_PAIS}
-              valor={pais}
-              onChange={(v) => {
-                tocadoPorUsuario.current = true
-                setPais(v)
-                // Al cambiar de país, la zona anterior ya no aplica.
-                setEstado('')
-              }}
+      <form
+        onSubmit={registrar}
+        className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-white p-4 shadow-alta"
+      >
+        {/* Progreso: una barra por paso. Deja ver cuánto falta, que es lo
+            que hace tolerable un formulario largo partido en trozos. */}
+        <div
+          className="flex items-center gap-1 mb-2.5"
+          role="progressbar"
+          aria-valuenow={idx + 1}
+          aria-valuemin={1}
+          aria-valuemax={pasos.length}
+          aria-label={`Paso ${idx + 1} de ${pasos.length}`}
+        >
+          {pasos.map((p, i) => (
+            <span
+              key={p}
+              className={`h-1 flex-1 rounded-full transition-colors duration-300 ease-suave ${
+                i <= idx ? 'bg-bandera-azul' : 'bg-tinta-100'
+              }`}
             />
-          </div>
+          ))}
+        </div>
 
-          {/* ¿Cómo quieres participar? Una sola elección entre 4 tarjetas. */}
-          <div>
-            <div className="flex items-baseline justify-between gap-3 mb-2">
-              <p className="font-bold text-sm text-tinta-800">
-                ¿Cómo quieres participar?
-              </p>
-              <button
-                type="button"
-                onClick={() => setVerRoles(true)}
-                className="shrink-0 text-xs text-bandera-azul font-semibold hover:underline"
-              >
-                ¿Qué significa cada uno?
-              </button>
-            </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="text-xl font-extrabold tracking-tight text-tinta-900">
+            {TITULOS[paso]}
+          </h1>
+          {paso === 'participar' && (
+            <button
+              type="button"
+              onClick={() => setVerRoles(true)}
+              className="shrink-0 text-xs font-semibold text-bandera-azul hover:underline"
+            >
+              ¿Cuál elijo?
+            </button>
+          )}
+        </div>
+
+        {/* key={paso}: al cambiar de paso React vuelve a montar el bloque y
+            la animación de entrada se reproduce de nuevo. */}
+        <div key={paso} className="animate-entrada mt-3 space-y-3">
+          {/* ---------- 1. ¿Cómo quieres participar? ---------- */}
+          {paso === 'participar' && (
             <div className="grid grid-cols-2 gap-2">
               {OPCIONES_PARTICIPAR.map((o) => (
                 <button
@@ -520,420 +597,445 @@ export default function RegistroView() {
                   key={o.v}
                   onClick={() => setParticipa(o.v)}
                   aria-pressed={participa === o.v}
-                  // h-full: las cuatro quedan de la misma altura aunque los
-                  // textos midan distinto. El estado elegido se marca con un
-                  // anillo (no con el borde) para que nada se desplace.
-                  className={`card h-full min-h-[7rem] flex flex-col text-left p-3.5 transition-all duration-200 ease-suave ${
+                  className={`card h-full min-h-[6.5rem] flex flex-col text-left p-3 transition-all duration-200 ease-suave ${
                     participa === o.v
                       ? o.v === 'entidad'
                         ? 'ring-2 ring-teal-500 bg-teal-50/60 shadow-media'
                         : 'ring-2 ring-bandera-azul bg-bandera-azul/[0.04] shadow-media'
-                      : 'hover:border-tinta-200 hover:shadow-media'
+                      : 'hover:border-tinta-200 hover:shadow-media hover:-translate-y-[1px]'
                   }`}
                 >
-                  <div className="font-bold text-sm text-tinta-800">
-                    <o.icono className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <o.icono
+                    className="h-4 w-4 shrink-0 text-tinta-500"
+                    aria-hidden="true"
+                  />
+                  <div className="mt-1 text-sm font-bold leading-tight text-tinta-800">
                     {o.titulo}
                   </div>
-                  <div className="text-xs text-tinta-500 mt-1 leading-snug">
+                  <div className="mt-0.5 text-[11px] leading-snug text-tinta-500">
                     {o.descripcion}
                   </div>
                 </button>
               ))}
             </div>
-            {/* Segundo paso: qué tipo de entidad. Solo aparece al elegir la
-                tarjeta, para no cargar la pantalla a quien no la necesita. */}
-            {participa === 'entidad' && (
-              <div className="mt-3 rounded-2xl border border-teal-100 bg-teal-50/40 p-3.5 space-y-3">
-                <p className="font-bold text-sm text-tinta-800">
-                  ¿Qué representas?
-                </p>
-                <div className="grid gap-2">
-                  {CATEGORIAS_ORDEN.map((c) => {
-                    const meta = CATEGORIA_META[c]
-                    const Icono = ICONO_CATEGORIA_ENTIDAD[c]
-                    const elegida = categoria === c
-                    return (
-                      <button
-                        type="button"
-                        key={c}
-                        onClick={() => setCategoria(c)}
-                        aria-pressed={elegida}
-                        className={`flex items-center gap-3 rounded-xl border-2 bg-white p-2.5 text-left transition-colors ${
-                          elegida
-                            ? 'border-teal-600 bg-teal-50'
-                            : 'border-transparent hover:border-teal-200'
-                        }`}
-                      >
-                        <Icono
-                          className="h-5 w-5 shrink-0 text-teal-700"
-                          aria-hidden="true"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-bold text-tinta-800 leading-tight">
-                            {meta.etiqueta}
-                          </span>
-                          <span className="block text-xs text-tinta-500 leading-snug">
-                            {meta.ejemplos}
-                          </span>
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
+          )}
 
-                {/* Persona: profesión de una lista corta. */}
-                {categoria === 'profesional' && (
-                  <div>
-                    <p className="font-bold text-sm text-tinta-800 mb-1.5">
-                      ¿Cuál es tu profesión?
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PROFESIONES.map((p) => (
-                        <button
-                          type="button"
-                          key={p}
-                          onClick={() => setProfesion(p)}
-                          aria-pressed={profesion === p}
-                          className={`rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors ${
-                            profesion === p
-                              ? 'border-teal-600 bg-teal-600 text-white'
-                              : 'border-tinta-200 bg-white text-tinta-600 hover:border-teal-300'
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          {/* ---------- 2. ¿Qué representas? ---------- */}
+          {/* Ocho categorías tienen que caber sin desplazar hasta en pantallas
+              de 640 px, así que las filas van muy justas: los ejemplos se
+              mantienen (ayudan a reconocerse) pero en cuerpo pequeño y con
+              interlineado cerrado. */}
+          {paso === 'categoria' && (
+            <div className="grid gap-0.5">
+              {CATEGORIAS_ORDEN.map((c) => {
+                const meta = CATEGORIA_META[c]
+                const Icono = ICONO_CATEGORIA_ENTIDAD[c]
+                const elegida = categoria === c
+                return (
+                  <button
+                    type="button"
+                    key={c}
+                    onClick={() => setCategoria(c)}
+                    aria-pressed={elegida}
+                    className={`flex items-center gap-2 rounded-lg border-2 px-2 py-1.5 text-left transition-all duration-200 ease-suave ${
+                      elegida
+                        ? 'border-teal-600 bg-teal-50'
+                        : 'border-tinta-100 hover:border-teal-200 hover:bg-teal-50/40'
+                    }`}
+                  >
+                    <Icono
+                      className="h-4 w-4 shrink-0 text-teal-700"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12px] font-bold leading-tight text-tinta-800">
+                        {meta.etiqueta}
+                      </span>
+                      <span className="block text-[10px] leading-tight text-tinta-500">
+                        {meta.ejemplos}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
-                {/* Organización: nombre público + qué hacen. */}
-                {categoria && categoria !== 'profesional' && (
-                  <div className="space-y-2">
-                    <label className="block">
-                      <span className="font-bold text-sm text-tinta-800">
-                        Nombre oficial de la organización
-                      </span>
-                      <input
-                        className="input mt-1"
-                        placeholder="Ej: Cuerpo de Bomberos de Coquimbo"
-                        maxLength={80}
-                        value={nombreEntidad}
-                        onChange={(e) => setNombreEntidad(e.target.value)}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="font-bold text-sm text-tinta-800">
-                        ¿Qué hacen? <span className="font-normal text-tinta-400">(opcional)</span>
-                      </span>
-                      <textarea
-                        className="input mt-1 min-h-[60px]"
-                        placeholder="En una línea, para que la gente sepa en qué pueden ayudar."
-                        maxLength={300}
-                        value={descripcionEntidad}
-                        onChange={(e) => setDescripcionEntidad(e.target.value)}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="font-bold text-sm text-tinta-800">
-                        Sitio web o red social{' '}
-                        <span className="font-normal text-tinta-400">(opcional)</span>
-                      </span>
-                      <input
-                        className="input mt-1"
-                        placeholder="Ayuda a verificarlos más rápido"
-                        maxLength={120}
-                        value={webEntidad}
-                        onChange={(e) => setWebEntidad(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                )}
-
-                {/* Facturación: solo a quienes se les cobra. Pedirlo ahora
-                    evita perseguirlo después, que nunca funciona. */}
-                {pideFacturacion && (
-                  <div className="space-y-2 rounded-xl border border-teal-200 bg-white p-3">
-                    <p className="text-xs font-bold text-tinta-700">
-                      Datos para facturar
-                    </p>
-                    <p className="text-[11px] leading-snug text-tinta-500">
-                      Esta categoría tiene un costo, que se cobra por factura
-                      aparte. La verificación NO depende del pago.
-                    </p>
-                    <label className="block">
-                      <span className="text-xs font-bold text-tinta-700">
-                        Razón social <span className="text-bandera-rojo">*</span>
-                      </span>
-                      <input
-                        className="input mt-1"
-                        placeholder="El nombre legal, como aparece en el SII o el SENIAT"
-                        maxLength={120}
-                        value={razonSocial}
-                        onChange={(e) => setRazonSocial(e.target.value)}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-tinta-700">
-                        RUT de empresa o RIF{' '}
-                        <span className="text-bandera-rojo">*</span>
-                      </span>
-                      <input
-                        className="input mt-1"
-                        placeholder="Ej: 76.123.456-7 o J-12345678-9"
-                        maxLength={40}
-                        value={idFiscal}
-                        onChange={(e) => setIdFiscal(e.target.value)}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-tinta-700">
-                        Dirección de facturación{' '}
-                        <span className="font-normal text-tinta-400">(opcional)</span>
-                      </span>
-                      <input
-                        className="input mt-1"
-                        maxLength={160}
-                        value={direccionFiscal}
-                        onChange={(e) => setDireccionFiscal(e.target.value)}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-tinta-700">
-                        Correo para las facturas{' '}
-                        <span className="font-normal text-tinta-400">(opcional)</span>
-                      </span>
-                      <input
-                        className="input mt-1"
-                        type="email"
-                        placeholder="Si es distinto al de la cuenta"
-                        maxLength={120}
-                        value={contactoFacturacion}
-                        onChange={(e) => setContactoFacturacion(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                )}
-
-                {/* Qué va a pasar después: el proceso ES la garantía. */}
-                {categoria && (
-                  <p className="text-xs leading-relaxed text-teal-900 bg-white border border-teal-100 rounded-xl p-3">
-                    {esPsicologo ? (
-                      <>
-                        Tu cuenta se crea como colaborador/a. El equipo de
-                        psicología revisará tu solicitud, te contactará por
-                        teléfono y, si corresponde, te otorgará el rol.
-                      </>
-                    ) : (
-                      <>
-                        <strong>Verificamos antes de publicar.</strong> Tu
-                        cuenta se crea de inmediato, pero la insignia y el
-                        perfil público aparecen recién cuando confirmemos la
-                        organización por su canal oficial. Es lo que hace que
-                        la gente pueda confiar en lo que publiques.
-                      </>
-                    )}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          <input
-            className="input"
-            placeholder="Nombre y apellido"
-            required
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-          />
-
-          {/* Documento */}
-          <div>
-            <div className="flex gap-2 mb-2">
-              {(['cedula', 'pasaporte'] as TipoDocumento[]).map((t) => (
+          {/* ---------- 3. Organización o profesión ---------- */}
+          {paso === 'organizacion' && categoria === 'profesional' && (
+            <div className="flex flex-wrap gap-1.5">
+              {PROFESIONES.map((p) => (
                 <button
                   type="button"
-                  key={t}
-                  onClick={() => setTipoDoc(t)}
-                  className={`flex-1 rounded-xl py-2 text-sm font-semibold border-2 ${
-                    tipoDoc === t
-                      ? 'border-bandera-azul text-bandera-azul'
-                      : 'border-gray-200 text-gray-500'
+                  key={p}
+                  onClick={() => setProfesion(p)}
+                  aria-pressed={profesion === p}
+                  className={`rounded-full border-2 px-3 py-2 text-xs font-bold transition-all duration-200 ease-suave ${
+                    profesion === p
+                      ? 'border-teal-600 bg-teal-600 text-white shadow-boton'
+                      : 'border-tinta-200 bg-white text-tinta-600 hover:border-teal-300'
                   }`}
                 >
-                  {t === 'cedula'
-                    ? pais === 'Chile'
-                      ? 'RUT'
-                      : 'Cédula'
-                    : 'Pasaporte'}
+                  {p}
                 </button>
               ))}
             </div>
-            <input
-              className="input"
-              placeholder={
-                tipoDoc === 'cedula'
-                  ? pais === 'Chile'
-                    ? 'Ej: 12.345.678-5'
-                    : 'Ej: V-12345678'
-                  : 'N.º de pasaporte'
-              }
-              required
-              value={documento}
-              onChange={(e) => setDocumento(e.target.value)}
-            />
-            {quierePsicologo && (
-              <p className="text-xs text-gray-500 mt-1">
-                Para tu solicitud de psicólogo/a, el documento se valida:
-                cédula/pasaporte venezolano o RUT/pasaporte chileno.
-              </p>
-            )}
-          </div>
-
-          {/* Zona (se adapta al país: Estado / Región / Provincia…) + ciudad */}
-          <div className="grid grid-cols-2 gap-2">
-            {zona.opciones.length > 0 ? (
-              <select
-                className="input"
-                required
-                value={estado}
-                onChange={(e) => {
-                  tocadoPorUsuario.current = true
-                  setEstado(e.target.value)
-                  setCiudad('') // la ciudad anterior ya no corresponde
-                  setCiudadOtra(false)
-                }}
-              >
-                <option value="">{zona.etiqueta}…</option>
-                {zona.opciones.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="input"
-                placeholder={zona.etiqueta}
-                required
-                value={estado}
-                onChange={(e) => {
-                  tocadoPorUsuario.current = true
-                  setEstado(e.target.value)
-                  setCiudad('')
-                  setCiudadOtra(false)
-                }}
-              />
-            )}
-
-            {/* Ciudad: menú desplegable si tenemos lista; "Otra…" deja escribir. */}
-            {ciudadesSugeridas.length > 0 && !ciudadOtra ? (
-              <select
-                className="input"
-                required
-                value={ciudad}
-                onChange={(e) => {
-                  if (e.target.value === '__otra__') {
-                    setCiudadOtra(true)
-                    setCiudad('')
-                  } else {
-                    setCiudad(e.target.value)
-                  }
-                }}
-              >
-                <option value="">Ciudad…</option>
-                {ciudadesSugeridas.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-                <option value="__otra__">✏️ Otra ciudad…</option>
-              </select>
-            ) : (
-              <input
-                className="input"
-                placeholder="Ciudad"
-                required
-                value={ciudad}
-                onChange={(e) => setCiudad(e.target.value)}
-              />
-            )}
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold mb-1">
-              Teléfono <span className="text-bandera-rojo">*</span>
-            </p>
-            <p className="text-xs text-gray-500 mb-1">
-              {quierePsicologo
-                ? 'Es cómo el equipo de psicología te contactará para revisar tu solicitud.'
-                : esEntidad
-                  ? 'Es cómo el equipo te contactará para verificar la organización.'
-                  : 'Es cómo otras personas de la red pueden contactarte si haces falta.'}
-            </p>
-            <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
-          </div>
-
-          <hr className="border-gray-100" />
-
-          <input
-            type="email"
-            className="input"
-            placeholder="Correo electrónico"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <div className="relative">
-            <input
-              type={verPass ? 'text' : 'password'}
-              className="input pr-12"
-              placeholder="Contraseña (mínimo 6 caracteres)"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={() => setVerPass((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-lg"
-              aria-label={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
-              title={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
-            >
-              {verPass ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
-          </div>
-
-          {errorMsg && (
-            <p className="flex items-center gap-1.5 text-bandera-rojo text-sm font-medium"><TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />{errorMsg}</p>
           )}
 
-          <button
-            type="submit"
-            disabled={enviando}
-            className="btn-verde w-full text-xl py-4 disabled:opacity-60"
-          >
-            {enviando ? ('Creando cuenta…') : (<><UserRoundPlus className="h-5 w-5" aria-hidden="true" />Crear cuenta</>)}
-          </button>
-        </form>
+          {paso === 'organizacion' && categoria && categoria !== 'profesional' && (
+            <>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  Nombre oficial
+                </span>
+                <input
+                  className="input mt-1"
+                  placeholder="Ej: Cuerpo de Bomberos de Coquimbo"
+                  maxLength={80}
+                  value={nombreEntidad}
+                  onChange={(e) => setNombreEntidad(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  ¿Qué hacen?{' '}
+                  <span className="font-normal text-tinta-400">(opcional)</span>
+                </span>
+                <textarea
+                  className="input mt-1 min-h-[60px]"
+                  placeholder="En una línea, para que la gente sepa en qué pueden ayudar."
+                  maxLength={300}
+                  value={descripcionEntidad}
+                  onChange={(e) => setDescripcionEntidad(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  Sitio web o red social{' '}
+                  <span className="font-normal text-tinta-400">(opcional)</span>
+                </span>
+                <input
+                  className="input mt-1"
+                  placeholder="Ayuda a verificarlos más rápido"
+                  maxLength={120}
+                  value={webEntidad}
+                  onChange={(e) => setWebEntidad(e.target.value)}
+                />
+              </label>
+            </>
+          )}
 
-        <div className="mt-6 pt-5 border-t text-center">
-          <p className="text-gray-600 mb-3">¿Ya tienes cuenta?</p>
-          <Link
-            to="/login"
-            className="btn-azul w-full text-xl py-4 no-underline"
-          >
-            <LogIn className="h-5 w-5" aria-hidden="true" />Iniciar sesión
-          </Link>
+          {/* ---------- 4. Facturación (solo categorías que se cobran) ---------- */}
+          {paso === 'facturacion' && (
+            <>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  Razón social
+                </span>
+                <input
+                  className="input mt-1"
+                  placeholder="El nombre legal, como aparece en el SII o el SENIAT"
+                  maxLength={120}
+                  value={razonSocial}
+                  onChange={(e) => setRazonSocial(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  RUT de empresa o RIF
+                </span>
+                <input
+                  className="input mt-1"
+                  placeholder="Ej: 76.123.456-7 o J-12345678-9"
+                  maxLength={40}
+                  value={idFiscal}
+                  onChange={(e) => setIdFiscal(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  Dirección{' '}
+                  <span className="font-normal text-tinta-400">(opcional)</span>
+                </span>
+                <input
+                  className="input mt-1"
+                  maxLength={160}
+                  value={direccionFiscal}
+                  onChange={(e) => setDireccionFiscal(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-bold text-tinta-800">
+                  Correo para las facturas{' '}
+                  <span className="font-normal text-tinta-400">(opcional)</span>
+                </span>
+                <input
+                  className="input mt-1"
+                  type="email"
+                  placeholder="Si es distinto al de la cuenta"
+                  maxLength={120}
+                  value={contactoFacturacion}
+                  onChange={(e) => setContactoFacturacion(e.target.value)}
+                />
+              </label>
+            </>
+          )}
+
+          {/* ---------- 5. ¿Dónde estás? ---------- */}
+          {paso === 'lugar' && (
+            <>
+              {detectando && (
+                <p className="flex items-center gap-2 text-xs text-tinta-500">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-tinta-200 border-t-bandera-azul" />
+                  Detectando dónde estás para completarlo por ti…
+                </p>
+              )}
+              {!detectando && lugarDetectado && (
+                <p className="animate-entrada-suave rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-bandera-azul">
+                  <MapPin
+                    className="mr-1 inline h-4 w-4 align-[-3px]"
+                    aria-hidden="true"
+                  />
+                  Parece que estás en <b>{lugarDetectado}</b>. Ya lo
+                  completamos; si no es correcto, cámbialo.
+                </p>
+              )}
+              <SelectorBandera
+                opciones={OPCIONES_PAIS}
+                valor={pais}
+                onChange={(v) => {
+                  tocadoPorUsuario.current = true
+                  setPais(v)
+                  setEstado('') // la zona anterior ya no aplica
+                }}
+              />
+              {zona.opciones.length > 0 ? (
+                <select
+                  className="input"
+                  value={estado}
+                  onChange={(e) => {
+                    tocadoPorUsuario.current = true
+                    setEstado(e.target.value)
+                    setCiudad('') // la ciudad anterior ya no corresponde
+                    setCiudadOtra(false)
+                  }}
+                >
+                  <option value="">{zona.etiqueta}…</option>
+                  {zona.opciones.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  placeholder={zona.etiqueta}
+                  value={estado}
+                  onChange={(e) => {
+                    tocadoPorUsuario.current = true
+                    setEstado(e.target.value)
+                    setCiudad('')
+                    setCiudadOtra(false)
+                  }}
+                />
+              )}
+              {ciudadesSugeridas.length > 0 && !ciudadOtra ? (
+                <select
+                  className="input"
+                  value={ciudad}
+                  onChange={(e) => {
+                    if (e.target.value === '__otra__') {
+                      setCiudadOtra(true)
+                      setCiudad('')
+                    } else {
+                      setCiudad(e.target.value)
+                    }
+                  }}
+                >
+                  <option value="">Ciudad…</option>
+                  {ciudadesSugeridas.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  <option value="__otra__">Otra ciudad…</option>
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  placeholder="Ciudad"
+                  value={ciudad}
+                  onChange={(e) => setCiudad(e.target.value)}
+                />
+              )}
+            </>
+          )}
+
+          {/* ---------- 6. ¿Quién eres? ---------- */}
+          {paso === 'identidad' && (
+            <>
+              <input
+                className="input"
+                placeholder="Nombre y apellido"
+                autoComplete="name"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+              />
+              <div className="flex gap-2">
+                {(['cedula', 'pasaporte'] as TipoDocumento[]).map((t) => (
+                  <button
+                    type="button"
+                    key={t}
+                    onClick={() => setTipoDoc(t)}
+                    aria-pressed={tipoDoc === t}
+                    className={`flex-1 rounded-xl border-2 py-2 text-sm font-semibold transition-colors duration-200 ${
+                      tipoDoc === t
+                        ? 'border-bandera-azul text-bandera-azul'
+                        : 'border-tinta-200 text-tinta-500 hover:border-tinta-300'
+                    }`}
+                  >
+                    {t === 'cedula'
+                      ? pais === 'Chile'
+                        ? 'RUT'
+                        : 'Cédula'
+                      : 'Pasaporte'}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="input"
+                placeholder={
+                  tipoDoc === 'cedula'
+                    ? pais === 'Chile'
+                      ? 'Ej: 12.345.678-5'
+                      : 'Ej: V-12345678'
+                    : 'N.º de pasaporte'
+                }
+                value={documento}
+                onChange={(e) => setDocumento(e.target.value)}
+              />
+              {quierePsicologo && (
+                <p className="text-[11px] leading-snug text-tinta-500">
+                  Para tu solicitud de psicólogo/a se valida: cédula o
+                  pasaporte venezolano, o RUT o pasaporte chileno.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* ---------- 7. Tu cuenta ---------- */}
+          {paso === 'cuenta' && (
+            <>
+              <div>
+                <p className="text-sm font-bold text-tinta-800 mb-1">
+                  Teléfono{' '}
+                  <span className="font-normal text-tinta-400">
+                    {esEntidad || quierePsicologo
+                      ? '· para verificarte'
+                      : '· para contactarte'}
+                  </span>
+                </p>
+                <EntradaTelefono
+                  valor={telefono}
+                  onChange={setTelefono}
+                  requerido
+                />
+              </div>
+              <input
+                type="email"
+                className="input"
+                placeholder="Correo electrónico"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <div className="relative">
+                <input
+                  type={verPass ? 'text' : 'password'}
+                  className="input pr-12"
+                  placeholder="Contraseña (mínimo 6 caracteres)"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setVerPass((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-tinta-400 hover:text-tinta-600"
+                  aria-label={verPass ? 'Ocultar contraseña' : 'Ver contraseña'}
+                >
+                  {verPass ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              {esEntidad && (
+                <p className="rounded-xl border border-teal-100 bg-teal-50/70 px-2.5 py-2 text-[11px] leading-snug text-teal-900">
+                  <strong>Verificamos antes de publicar.</strong> La insignia
+                  aparece cuando confirmemos la organización por su canal
+                  oficial.
+                </p>
+              )}
+            </>
+          )}
         </div>
+
+        {errorMsg && (
+          <p className="animate-entrada-suave mt-3 flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-bandera-rojo">
+            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {errorMsg}
+          </p>
+        )}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => (idx === 0 ? navigate('/') : setPasoIdx(idx - 1))}
+            className="btn-gris flex-1 py-3"
+          >
+            ← Atrás
+          </button>
+          {esUltimo ? (
+            <button
+              type="submit"
+              disabled={enviando || !pasoCompleto}
+              className="btn-verde flex-1 py-3 disabled:opacity-60"
+            >
+              {enviando ? (
+                'Creando…'
+              ) : (
+                <>
+                  <UserRoundPlus className="h-5 w-5" aria-hidden="true" />
+                  Crear cuenta
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPasoIdx(idx + 1)}
+              disabled={!pasoCompleto}
+              className="btn-azul flex-1 py-3 disabled:opacity-60"
+            >
+              Siguiente →
+            </button>
+          )}
+        </div>
+      </form>
+
+      <p className="relative mt-3 text-center text-xs text-white/70">
+        ¿Ya tienes cuenta?{' '}
         <Link
-          to="/"
-          className="block text-center mt-2 text-bandera-azul font-semibold text-sm"
+          to="/login"
+          className="font-bold text-white no-underline hover:underline"
         >
-          ← Volver al mapa
+          Iniciar sesión
         </Link>
-      </div>
+      </p>
+
       {verRoles && <RolesInfoModal onCerrar={() => setVerRoles(false)} />}
     </div>
   )

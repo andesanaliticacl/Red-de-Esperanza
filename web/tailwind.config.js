@@ -39,6 +39,24 @@ export default {
       transitionTimingFunction: {
         suave: 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
+      // Entrada de un paso al siguiente: sube un pelo mientras aparece. Es
+      // corta a propósito (0,32 s) — más lenta se siente pesada, y quien
+      // está reportando una emergencia no está para esperar animaciones.
+      // Se anula sola con prefers-reduced-motion (ver index.css).
+      keyframes: {
+        entrada: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        entradaSuave: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        entrada: 'entrada 0.32s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'entrada-suave': 'entradaSuave 0.4s ease-out both',
+      },
     },
   },
   plugins: [],
