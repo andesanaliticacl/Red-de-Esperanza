@@ -237,7 +237,7 @@ export const TIPO_META: Record<
   derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
   inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
-  sacos_arena: { etiqueta: 'Sacos de arena', emoji: '🧱', color: '#92400E' },
+  sacos_arena: { etiqueta: 'Material de construcción', emoji: '🧱', color: '#92400E' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
   zona_aislada: { etiqueta: 'Zona aislada', emoji: '🚧', color: '#4338CA' },
   mascota: { etiqueta: 'Mascota / animal', emoji: '🐾', color: '#B45309' },
