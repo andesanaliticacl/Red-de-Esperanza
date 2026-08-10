@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { cargarContactosNecesidad } from '../lib/contactos'
+import { LIMITE_POR_TELEFONO_DIA } from '../lib/reportes'
 import {
   MapContainer,
   TileLayer,
@@ -828,8 +829,10 @@ export default function MapaNecesidades({
 
   // Qué marcadores atenuar y cuáles marcar "sin teléfono":
   //  · sin teléfono → atenuado + insignia 📵.
-  //  · mismo número con más de 3 reportes → se dejan 3 (los más recientes) y el
-  //    resto se atenúan (para no saturar con duplicados del mismo teléfono).
+  //  · mismo número con más reportes que el límite diario → se dejan los más
+  //    recientes y el resto se atenúan (para no saturar con duplicados del
+  //    mismo teléfono). El tope sigue al límite de creación: si se permiten
+  //    5 al día, atenuar a partir del 4.º escondería reportes legítimos.
   const { atenuar: idsAtenuar, sinTel: idsSinTel } = useMemo(() => {
     const atenuar = new Set<string>()
     const sinTel = new Set<string>()
@@ -849,12 +852,12 @@ export default function MapaNecesidades({
       else porTel.set(clave, [n])
     }
     for (const arr of porTel.values()) {
-      if (arr.length > 3) {
+      if (arr.length > LIMITE_POR_TELEFONO_DIA) {
         arr.sort(
           (a, b) =>
             new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime(),
         )
-        arr.slice(3).forEach((n) => atenuar.add(n.id))
+        arr.slice(LIMITE_POR_TELEFONO_DIA).forEach((n) => atenuar.add(n.id))
       }
     }
     return { atenuar, sinTel }
