@@ -4,13 +4,13 @@ import {
   Heart,
   Ambulance,
   Package,
-  Brain,
   MapPin,
   Eye,
   EyeOff,
   TriangleAlert,
   UserRoundPlus,
   LogIn,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -25,6 +25,14 @@ import { PAISES_MUNDO } from '../lib/paises'
 import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 import { validarDocumentoPsicologo } from '../lib/documentos'
 import { type RolRegistro, type TipoDocumento } from '../lib/types'
+import {
+  CATEGORIA_META,
+  CATEGORIAS_ORDEN,
+  PROFESIONES,
+  PROFESION_PSICOLOGO,
+  type CategoriaEntidad,
+} from '../lib/entidades'
+import { ICONO_CATEGORIA_ENTIDAD } from '../lib/iconosTipo'
 
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   value: p.nombre,
@@ -64,10 +72,13 @@ function buscarCoincidencia(
 
 // "¿Cómo quieres participar?": solo 4 tarjetas, en lenguaje natural (no
 // técnico). "Ciudadano" ya no es una opción de registro: quien solo quiere
-// ver el mapa no necesita cuenta. "Psicólogo/a" NO asigna el rol directo:
-// crea la cuenta como colaborador/a y deja pendiente una solicitud que
-// revisa el equipo (ver quiere_psicologo más abajo).
-type OpcionParticipar = 'voluntario' | 'rescatista' | 'centro_acopio' | 'psicologo'
+// ver el mapa no necesita cuenta.
+//
+// La cuarta tarjeta ("Represento una entidad") abre un segundo paso con las
+// categorías. Psicólogo/a vive DENTRO de ese paso, como una profesión más:
+// una sola puerta visible para quien se registra, aunque por detrás siga
+// yendo a su circuito propio (ver esPsicologo más abajo).
+type OpcionParticipar = 'voluntario' | 'rescatista' | 'centro_acopio' | 'entidad'
 const OPCIONES_PARTICIPAR: {
   v: OpcionParticipar
   icono: LucideIcon
@@ -93,10 +104,10 @@ const OPCIONES_PARTICIPAR: {
     descripcion: 'Gestiono donaciones y suministros.',
   },
   {
-    v: 'psicologo',
-    icono: Brain,
-    titulo: 'Soy psicólogo/a y deseo colaborar',
-    descripcion: 'El equipo revisa tu solicitud antes de otorgar el rol.',
+    v: 'entidad',
+    icono: ShieldCheck,
+    titulo: 'Represento una entidad o soy profesional',
+    descripcion: 'Bomberos, municipalidad, rescate, ONG, psicólogo/a…',
   },
 ]
 
@@ -128,9 +139,9 @@ function mensajeDeError(error: unknown): string {
 }
 
 // Opciones válidas para preseleccionar vía "?rol=" (acceso directo). No
-// incluye 'ciudadano' (ya no es una tarjeta de registro) ni 'psicologo'
-// (ese viene por separado con "?psicologo=1").
-const ROLES_VALIDOS: Exclude<OpcionParticipar, 'psicologo'>[] = [
+// incluye 'ciudadano' (ya no es una tarjeta de registro) ni 'entidad' (esa
+// necesita elegir categoría; el atajo del mapa entra con "?psicologo=1").
+const ROLES_VALIDOS: Exclude<OpcionParticipar, 'entidad'>[] = [
   'voluntario',
   'rescatista',
   'centro_acopio',
@@ -149,16 +160,51 @@ export default function RegistroView() {
   // Selección única entre las 4 tarjetas de "¿Cómo quieres participar?".
   const [participa, setParticipa] = useState<OpcionParticipar>(
     psicologoInicial
-      ? 'psicologo'
+      ? 'entidad'
       : ROLES_VALIDOS.includes(rolInicial as (typeof ROLES_VALIDOS)[number])
         ? (rolInicial as (typeof ROLES_VALIDOS)[number])
         : 'voluntario',
   )
-  // "Psicólogo/a" NO es el rol de la cuenta: se crea como voluntario/a y
-  // queda un pedido aparte que revisa el equipo de psicología.
-  const quierePsicologo = participa === 'psicologo'
+  // Segundo paso de "Represento una entidad": qué tipo, y si es una persona,
+  // qué profesión. El acceso rápido "?psicologo=1" del mapa cae aquí ya
+  // resuelto, para que ese atajo siga funcionando igual que antes.
+  const [categoria, setCategoria] = useState<CategoriaEntidad | ''>(
+    psicologoInicial ? 'profesional' : '',
+  )
+  const [profesion, setProfesion] = useState(
+    psicologoInicial ? PROFESION_PSICOLOGO : '',
+  )
+  const [nombreEntidad, setNombreEntidad] = useState('')
+  const [descripcionEntidad, setDescripcionEntidad] = useState('')
+  const [webEntidad, setWebEntidad] = useState('')
+
+  // Psicólogo/a se pide desde la lista de profesiones, pero conserva su
+  // circuito propio (solicitudes_psicologo), que ya trae la asignación y el
+  // seguimiento de pacientes.
+  const esPsicologo =
+    participa === 'entidad' &&
+    categoria === 'profesional' &&
+    profesion === PROFESION_PSICOLOGO
+  const quierePsicologo = esPsicologo
+  // Entidad de verdad (todo lo que no sea el desvío a psicología).
+  const esEntidad = participa === 'entidad' && !esPsicologo
+  // Para una entidad, el nombre público es el de la organización; si es una
+  // persona que ofrece su profesión, es su propio nombre.
+  const nombrePublicoEntidad =
+    categoria === 'profesional' ? nombre.trim() : nombreEntidad.trim()
+
+  // Rol con el que NACE la cuenta:
+  //  · psicólogo/a → colaborador/a mientras el equipo revisa (como siempre).
+  //  · entidad → 'ciudadano' A PROPÓSITO: 'voluntario' da acceso de lectura a
+  //    los teléfonos privados de los reportes (política "leer contacto
+  //    interno"), y eso no puede otorgarse ANTES de verificar quién es. El
+  //    rol 'entidad' lo pone revisar_solicitud_entidad() al aprobar.
   const rol: Exclude<RolRegistro, 'psicologo'> =
-    participa === 'psicologo' ? 'voluntario' : participa
+    participa === 'entidad'
+      ? esPsicologo
+        ? 'voluntario'
+        : 'ciudadano'
+      : participa
   // Chile por defecto: es la emergencia activa ahora mismo (se puede cambiar).
   const [pais, setPais] = useState('Chile')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
@@ -270,6 +316,24 @@ export default function RegistroView() {
         return
       }
     }
+    if (participa === 'entidad') {
+      if (!categoria) {
+        setErrorMsg('Elige qué tipo de entidad representas.')
+        return
+      }
+      if (categoria === 'profesional' && !profesion) {
+        setErrorMsg('Elige tu profesión.')
+        return
+      }
+      if (!nombrePublicoEntidad) {
+        setErrorMsg(
+          categoria === 'profesional'
+            ? 'Escribe tu nombre y apellido.'
+            : 'Escribe el nombre oficial de la organización.',
+        )
+        return
+      }
+    }
     setEnviando(true)
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -290,6 +354,22 @@ export default function RegistroView() {
             // (handle_new_user, migración 48) con estos mismos datos: el
             // rol NO se autoasigna, lo otorga el equipo tras revisarla.
             quiere_psicologo: quierePsicologo ? 'true' : 'false',
+            // Igual para entidades (handle_new_user, migración 61). Va por
+            // metadata y no por un insert desde aquí porque si el correo
+            // exige confirmación todavía no hay sesión con la que insertar.
+            ...(esEntidad && categoria
+              ? {
+                  entidad: {
+                    nombre: nombrePublicoEntidad,
+                    categoria,
+                    profesion: profesion || '',
+                    descripcion: descripcionEntidad.trim(),
+                    telefono: telefono.trim(),
+                    email_contacto: email.trim(),
+                    web: webEntidad.trim(),
+                  },
+                }
+              : {}),
           },
         },
       })
@@ -336,6 +416,13 @@ export default function RegistroView() {
             <p className="text-sm text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-3">
               Tu solicitud para ser psicólogo/a ya quedó registrada. El
               equipo de psicología la revisará y te contactará por teléfono.
+            </p>
+          )}
+          {esEntidad && (
+            <p className="text-sm text-teal-900 bg-teal-50 border border-teal-100 rounded-xl p-3 mt-3">
+              Tu solicitud de <b>{nombrePublicoEntidad}</b> ya quedó
+              registrada. El equipo la verificará por el canal oficial de la
+              organización y te contactará.
             </p>
           )}
           <Link to="/login" className="btn-azul w-full mt-5">
@@ -412,8 +499,8 @@ export default function RegistroView() {
                   // anillo (no con el borde) para que nada se desplace.
                   className={`card h-full min-h-[7rem] flex flex-col text-left p-3.5 transition-all duration-200 ease-suave ${
                     participa === o.v
-                      ? o.v === 'psicologo'
-                        ? 'ring-2 ring-purple-400 bg-purple-50/60 shadow-media'
+                      ? o.v === 'entidad'
+                        ? 'ring-2 ring-teal-500 bg-teal-50/60 shadow-media'
                         : 'ring-2 ring-bandera-azul bg-bandera-azul/[0.04] shadow-media'
                       : 'hover:border-tinta-200 hover:shadow-media'
                   }`}
@@ -428,12 +515,137 @@ export default function RegistroView() {
                 </button>
               ))}
             </div>
-            {quierePsicologo && (
-              <p className="text-xs text-purple-900 bg-purple-50 border border-purple-100 rounded-xl p-3 mt-2">
-                Tu cuenta se crea como colaborador/a. El equipo de
-                psicología revisará tu solicitud, te contactará por teléfono
-                y, si corresponde, te otorgará el rol.
-              </p>
+            {/* Segundo paso: qué tipo de entidad. Solo aparece al elegir la
+                tarjeta, para no cargar la pantalla a quien no la necesita. */}
+            {participa === 'entidad' && (
+              <div className="mt-3 rounded-2xl border border-teal-100 bg-teal-50/40 p-3.5 space-y-3">
+                <p className="font-bold text-sm text-tinta-800">
+                  ¿Qué representas?
+                </p>
+                <div className="grid gap-2">
+                  {CATEGORIAS_ORDEN.map((c) => {
+                    const meta = CATEGORIA_META[c]
+                    const Icono = ICONO_CATEGORIA_ENTIDAD[c]
+                    const elegida = categoria === c
+                    return (
+                      <button
+                        type="button"
+                        key={c}
+                        onClick={() => setCategoria(c)}
+                        aria-pressed={elegida}
+                        className={`flex items-center gap-3 rounded-xl border-2 bg-white p-2.5 text-left transition-colors ${
+                          elegida
+                            ? 'border-teal-600 bg-teal-50'
+                            : 'border-transparent hover:border-teal-200'
+                        }`}
+                      >
+                        <Icono
+                          className="h-5 w-5 shrink-0 text-teal-700"
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold text-tinta-800 leading-tight">
+                            {meta.etiqueta}
+                          </span>
+                          <span className="block text-xs text-tinta-500 leading-snug">
+                            {meta.ejemplos}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Persona: profesión de una lista corta. */}
+                {categoria === 'profesional' && (
+                  <div>
+                    <p className="font-bold text-sm text-tinta-800 mb-1.5">
+                      ¿Cuál es tu profesión?
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PROFESIONES.map((p) => (
+                        <button
+                          type="button"
+                          key={p}
+                          onClick={() => setProfesion(p)}
+                          aria-pressed={profesion === p}
+                          className={`rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors ${
+                            profesion === p
+                              ? 'border-teal-600 bg-teal-600 text-white'
+                              : 'border-tinta-200 bg-white text-tinta-600 hover:border-teal-300'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Organización: nombre público + qué hacen. */}
+                {categoria && categoria !== 'profesional' && (
+                  <div className="space-y-2">
+                    <label className="block">
+                      <span className="font-bold text-sm text-tinta-800">
+                        Nombre oficial de la organización
+                      </span>
+                      <input
+                        className="input mt-1"
+                        placeholder="Ej: Cuerpo de Bomberos de Coquimbo"
+                        maxLength={80}
+                        value={nombreEntidad}
+                        onChange={(e) => setNombreEntidad(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="font-bold text-sm text-tinta-800">
+                        ¿Qué hacen? <span className="font-normal text-tinta-400">(opcional)</span>
+                      </span>
+                      <textarea
+                        className="input mt-1 min-h-[60px]"
+                        placeholder="En una línea, para que la gente sepa en qué pueden ayudar."
+                        maxLength={300}
+                        value={descripcionEntidad}
+                        onChange={(e) => setDescripcionEntidad(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="font-bold text-sm text-tinta-800">
+                        Sitio web o red social{' '}
+                        <span className="font-normal text-tinta-400">(opcional)</span>
+                      </span>
+                      <input
+                        className="input mt-1"
+                        placeholder="Ayuda a verificarlos más rápido"
+                        maxLength={120}
+                        value={webEntidad}
+                        onChange={(e) => setWebEntidad(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {/* Qué va a pasar después: el proceso ES la garantía. */}
+                {categoria && (
+                  <p className="text-xs leading-relaxed text-teal-900 bg-white border border-teal-100 rounded-xl p-3">
+                    {esPsicologo ? (
+                      <>
+                        Tu cuenta se crea como colaborador/a. El equipo de
+                        psicología revisará tu solicitud, te contactará por
+                        teléfono y, si corresponde, te otorgará el rol.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Verificamos antes de publicar.</strong> Tu
+                        cuenta se crea de inmediato, pero la insignia y el
+                        perfil público aparecen recién cuando confirmemos la
+                        organización por su canal oficial. Es lo que hace que
+                        la gente pueda confiar en lo que publiques.
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -565,7 +777,9 @@ export default function RegistroView() {
             <p className="text-xs text-gray-500 mb-1">
               {quierePsicologo
                 ? 'Es cómo el equipo de psicología te contactará para revisar tu solicitud.'
-                : 'Es cómo otras personas de la red pueden contactarte si haces falta.'}
+                : esEntidad
+                  ? 'Es cómo el equipo te contactará para verificar la organización.'
+                  : 'Es cómo otras personas de la red pueden contactarte si haces falta.'}
             </p>
             <EntradaTelefono valor={telefono} onChange={setTelefono} requerido />
           </div>

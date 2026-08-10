@@ -1,0 +1,350 @@
+import { supabase } from './supabase'
+
+/**
+ * Entidades y profesionales verificados (migración 61).
+ *
+ * Una sola categoría de ROL ('entidad') para todas: lo que distingue a
+ * bomberos de una junta vecinal es la CATEGORÍA y el TIER, que son datos.
+ * Así las políticas de la base se escriben una vez y no hay que reescribir
+ * media base cada vez que aparece un tipo nuevo de organización.
+ */
+
+export type CategoriaEntidad =
+  | 'bomberos'
+  | 'municipalidad'
+  | 'rescate'
+  | 'animal'
+  | 'psicosocial'
+  | 'junta_vecinal'
+  | 'profesional'
+
+/**
+ * Nivel de confianza que se muestra al público. Lo fija el equipo AL
+ * APROBAR, según cómo pudo verificar: una insignia que cubre por igual a
+ * bomberos y a una junta vecinal de doce casas deja de significar algo.
+ */
+export type TierEntidad = 'oficial' | 'verificada' | 'profesional'
+
+export const TIER_META: Record<
+  TierEntidad,
+  { etiqueta: string; descripcion: string; color: string }
+> = {
+  oficial: {
+    etiqueta: 'Entidad oficial',
+    descripcion: 'Institución pública o reconocida, verificada por canal oficial.',
+    color: '#0F766E',
+  },
+  verificada: {
+    etiqueta: 'Organización verificada',
+    descripcion: 'Organización real, verificada por el equipo de la red.',
+    color: '#0369A1',
+  },
+  profesional: {
+    etiqueta: 'Profesional verificado/a',
+    descripcion: 'Persona con documento y profesión verificados.',
+    color: '#7C3AED',
+  },
+}
+
+/**
+ * Categorías. `sede` indica si tiene un lugar físico que va al mapa: una
+ * brigada de bomberos sí; un veterinario voluntario, no. `tierSugerido` es
+ * solo el valor por defecto que ve el admin al revisar — la decisión final
+ * es suya, porque es quien sabe qué tan bien pudo verificarla.
+ *
+ * El icono vive en `iconosTipo.tsx` (ICONO_CATEGORIA_ENTIDAD), como el
+ * resto de los iconos de la app.
+ */
+export const CATEGORIA_META: Record<
+  CategoriaEntidad,
+  {
+    etiqueta: string
+    ejemplos: string
+    sede: boolean
+    tierSugerido: TierEntidad
+  }
+> = {
+  bomberos: {
+    etiqueta: 'Bomberos o defensa civil',
+    ejemplos: 'Cuerpo de bomberos, protección civil',
+    sede: true,
+    tierSugerido: 'oficial',
+  },
+  municipalidad: {
+    etiqueta: 'Municipalidad o gobierno local',
+    ejemplos: 'Alcaldía, gobernación, oficina de emergencias',
+    sede: true,
+    tierSugerido: 'oficial',
+  },
+  rescate: {
+    etiqueta: 'Organismo de rescate',
+    ejemplos: 'Brigada rescatista, Cruz Roja, socorro andino',
+    sede: true,
+    tierSugerido: 'oficial',
+  },
+  animal: {
+    etiqueta: 'Rescate y ayuda animal',
+    ejemplos: 'Refugio, ONG animalista, brigada veterinaria',
+    sede: true,
+    tierSugerido: 'verificada',
+  },
+  psicosocial: {
+    etiqueta: 'Apoyo psicológico o psicosocial',
+    ejemplos: 'Fundación, red de contención emocional',
+    sede: false,
+    tierSugerido: 'verificada',
+  },
+  junta_vecinal: {
+    etiqueta: 'Junta vecinal u organización comunitaria',
+    ejemplos: 'Junta de vecinos, comité de emergencia del barrio',
+    sede: true,
+    tierSugerido: 'verificada',
+  },
+  profesional: {
+    etiqueta: 'Soy profesional y ofrezco mi ayuda',
+    ejemplos: 'Veterinario/a, médico/a, psicólogo/a…',
+    sede: false,
+    tierSugerido: 'profesional',
+  },
+}
+
+/** Orden en que se muestran las categorías al registrarse. */
+export const CATEGORIAS_ORDEN: CategoriaEntidad[] = [
+  'bomberos',
+  'rescate',
+  'animal',
+  'municipalidad',
+  'junta_vecinal',
+  'psicosocial',
+  'profesional',
+]
+
+/**
+ * Psicólogo/a se ofrece en la misma lista que el resto (una sola puerta
+ * para quien se registra), pero por detrás va a su circuito propio
+ * —`solicitudes_psicologo`—, que ya trae asignación y seguimiento de
+ * pacientes. Migrarlo a este flujo sería romper algo que funciona a cambio
+ * de elegancia.
+ */
+export const PROFESION_PSICOLOGO = 'Psicólogo/a'
+
+/** Profesiones sugeridas para la categoría 'profesional'. */
+export const PROFESIONES = [
+  PROFESION_PSICOLOGO,
+  'Veterinario/a',
+  'Médico/a',
+  'Enfermero/a',
+  'Paramédico/a',
+  'Trabajador/a social',
+  'Otra',
+] as const
+
+export interface Entidad {
+  id: string
+  nombre: string
+  categoria: CategoriaEntidad
+  tier: TierEntidad
+  profesion: string | null
+  descripcion: string | null
+  logo_url: string | null
+  contacto_publico: string | null
+  web: string | null
+  pais: string | null
+  zona: string | null
+  ciudad: string | null
+  lat: number | null
+  lng: number | null
+  verificada_en: string | null
+  verificada_por: string | null
+  metodo_verificacion: string | null
+  suspendida: boolean
+  creado_en: string
+}
+
+export interface SolicitudEntidad {
+  id: string
+  perfil_id: string
+  nombre: string
+  categoria: CategoriaEntidad
+  profesion: string | null
+  descripcion: string | null
+  pais: string | null
+  zona: string | null
+  ciudad: string | null
+  telefono: string
+  email_contacto: string | null
+  web: string | null
+  tipo_documento: string | null
+  documento: string | null
+  mensaje: string | null
+  estado: 'pendiente' | 'aprobada' | 'rechazada'
+  revisado_por: string | null
+  revisado_en: string | null
+  nota_revision: string | null
+  entidad_id: string | null
+  creado_en: string
+}
+
+const COLS_ENTIDAD =
+  'id, nombre, categoria, tier, profesion, descripcion, logo_url, contacto_publico, web, pais, zona, ciudad, lat, lng, verificada_en, verificada_por, metodo_verificacion, suspendida, creado_en'
+
+const COLS_SOLICITUD =
+  'id, perfil_id, nombre, categoria, profesion, descripcion, pais, zona, ciudad, telefono, email_contacto, web, tipo_documento, documento, mensaje, estado, revisado_por, revisado_en, nota_revision, entidad_id, creado_en'
+
+/** Datos que se mandan al registrarse como entidad (van en la metadata). */
+export interface DatosSolicitudEntidad {
+  nombre: string
+  categoria: CategoriaEntidad
+  profesion?: string
+  descripcion?: string
+  telefono?: string
+  email_contacto?: string
+  web?: string
+  mensaje?: string
+}
+
+/**
+ * Valida los datos antes de mandarlos. Devuelve el mensaje del primer
+ * problema, o null si está todo bien. Se usa igual desde el registro (donde
+ * aún no hay sesión) y desde el perfil.
+ */
+export function validarSolicitudEntidad(
+  d: DatosSolicitudEntidad,
+): string | null {
+  if (!d.nombre.trim()) {
+    return d.categoria === 'profesional'
+      ? 'Escribe tu nombre y apellido.'
+      : 'Escribe el nombre de la organización.'
+  }
+  if (d.categoria === 'profesional' && !d.profesion?.trim()) {
+    return 'Indica tu profesión.'
+  }
+  return null
+}
+
+/**
+ * Crea la solicitud desde una sesión ya iniciada (p. ej. alguien que ya
+ * tiene cuenta y quiere registrar su organización). En el REGISTRO no se usa
+ * esto: allí los datos viajan en la metadata y la crea handle_new_user(),
+ * porque si el correo exige confirmación todavía no hay sesión.
+ */
+export async function crearSolicitudEntidad(
+  d: DatosSolicitudEntidad & { pais?: string; zona?: string; ciudad?: string },
+): Promise<void> {
+  const problema = validarSolicitudEntidad(d)
+  if (problema) throw new Error(problema)
+
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth?.user?.id) {
+    throw new Error('Debes iniciar sesión para enviar la solicitud.')
+  }
+
+  const { error } = await supabase.from('solicitudes_entidad').insert({
+    perfil_id: auth.user.id,
+    nombre: d.nombre.trim(),
+    categoria: d.categoria,
+    profesion: d.profesion?.trim() || null,
+    descripcion: d.descripcion?.trim() || null,
+    pais: d.pais ?? null,
+    zona: d.zona ?? null,
+    ciudad: d.ciudad ?? null,
+    telefono: d.telefono?.trim() || 'sin telefono',
+    email_contacto: d.email_contacto?.trim() || null,
+    web: d.web?.trim() || null,
+    mensaje: d.mensaje?.trim() || null,
+  })
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('Ya tienes una solicitud pendiente de revisión.')
+    }
+    throw error
+  }
+}
+
+/** Mis solicitudes (la más reciente primero), para ver en qué va la mía. */
+export async function misSolicitudesEntidad(): Promise<SolicitudEntidad[]> {
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth?.user?.id) return []
+  const { data, error } = await supabase
+    .from('solicitudes_entidad')
+    .select(COLS_SOLICITUD)
+    .eq('perfil_id', auth.user.id)
+    .order('creado_en', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as SolicitudEntidad[]
+}
+
+/** Todas las solicitudes (solo admin, por RLS). Para la bandeja del panel. */
+export async function listarSolicitudesEntidad(): Promise<SolicitudEntidad[]> {
+  const { data, error } = await supabase
+    .from('solicitudes_entidad')
+    .select(COLS_SOLICITUD)
+    .order('creado_en', { ascending: false })
+    .limit(500)
+  if (error) throw error
+  return (data ?? []) as SolicitudEntidad[]
+}
+
+/**
+ * Aprueba (crea la entidad y otorga el rol) o rechaza una solicitud.
+ * `metodo` queda guardado y se MUESTRA en el perfil público: decir cómo se
+ * verificó vale mucho más que un check genérico.
+ */
+export async function revisarSolicitudEntidad(args: {
+  id: string
+  aprobar: boolean
+  tier?: TierEntidad
+  metodo?: string
+  nota?: string
+}): Promise<string | null> {
+  const { data, error } = await supabase.rpc('revisar_solicitud_entidad', {
+    p_id: args.id,
+    p_aprobar: args.aprobar,
+    p_tier: args.aprobar ? (args.tier ?? null) : null,
+    p_metodo_verificacion: args.metodo?.trim() || null,
+    p_nota: args.nota?.trim() || null,
+  })
+  if (error) throw error
+  return (data as string | null) ?? null
+}
+
+/** Entidades visibles (para el mapa y el listado público). */
+export async function listarEntidades(filtros?: {
+  pais?: string | null
+  zona?: string | null
+  categoria?: CategoriaEntidad | null
+}): Promise<Entidad[]> {
+  let q = supabase.from('entidades').select(COLS_ENTIDAD)
+  if (filtros?.pais) q = q.eq('pais', filtros.pais)
+  if (filtros?.zona) q = q.eq('zona', filtros.zona)
+  if (filtros?.categoria) q = q.eq('categoria', filtros.categoria)
+  const { data, error } = await q.order('nombre').limit(500)
+  if (error) throw error
+  return (data ?? []) as Entidad[]
+}
+
+/** Una entidad por id (perfil público). */
+export async function obtenerEntidad(id: string): Promise<Entidad | null> {
+  const { data, error } = await supabase
+    .from('entidades')
+    .select(COLS_ENTIDAD)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return (data as Entidad) ?? null
+}
+
+/** La entidad a la que pertenece la sesión actual (si es de alguna). */
+export async function miEntidad(): Promise<Entidad | null> {
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth?.user?.id) return null
+  const { data, error } = await supabase
+    .from('entidad_miembros')
+    .select(`entidad_id, entidades!inner(${COLS_ENTIDAD})`)
+    .eq('perfil_id', auth.user.id)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const fila = data as unknown as { entidades: Entidad }
+  return fila.entidades ?? null
+}

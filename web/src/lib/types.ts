@@ -36,6 +36,10 @@ export type RolUsuario =
   | 'lider_psicologo'
   | 'verificador'
   | 'admin'
+  /** Organización o profesional verificado (migración 61). Uno solo para
+   *  todas las categorías: lo que cambia entre bomberos, municipalidad o
+   *  junta vecinal es la CATEGORÍA (dato), no el permiso. */
+  | 'entidad'
 
 /** Roles que un usuario puede elegir al registrarse (sin verificador/admin). */
 export type RolRegistro =
@@ -199,6 +203,7 @@ export const ROL_META: Record<RolUsuario, { etiqueta: string; emoji: string }> =
   lider_psicologo: { etiqueta: 'Psicólogo/a líder', emoji: '🧠' },
   verificador: { etiqueta: 'Verificador', emoji: '✅' },
   admin: { etiqueta: 'Administrador', emoji: '🛡️' },
+  entidad: { etiqueta: 'Entidad verificada', emoji: '🛡️' },
 }
 
 // Estados de Venezuela (+ Distrito Capital) para el registro.
@@ -272,6 +277,7 @@ export const COLOR_ROL: Record<RolUsuario, string> = {
   lider_psicologo: '#6D28D9',
   verificador: '#7C3AED',
   admin: '#CF9B00',
+  entidad: '#0F766E',
 }
 
 export const URGENCIA_META: Record<
