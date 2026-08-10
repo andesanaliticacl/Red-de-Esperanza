@@ -235,6 +235,18 @@ function FichaEntidad({
           <p className="text-xs text-tinta-500 mt-0.5">
             {[s.ciudad, s.zona, s.pais].filter(Boolean).join(', ') || 'Sin zona'}
           </p>
+          {/* Enlace al punto exacto que marcaron: sirve para comprobar que
+              la sede existe de verdad antes de aprobar. */}
+          {s.lat !== null && s.lng !== null && (
+            <a
+              href={`https://www.google.com/maps?q=${s.lat},${s.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold text-bandera-azul"
+            >
+              Ver la sede en el mapa
+            </a>
+          )}
         </div>
         <EtiquetaEstado estado={s.estado} />
       </div>
@@ -248,6 +260,7 @@ function FichaEntidad({
         <Dato etiqueta="Correo" valor={s.email_contacto} />
         <Dato etiqueta="Web" valor={s.web} />
         <Dato etiqueta="Documento" valor={s.documento} />
+        <Dato etiqueta="Dirección" valor={s.direccion} />
         <Dato etiqueta="Mensaje" valor={s.mensaje} />
       </dl>
 

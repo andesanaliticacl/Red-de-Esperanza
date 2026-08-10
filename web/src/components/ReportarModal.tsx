@@ -30,7 +30,7 @@ import EntradaTelefono, {
   mensajeTelefono,
 } from './EntradaTelefono'
 import { paisPorIP } from '../lib/visitas'
-import { esCedulaVenezolanaValida, esRutChilenoValido } from '../lib/documentos'
+import { validarDocumentoFlexible } from '../lib/documentos'
 import {
   ShoppingBasket,
   TriangleAlert,
@@ -498,11 +498,8 @@ export default function ReportarModal({
             'Escribe tu cédula (Venezuela) o RUT (Chile) para poder identificar tu caso.',
           )
         }
-        if (!esCedulaVenezolanaValida(doc) && !esRutChilenoValido(doc)) {
-          throw new Error(
-            'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678) o un RUT chileno (ej. 12.345.678-5).',
-          )
-        }
+        const check = validarDocumentoFlexible(doc)
+        if (!check.valido) throw new Error(check.mensaje)
       }
       if (esAtencionPsicologica && edadPaciente.trim()) {
         const edad = Number(edadPaciente)
@@ -528,11 +525,8 @@ export default function ReportarModal({
           if (!doc) {
             throw new Error('Escribe su cédula (Venezuela) o RUT (Chile).')
           }
-          if (!esCedulaVenezolanaValida(doc) && !esRutChilenoValido(doc)) {
-            throw new Error(
-              'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678) o un RUT chileno (ej. 12.345.678-5).',
-            )
-          }
+          const check = validarDocumentoFlexible(doc)
+          if (!check.valido) throw new Error(check.mensaje)
         }
         if (edadDesap.trim()) {
           const edad = Number(edadDesap)

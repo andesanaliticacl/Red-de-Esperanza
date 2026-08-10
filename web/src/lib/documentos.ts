@@ -79,6 +79,53 @@ export function esRifVenezolanoValido(valor: string): boolean {
 }
 
 /**
+ * ¿El texto TIENE PINTA de RUT chileno? (no dice si es válido, solo si la
+ * persona quiso escribir un RUT). Sirve para no dejar que un RUT mal escrito
+ * se cuele por la puerta de la cédula venezolana, cuyo formato es mucho más
+ * permisivo: "12345678" pasa como cédula, pero si alguien escribe
+ * "12.345.678-9" está claramente intentando un RUT y hay que comprobarlo.
+ */
+export function pareceRut(valor: string): boolean {
+  const v = valor.trim().toUpperCase()
+  // Un guion con el verificador al final, o terminar en K, son señales
+  // inequívocas: la cédula venezolana no usa ninguna de las dos.
+  return /-[0-9K]\s*$/.test(v) || /^\d{7,8}K$/.test(v.replace(/[^0-9K]/g, ''))
+}
+
+/**
+ * Documento de una persona SIN saber su país (formularios abiertos, como
+ * reportar un desaparecido o pedir apoyo emocional). Acepta cédula
+ * venezolana o RUT chileno, pero si el texto tiene pinta de RUT se exige que
+ * el dígito verificador calce: si no, cualquier RUT inventado se colaría
+ * haciéndose pasar por cédula.
+ */
+export function validarDocumentoFlexible(
+  valor: string,
+): { valido: boolean; mensaje: string } {
+  const v = valor.trim()
+  if (!v) return { valido: false, mensaje: 'El documento es obligatorio.' }
+
+  if (pareceRut(v)) {
+    return esRutChilenoValido(v)
+      ? { valido: true, mensaje: '' }
+      : {
+          valido: false,
+          mensaje:
+            'Ese RUT no es válido: el dígito verificador no calza. Ejemplo: 12.345.678-5.',
+        }
+  }
+
+  if (esCedulaVenezolanaValida(v) || esRutChilenoValido(v)) {
+    return { valido: true, mensaje: '' }
+  }
+  return {
+    valido: false,
+    mensaje:
+      'Ese documento no parece válido. Escribe una cédula venezolana (ej. V-12345678) o un RUT chileno (ej. 12.345.678-5).',
+  }
+}
+
+/**
  * Documento de identidad de una PERSONA, según el país.
  *
  * Solo Chile y Venezuela tienen reglas definidas aquí. La red es global, así

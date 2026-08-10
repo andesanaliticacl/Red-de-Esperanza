@@ -11,6 +11,7 @@ import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import SolicitarPsicologoModal from '../components/SolicitarPsicologoModal'
 import { PAISES_MUNDO } from '../lib/paises'
+import { validarDocumentoPersona } from '../lib/documentos'
 import {
   misSolicitudesPsicologo,
   type SolicitudPsicologo,
@@ -123,6 +124,17 @@ export default function EditarPerfilView() {
     if (!esTelefonoValido(telefono)) {
       setErrorMsg(mensajeTelefono())
       return
+    }
+    // El documento aquí NO se validaba: se podía entrar por el perfil y
+    // guardar un RUT inventado, saltándose la comprobación del registro.
+    // Se permite dejarlo vacío (no todos los perfiles antiguos lo tienen),
+    // pero si hay algo escrito tiene que ser válido.
+    if (documento.trim()) {
+      const check = validarDocumentoPersona(pais, tipoDoc, documento)
+      if (!check.valido) {
+        setErrorMsg(check.mensaje)
+        return
+      }
     }
     setGuardando(true)
     setErrorMsg('')
