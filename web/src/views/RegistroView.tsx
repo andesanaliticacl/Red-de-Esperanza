@@ -23,13 +23,18 @@ import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import { PAISES_MUNDO } from '../lib/paises'
 import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
-import { validarDocumentoPsicologo } from '../lib/documentos'
+import {
+  validarDocumentoPsicologo,
+  validarDocumentoPersona,
+  validarIdFiscal,
+} from '../lib/documentos'
 import { type RolRegistro, type TipoDocumento } from '../lib/types'
 import {
   CATEGORIA_META,
   CATEGORIAS_ORDEN,
   PROFESIONES,
   PROFESION_PSICOLOGO,
+  PROFESION_OTRA,
   type CategoriaEntidad,
 } from '../lib/entidades'
 import { ICONO_CATEGORIA_ENTIDAD } from '../lib/iconosTipo'
@@ -184,6 +189,9 @@ export default function RegistroView() {
   const [profesion, setProfesion] = useState(
     psicologoInicial ? PROFESION_PSICOLOGO : '',
   )
+  // Al elegir "Otra" se escribe cuál: guardar el literal "Otra" no le dice
+  // nada a quien después busque a alguien por lo que sabe hacer.
+  const [profesionOtra, setProfesionOtra] = useState('')
   const [nombreEntidad, setNombreEntidad] = useState('')
   const [descripcionEntidad, setDescripcionEntidad] = useState('')
   const [webEntidad, setWebEntidad] = useState('')
@@ -209,6 +217,9 @@ export default function RegistroView() {
   // persona que ofrece su profesión, es su propio nombre.
   const nombrePublicoEntidad =
     categoria === 'profesional' ? nombre.trim() : nombreEntidad.trim()
+  /** La profesión que de verdad se guarda: con "Otra", la que escribió. */
+  const profesionFinal =
+    profesion === PROFESION_OTRA ? profesionOtra.trim() : profesion
   // ¿Esta categoría se factura? Define si se piden los datos fiscales.
   const pideFacturacion =
     esEntidad && !!categoria && CATEGORIA_META[categoria].facturablePorDefecto
@@ -343,14 +354,24 @@ export default function RegistroView() {
         return !!categoria
       case 'organizacion':
         return categoria === 'profesional'
-          ? !!profesion
+          ? !!profesionFinal
           : !!nombreEntidad.trim()
       case 'facturacion':
-        return !!razonSocial.trim() && !!idFiscal.trim()
+        // El identificador fiscal se comprueba de verdad (dígito verificador):
+        // una factura emitida a un RUT inventado no sirve para nada.
+        return (
+          !!razonSocial.trim() && validarIdFiscal(pais, idFiscal).valido
+        )
       case 'lugar':
         return !!pais && !!estado.trim() && !!ciudad.trim()
       case 'identidad':
-        return !!nombre.trim() && !!documento.trim()
+        // El documento se valida para TODOS, no solo para psicólogos: en
+        // Chile el RUT trae dígito verificador y se comprueba con su
+        // fórmula, así que un número inventado no pasa.
+        return (
+          !!nombre.trim() &&
+          validarDocumentoPersona(pais, tipoDoc, documento).valido
+        )
       case 'cuenta':
         return (
           !!email.trim() && password.length >= 6 && esTelefonoValido(telefono)
@@ -392,20 +413,26 @@ export default function RegistroView() {
     // RUT/pasaporte chileno): es quien atendería casos sensibles de salud
     // mental, así que el equipo necesita verificar identidad real antes de
     // otorgar el rol.
-    if (quierePsicologo) {
-      const check = validarDocumentoPsicologo(pais, tipoDoc, documento)
-      if (!check.valido) {
-        setErrorMsg(check.mensaje)
-        return
-      }
+    // Documento de TODOS: en Chile el RUT se comprueba con su dígito
+    // verificador, así que un número inventado no pasa de aquí.
+    const checkDoc = quierePsicologo
+      ? validarDocumentoPsicologo(pais, tipoDoc, documento)
+      : validarDocumentoPersona(pais, tipoDoc, documento)
+    if (!checkDoc.valido) {
+      setErrorMsg(checkDoc.mensaje)
+      return
     }
     if (participa === 'entidad') {
       if (!categoria) {
         setErrorMsg('Elige qué tipo de entidad representas.')
         return
       }
-      if (categoria === 'profesional' && !profesion) {
-        setErrorMsg('Elige tu profesión.')
+      if (categoria === 'profesional' && !profesionFinal) {
+        setErrorMsg(
+          profesion === PROFESION_OTRA
+            ? 'Escribe cuál es tu profesión.'
+            : 'Elige tu profesión.',
+        )
         return
       }
       if (!nombrePublicoEntidad) {
@@ -423,8 +450,9 @@ export default function RegistroView() {
           )
           return
         }
-        if (!idFiscal.trim()) {
-          setErrorMsg('Escribe el RUT de la empresa (Chile) o el RIF (Venezuela).')
+        const checkFiscal = validarIdFiscal(pais, idFiscal)
+        if (!checkFiscal.valido) {
+          setErrorMsg(checkFiscal.mensaje)
           return
         }
       }
@@ -457,7 +485,7 @@ export default function RegistroView() {
                   entidad: {
                     nombre: nombrePublicoEntidad,
                     categoria,
-                    profesion: profesion || '',
+                    profesion: profesionFinal,
                     descripcion: descripcionEntidad.trim(),
                     telefono: telefono.trim(),
                     email_contacto: email.trim(),
@@ -663,23 +691,35 @@ export default function RegistroView() {
 
           {/* ---------- 3. Organización o profesión ---------- */}
           {paso === 'organizacion' && categoria === 'profesional' && (
-            <div className="flex flex-wrap gap-1.5">
-              {PROFESIONES.map((p) => (
-                <button
-                  type="button"
-                  key={p}
-                  onClick={() => setProfesion(p)}
-                  aria-pressed={profesion === p}
-                  className={`rounded-full border-2 px-3 py-2 text-xs font-bold transition-all duration-200 ease-suave ${
-                    profesion === p
-                      ? 'border-teal-600 bg-teal-600 text-white shadow-boton'
-                      : 'border-tinta-200 bg-white text-tinta-600 hover:border-teal-300'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="flex flex-wrap gap-1.5">
+                {PROFESIONES.map((p) => (
+                  <button
+                    type="button"
+                    key={p}
+                    onClick={() => setProfesion(p)}
+                    aria-pressed={profesion === p}
+                    className={`rounded-full border-2 px-3 py-2 text-xs font-bold transition-all duration-200 ease-suave ${
+                      profesion === p
+                        ? 'border-teal-600 bg-teal-600 text-white shadow-boton'
+                        : 'border-tinta-200 bg-white text-tinta-600 hover:border-teal-300'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              {profesion === PROFESION_OTRA && (
+                <input
+                  className="input animate-entrada-suave"
+                  placeholder="¿Cuál es tu profesión?"
+                  maxLength={60}
+                  autoFocus
+                  value={profesionOtra}
+                  onChange={(e) => setProfesionOtra(e.target.value)}
+                />
+              )}
+            </>
           )}
 
           {paso === 'organizacion' && categoria && categoria !== 'profesional' && (

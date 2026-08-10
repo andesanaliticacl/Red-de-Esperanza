@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Bandera from './Bandera'
 
 export interface OpcionBandera {
@@ -22,6 +23,15 @@ const ISO_DESTACADOS = ['ve', 'cl']
  * El panel se posiciona con `position: fixed` anclado al botón, para que NO lo
  * recorte el modal con scroll donde suele vivir. Incluye un buscador (la lista
  * de países es larga) y se abre hacia arriba o hacia abajo según el espacio.
+ *
+ * OJO — el panel va por PORTAL a <body>, y no es un capricho: `position:
+ * fixed` NO se posiciona respecto a la ventana si algún ancestro tiene
+ * `transform` (basta un `translateY`, que cualquier animación de entrada
+ * deja puesto). En ese caso el navegador lo ancla al ancestro y el panel se
+ * abre a cientos de píxeles de donde debe, fuera de la pantalla en un móvil.
+ * Ya pasó con la animación por pasos del registro: el selector de país se
+ * volvió inalcanzable y no se podía terminar de crear la cuenta. Sacándolo a
+ * <body> queda inmune a cualquier transform que alguien agregue después.
  */
 export default function SelectorBandera({
   opciones,
@@ -109,7 +119,7 @@ export default function SelectorBandera({
         <span className="ml-auto text-xs text-gray-400">▾</span>
       </button>
 
-      {abierto && pos && (
+      {abierto && pos && createPortal(
         <>
           <div
             className="fixed inset-0 z-[2400]"
@@ -165,7 +175,8 @@ export default function SelectorBandera({
               )}
             </ul>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   )

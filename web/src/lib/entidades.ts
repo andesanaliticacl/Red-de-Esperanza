@@ -148,15 +148,26 @@ export const CATEGORIAS_ORDEN: CategoriaEntidad[] = [
  */
 export const PROFESION_PSICOLOGO = 'Psicólogo/a'
 
-/** Profesiones sugeridas para la categoría 'profesional'. */
+/** Al elegirla se habilita un campo para escribir cuál. */
+export const PROFESION_OTRA = 'Otra'
+
+/**
+ * Profesiones sugeridas para la categoría 'profesional'. Es una lista corta
+ * a propósito: sugiere las más pedidas y deja el resto por "Otra".
+ *
+ * Arquitecto/a o constructor/a no es un relleno: tras un terremoto, saber
+ * si una casa se puede habitar es de lo primero que hace falta, y no lo
+ * puede decir cualquiera.
+ */
 export const PROFESIONES = [
   PROFESION_PSICOLOGO,
-  'Veterinario/a',
   'Médico/a',
   'Enfermero/a',
   'Paramédico/a',
+  'Veterinario/a',
+  'Arquitecto/a o constructor/a',
   'Trabajador/a social',
-  'Otra',
+  PROFESION_OTRA,
 ] as const
 
 /** Lo que ve cualquiera: el perfil público, sin nada fiscal. */
@@ -266,8 +277,11 @@ export function validarSolicitudEntidad(
       ? 'Escribe tu nombre y apellido.'
       : 'Escribe el nombre de la organización.'
   }
-  if (d.categoria === 'profesional' && !d.profesion?.trim()) {
-    return 'Indica tu profesión.'
+  if (d.categoria === 'profesional') {
+    const p = d.profesion?.trim()
+    // Vacío o el literal "Otra" sin especificar no sirven: "Otra" no le dice
+    // nada a quien después busca a un profesional por lo que sabe hacer.
+    if (!p || p === PROFESION_OTRA) return 'Indica tu profesión.'
   }
   // A las categorías que se facturan se les pide el identificador fiscal de
   // entrada: perseguirlo después de aprobar no funciona nunca, y sin él no
