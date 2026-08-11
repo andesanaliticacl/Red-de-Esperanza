@@ -65,6 +65,7 @@ type GrupoReporte = 'necesito' | 'peligro'
 const GRUPOS: {
   v: GrupoReporte
   icono: LucideIcon
+  color: string
   titulo: string
   ejemplos: string
   tipos: NecesidadTipo[]
@@ -72,6 +73,9 @@ const GRUPOS: {
   {
     v: 'necesito',
     icono: ShoppingBasket,
+    // Azul de marca: se explica bien en video ("el ícono azul es para pedir
+    // ayuda") sin competir con el rojo de peligro/emergencia.
+    color: '#002FA7',
     titulo: 'Necesito algo',
     ejemplos: 'Agua, comida, medicinas, refugio…',
     // 'mascota' aquí es para un animal PRESENTE que necesita ayuda (herido,
@@ -82,6 +86,9 @@ const GRUPOS: {
   {
     v: 'peligro',
     icono: TriangleAlert,
+    // Rojo de alerta: coincide con el color que ya usan los tipos de peligro
+    // en el mapa (derrumbe, inundación, incendio…).
+    color: '#CC0001',
     titulo: 'Aviso de un peligro',
     ejemplos: 'Inundación, incendio, derrumbe, zona sin ayuda…',
     tipos: ['inundacion', 'incendio', 'derrumbe', 'zona_sin_atender'],
@@ -154,7 +161,14 @@ export default function ReportarModal({
   puedeReportarZonaAislada = false,
 }: {
   onCerrar: () => void
-  onCreado: (tipo?: TipoReporte) => void
+  // `extra` solo se llena para 'desaparecido': permite al padre encender la
+  // capa del mapa, elegir el país correcto y resaltar el registro recién
+  // creado (antes se le decía al usuario "ya aparece en el mapa" sin hacer
+  // ninguna de esas tres cosas).
+  onCreado: (
+    tipo?: TipoReporte,
+    extra?: { id?: string; pais?: string | null },
+  ) => void
   coordInicial?: { lat: number; lng: number } | null
   fuenteInicial?: FuenteUbicacion | null
   puedeReportarHospital?: boolean
@@ -490,12 +504,13 @@ export default function ReportarModal({
           'Escribe tu nombre o el nombre de la persona que necesita apoyo.',
         )
       }
-      // La cédula/RUT es OBLIGATORIA: acepta cédula venezolana o RUT chileno.
+      // La cédula/RUT es OBLIGATORIA: acepta cédula venezolana, RUT chileno
+      // o cédula colombiana.
       if (esAtencionPsicologica) {
         const doc = cedulaPaciente.trim()
         if (!doc) {
           throw new Error(
-            'Escribe tu cédula (Venezuela) o RUT (Chile) para poder identificar tu caso.',
+            'Escribe tu cédula (Venezuela o Colombia) o RUT (Chile) para poder identificar tu caso.',
           )
         }
         const check = validarDocumentoFlexible(doc)
@@ -523,7 +538,9 @@ export default function ReportarModal({
         if (tipoSerDesap === 'persona') {
           const doc = documentoDesap.trim()
           if (!doc) {
-            throw new Error('Escribe su cédula (Venezuela) o RUT (Chile).')
+            throw new Error(
+              'Escribe su cédula (Venezuela o Colombia) o RUT (Chile).',
+            )
           }
           const check = validarDocumentoFlexible(doc)
           if (!check.valido) throw new Error(check.mensaje)
@@ -626,7 +643,7 @@ export default function ReportarModal({
             })
           if (errDoc) throw errDoc
         }
-        onCreado('desaparecido')
+        onCreado('desaparecido', { id: fila.id, pais })
         return
       }
 
@@ -734,7 +751,10 @@ export default function ReportarModal({
 
       <SelectorPunto
         coord={coord}
-        onCambio={(la, ln) => setCoord({ lat: la, lng: ln })}
+        onCambio={(la, ln) => {
+          setCoord({ lat: la, lng: ln })
+          setErrorMsg('')
+        }}
       />
 
       {coord ? (
@@ -883,12 +903,12 @@ export default function ReportarModal({
       {tipoSerDesap === 'persona' && (
         <label className="block">
           <span className="font-bold">
-            Cédula (Venezuela) o RUT (Chile){' '}
+            Cédula (Venezuela o Colombia) o RUT (Chile){' '}
             <span className="text-bandera-rojo">*</span>
           </span>
           <input
             className="input mt-1"
-            placeholder="Ej: V-12345678 o 12.345.678-5"
+            placeholder="Ej: V-12345678, 1023456789 o 12.345.678-5"
             value={documentoDesap}
             onChange={(e) => setDocumentoDesap(e.target.value)}
           />
@@ -991,12 +1011,12 @@ export default function ReportarModal({
       </label>
       <label className="block">
         <span className="font-bold">
-          Cédula (Venezuela) o RUT (Chile){' '}
+          Cédula (Venezuela o Colombia) o RUT (Chile){' '}
           <span className="text-bandera-rojo">*</span>
         </span>
         <input
           className="input mt-1"
-          placeholder="Ej: V-12345678 o 12.345.678-5"
+          placeholder="Ej: V-12345678, 1023456789 o 12.345.678-5"
           value={cedulaPaciente}
           onChange={(e) => setCedulaPaciente(e.target.value)}
         />
@@ -1145,6 +1165,7 @@ export default function ReportarModal({
               <BloqueOpcion
                 key={g.v}
                 icono={g.icono}
+                color={g.color}
                 titulo={g.titulo}
                 ejemplos={g.ejemplos}
                 onClick={() => setGrupo(g.v)}
@@ -1258,8 +1279,9 @@ export default function ReportarModal({
         {paso > 1 && esAtencionPsicologica && !perfilPsico && (
           <div className="space-y-2">
             <div className="rounded-xl bg-purple-50 border border-purple-200 p-2.5 text-sm text-purple-900">
-              💙 ¿Emergencia inmediata? Llama ya: 911 (Venezuela) o 131
-              (Chile). Esta red no reemplaza atención de urgencia.
+              💙 ¿Emergencia inmediata? Llama ya: 911 (Venezuela), 131
+              (Chile) o 123 (Colombia). Esta red no reemplaza atención de
+              urgencia.
             </div>
 
             <p className="font-bold">¿Con cuál situación te identificas?</p>
@@ -1585,16 +1607,25 @@ export default function ReportarModal({
             {usaPasos ? (
               <div className="flex gap-2">
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    // El aviso de error (p. ej. "no encontramos esa
+                    // dirección") es propio del tramo donde ocurrió: si no se
+                    // limpia aquí, queda pegado en pantallas donde ya no
+                    // aplica y da la sensación de un error que no se puede
+                    // quitar.
+                    setErrorMsg('')
                     subPaso === 1 ? setPaso(1) : setSubPaso(subPaso - 1)
-                  }
+                  }}
                   className="btn-gris flex-1"
                 >
                   ← Atrás
                 </button>
                 {subPaso < 3 ? (
                   <button
-                    onClick={() => setSubPaso(subPaso + 1)}
+                    onClick={() => {
+                      setErrorMsg('')
+                      setSubPaso(subPaso + 1)
+                    }}
                     // El punto es lo único imprescindible del primer tramo:
                     // sin él (ni dirección escrita) no se puede seguir.
                     disabled={!tramoCompleto}
@@ -1678,14 +1709,16 @@ function BloqueOpcion({
                  hover:border-bandera-azul/40 hover:shadow-media hover:-translate-y-[1px]
                  active:translate-y-0 active:scale-[0.99]"
     >
-      {/* El icono sobre un disco apenas teñido con el color del tipo: da
-          peso, alinea las filas y mete el color con cuentagotas (un fondo
-          saturado se vería de juguete). */}
+      {/* El icono sobre un disco apenas teñido con el color del tipo, más un
+          halo suave detrás: da peso, alinea las filas y mete el color con
+          cuentagotas (un fondo saturado se vería de juguete). El halo ayuda
+          a señalar el ícono al explicarlo en video, sin gritar. */}
       <span
         className="h-12 w-12 shrink-0 grid place-items-center rounded-xl transition-colors duration-200"
         style={{
           backgroundColor: color ? `${color}14` : '#F0F1F5',
           color: color ?? '#4B5468',
+          boxShadow: color ? `0 0 0 6px ${color}0D, 0 2px 10px -2px ${color}40` : undefined,
         }}
         aria-hidden="true"
       >

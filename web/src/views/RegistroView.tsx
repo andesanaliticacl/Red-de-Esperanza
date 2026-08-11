@@ -253,8 +253,8 @@ export default function RegistroView() {
         ? 'voluntario'
         : 'ciudadano'
       : participa
-  // Chile por defecto: es la emergencia activa ahora mismo (se puede cambiar).
-  const [pais, setPais] = useState('Chile')
+  // Colombia por defecto: es la emergencia activa ahora mismo (se puede cambiar).
+  const [pais, setPais] = useState('Colombia')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
   const [documento, setDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -876,7 +876,7 @@ export default function RegistroView() {
                 </span>
                 <input
                   className="input mt-1"
-                  placeholder="El nombre legal, como aparece en el SII o el SENIAT"
+                  placeholder="El nombre legal, como aparece en el SII, la DIAN o el SENIAT"
                   maxLength={120}
                   value={razonSocial}
                   onChange={(e) => setRazonSocial(e.target.value)}
@@ -884,11 +884,11 @@ export default function RegistroView() {
               </label>
               <label className="block">
                 <span className="text-sm font-bold text-tinta-800">
-                  RUT de empresa o RIF
+                  RUT de empresa, NIT o RIF
                 </span>
                 <input
                   className="input mt-1"
-                  placeholder="Ej: 76.123.456-7 o J-12345678-9"
+                  placeholder="Ej: 76.123.456-7, 900.123.456-7 o J-12345678-9"
                   maxLength={40}
                   value={idFiscal}
                   onChange={(e) => setIdFiscal(e.target.value)}
@@ -1051,7 +1051,9 @@ export default function RegistroView() {
                   tipoDoc === 'cedula'
                     ? pais === 'Chile'
                       ? 'Ej: 12.345.678-5'
-                      : 'Ej: V-12345678'
+                      : pais === 'Colombia'
+                        ? 'Ej: 1023456789'
+                        : 'Ej: V-12345678'
                     : 'N.º de pasaporte'
                 }
                 value={documento}
@@ -1060,7 +1062,8 @@ export default function RegistroView() {
               {quierePsicologo && (
                 <p className="text-[11px] leading-snug text-tinta-500">
                   Para tu solicitud de psicólogo/a se valida: cédula o
-                  pasaporte venezolano, o RUT o pasaporte chileno.
+                  pasaporte venezolano, RUT o pasaporte chileno, o cédula o
+                  pasaporte colombiano.
                 </p>
               )}
             </>

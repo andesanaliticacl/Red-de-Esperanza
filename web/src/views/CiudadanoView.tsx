@@ -23,7 +23,8 @@ import MenuUsuario from '../components/MenuUsuario'
 import Paloma from '../components/Paloma'
 import { useNecesidades } from '../hooks/useNecesidades'
 import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
-import { geocodificarDireccion } from '../lib/geo'
+import { nombresPublicos } from '../lib/perfiles'
+import { geocodificarDireccion, VISTA_PAIS_DESAP } from '../lib/geo'
 import {
   esRolPsicologia,
   esRolRescatista,
@@ -355,26 +356,59 @@ export default function CiudadanoView() {
     // por sondeo → no abren websocket → escala a miles a la vez.
     !!session,
   )
-  // País de la capa de desaparecidos. Hasta ahora TODO el dataset es del
-  // terremoto de Venezuela 2026 (por eso arranca ahí), pero cuando otras
-  // catástrofes sumen sus propios registros, esto evita mezclarlos en el
-  // mapa. Se puede cambiar libremente.
-  const [paisDesap, setPaisDesap] = useState('Venezuela')
+  // Ids de perfil (asignado_a) verificados por una entidad (migración 64):
+  // sus necesidades muestran un anillo celeste en el pin del mapa.
+  const [idsVerificados, setIdsVerificados] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    const ids = [...new Set(necesidades.map((n) => n.asignado_a).filter(Boolean))]
+    if (ids.length === 0) return
+    nombresPublicos(ids).then((m) => {
+      setIdsVerificados(
+        new Set(
+          [...m.values()]
+            .filter((p) => p.verificado_entidad_id)
+            .map((p) => p.id),
+        ),
+      )
+    })
+  }, [necesidades])
+  // País de la capa de desaparecidos. Colombia por defecto (emergencia
+  // activa ahora mismo, igual que el resto de la app); null = todos los
+  // países mezclados (lo que esté a la vista en el mapa). Se puede cambiar
+  // libremente con los botones o volviendo a tocar el país ya elegido.
+  const [paisDesap, setPaisDesap] = useState<string | null>('Colombia')
+  // Vista a la que "vuela" el mapa al elegir un país (si no, el filtro
+  // queda aplicado pero el mapa se queda donde estaba, y como el punto
+  // puede estar del otro lado del continente el marcador "desaparece" sin
+  // que en realidad se haya ido a ningún lado).
+  const [vistaPaisDesap, setVistaPaisDesap] = useState<
+    { lat: number; lng: number; zoom: number } | null
+  >(null)
+  function elegirPaisDesap(p: string) {
+    if (paisDesap === p) {
+      setPaisDesap(null)
+      return
+    }
+    setPaisDesap(p)
+    const vista = VISTA_PAIS_DESAP[p]
+    if (vista) setVistaPaisDesap(vista)
+  }
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
   const [totalDesap, setTotalDesap] = useState<number | null>(null)
   useEffect(() => {
     let cancel = false
-    const consultar = () =>
-      supabase
+    const consultar = () => {
+      let q = supabase
         .from('desaparecidos')
         .select('id', { count: 'exact', head: true })
         .eq('estado', 'no_encontrado')
         .not('lat', 'is', null)
-        .eq('pais', paisDesap)
-        .then(({ count }) => {
-          if (!cancel) setTotalDesap(count ?? null)
-        })
+      if (paisDesap) q = q.eq('pais', paisDesap)
+      return q.then(({ count }) => {
+        if (!cancel) setTotalDesap(count ?? null)
+      })
+    }
     const t = window.setTimeout(consultar, 2500)
     return () => {
       cancel = true
@@ -541,16 +575,17 @@ export default function CiudadanoView() {
     }
     let cancel = false
     const t = window.setTimeout(async () => {
-      const { data } = await supabase
+      let q = supabase
         .from('desaparecidos')
         .select(
           'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais',
         )
         .eq('estado', 'no_encontrado')
-        .eq('pais', paisDesap)
         .ilike('nombre', `%${term}%`)
         .not('lat', 'is', null)
         .limit(50)
+      if (paisDesap) q = q.eq('pais', paisDesap)
+      const { data } = await q
       if (!cancel) {
         setResultadosDesap((data ?? []) as Desaparecido[])
         setListaDesapVisible(true)
@@ -749,6 +784,7 @@ export default function CiudadanoView() {
               puedeEliminarDelMapa ? eliminarDelMapaHandler : undefined
             }
             onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
+            idsAsignadoVerificado={idsVerificados}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}
@@ -756,6 +792,7 @@ export default function CiudadanoView() {
             busquedaDesap={busqDesap}
             paisDesap={paisDesap}
             irACoordenada={irACoordenada}
+            vistaPaisDesap={vistaPaisDesap}
             desaparecidoResaltadoId={desaparecidoSeleccionadoId}
             // Tocar el mapa cierra el panel de filtros, que en el teléfono
             // tapa media pantalla.
@@ -917,15 +954,17 @@ export default function CiudadanoView() {
           {/* Buscador de desaparecidos (solo si la capa está visible) */}
           {verDesap && (
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
-              {/* País: hoy solo Venezuela tiene datos (terremoto 2026), pero
-                  futuras catástrofes sumarán los suyos, así que el selector
-                  ya está listo para no mezclarlos en el mapa. */}
-              <div className="flex gap-1.5 mb-2">
-                {(['Venezuela', 'Chile'] as const).map((p) => (
+              {/* País: cada catástrofe suma su propio dataset (Venezuela
+                  2026, Colombia 2026…), así que el selector evita
+                  mezclarlos en el mapa. Tocar el país ya elegido lo quita
+                  (vuelve a "Todos"); "Todos" es un botón chico aparte para
+                  no competir con los países. */}
+              <div className="flex items-center gap-1.5 mb-2">
+                {(['Venezuela', 'Chile', 'Colombia'] as const).map((p) => (
                   <button
                     key={p}
                     type="button"
-                    onClick={() => setPaisDesap(p)}
+                    onClick={() => elegirPaisDesap(p)}
                     aria-pressed={paisDesap === p}
                     className={`flex-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
                       paisDesap === p
@@ -936,6 +975,19 @@ export default function CiudadanoView() {
                     {p}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setPaisDesap(null)}
+                  aria-pressed={paisDesap === null}
+                  title="Ver todos los países"
+                  className={`shrink-0 rounded-xl border-2 px-2 py-1.5 text-[11px] font-bold ${
+                    paisDesap === null
+                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                      : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  Todos
+                </button>
               </div>
               {paisDesap === 'Venezuela' && (
                 <p className="mb-2 text-[11px] font-semibold text-gray-500 text-center">
@@ -943,31 +995,19 @@ export default function CiudadanoView() {
                 </p>
               )}
               {/* Tebusco.app es una alianza específica de Venezuela: no aplica
-                  cuando se está viendo el dataset de otro país. */}
+                  cuando se está viendo el dataset de otro país. Chip chico
+                  y directo: antes era una tarjeta grande que competía con
+                  el resto del panel. */}
               {paisDesap === 'Venezuela' && (
                 <a
                   href="https://tebusco.app/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mb-2 flex items-center gap-3 rounded-2xl border-2 border-bandera-azul/15 bg-white px-3 py-2.5 no-underline shadow-sm hover:border-bandera-azul/30 hover:bg-bandera-azul/5"
+                  className="mb-2 flex w-fit mx-auto items-center gap-1 rounded-full border border-bandera-azul/20 bg-white px-2 py-0.5 no-underline text-[10px] font-semibold text-bandera-azul hover:bg-bandera-azul/5"
                 >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bandera-azul text-white shadow-sm">
-                    <Search className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[11px] font-extrabold uppercase text-bandera-rojo tracking-wide">
-                      Alianza activa
-                    </span>
-                    <span className="block text-sm font-extrabold text-bandera-azul leading-tight">
-                      Busca tambien en Tebusco.app
-                    </span>
-                    <span className="block text-xs font-medium text-gray-600 leading-snug">
-                      Plataforma aliada para ampliar la busqueda de personas desaparecidas.
-                    </span>
-                  </span>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-bandera-amarillo text-white text-base font-black" aria-hidden="true">
-                    ↗
-                  </span>
+                  <Search className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+                  También en Tebusco.app
+                  <span aria-hidden="true">↗</span>
                 </a>
               )}
               {/* Aviso sobre la fuente del scraper: es específico de la
@@ -1113,7 +1153,7 @@ export default function CiudadanoView() {
           puedeReportarHospital={puedeReportarHospital}
           puedeReportarZonaAislada={esAdmin || rol === 'lider_voluntarios'}
           onCerrar={() => setAbrirReporte(false)}
-          onCreado={(tipo) => {
+          onCreado={(tipo, extra) => {
             setAbrirReporte(false)
             notificar(
               tipo === 'hospital'
@@ -1128,6 +1168,21 @@ export default function CiudadanoView() {
             if (tipo === 'hospital') {
               setTipoFiltro('hospital')
               void recargarAcopios()
+            }
+            if (tipo === 'desaparecido') {
+              // Enciende la capa, cambia al país del registro recién creado
+              // (si se detectó) y lo resalta: antes el mensaje decía "ya
+              // aparece en el mapa" pero nada de esto pasaba de verdad.
+              // También vuela el mapa a ese país: sin esto, el filtro queda
+              // bien puesto pero el mapa se queda donde estaba y el punto
+              // nuevo no entra en la vista (bounding box) que se consulta.
+              setVerDesapManual(true)
+              if (extra?.pais) {
+                setPaisDesap(extra.pais)
+                const vista = VISTA_PAIS_DESAP[extra.pais]
+                if (vista) setVistaPaisDesap(vista)
+              }
+              if (extra?.id) setDesaparecidoSeleccionadoId(extra.id)
             }
           }}
         />

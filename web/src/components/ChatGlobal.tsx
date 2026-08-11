@@ -20,6 +20,7 @@ import {
   telefonosDeUsuarios,
 } from '../lib/chatGlobal'
 import { leerIdentidad, guardarIdentidad } from '../lib/identidad'
+import InsigniaVerificado from './InsigniaVerificado'
 import { paisPorIP } from '../lib/visitas'
 import { mencionaDinero, AVISO_DINERO } from '../lib/avisoDinero'
 import { PAISES_CHAT, regionesDe, claveSala } from '../lib/regionesChat'
@@ -44,9 +45,12 @@ function fragmento(texto: string, max = 120): string {
 function EtiquetaRol({
   autor,
   rol,
+  verificadoPor,
 }: {
   autor: string | null
   rol?: RolUsuario
+  /** Nombre de la entidad que lo verificó (migración 64), si aplica. */
+  verificadoPor?: string | null
 }) {
   if (!autor) {
     return (
@@ -59,11 +63,16 @@ function EtiquetaRol({
   const meta = ROL_META[rol]
   const color = COLOR_ROL[rol]
   return (
-    <span
-      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-      style={{ color, backgroundColor: `${color}1A` }}
-    >
-      {meta.emoji} {meta.etiqueta}
+    <span className="inline-flex items-center gap-1">
+      <span
+        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+        style={{ color, backgroundColor: `${color}1A` }}
+      >
+        {meta.emoji} {meta.etiqueta}
+      </span>
+      {verificadoPor && (
+        <InsigniaVerificado entidadNombre={verificadoPor} compacta />
+      )}
     </span>
   )
 }
@@ -91,15 +100,15 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // escribe), pero sirve para reconocer como propios los mensajes viejos que
   // esta persona dejó cuando el chat aún admitía invitados.
   const nombre = guardada?.nombre ?? ''
-  // País de la sala: Venezuela y Chile por ahora (se pueden sumar más en
-  // lib/regionesChat.ts). Se preselecciona con el país detectado por IP si
-  // está entre los disponibles; si no, Chile (la emergencia activa ahora
-  // mismo), con Coquimbo como región inicial. Todo se puede cambiar.
+  // País de la sala: Colombia, Chile y Venezuela por ahora (se pueden sumar
+  // más en lib/regionesChat.ts). Se preselecciona con el país detectado por
+  // IP si está entre los disponibles; si no, Colombia (la emergencia activa
+  // ahora mismo), con Bogotá D.C. como región inicial. Todo se puede cambiar.
   const [paisChat, setPaisChat] = useState(
     guardada?.pais ?? PAISES_CHAT[0].pais,
   )
   const [estado, setEstado] = useState(
-    guardada?.estado ?? perfil?.estado ?? 'Coquimbo',
+    guardada?.estado ?? perfil?.estado ?? 'Bogotá D.C.',
   )
   const [listo, setListo] = useState(Boolean(guardada))
   const tokenPruebaChat = import.meta.env.DEV
@@ -123,6 +132,11 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
   // Rol de cada autor (id → rol), para mostrar la etiqueta de color junto al
   // nombre. Se resuelve con la vista pública perfiles_publicos.
   const [roles, setRoles] = useState<Map<string, RolUsuario>>(new Map())
+  // Entidad que verificó a cada autor (id → nombre de la entidad), migración
+  // 64. Mismo origen que `roles`, aparte para no tocar su forma.
+  const [verificados, setVerificados] = useState<Map<string, string>>(
+    new Map(),
+  )
   // Teléfonos por mensaje (id → teléfono). Solo se llenan para líderes/admin.
   const [telefonos, setTelefonos] = useState<Map<string, string>>(new Map())
   const finRef = useRef<HTMLDivElement>(null)
@@ -187,12 +201,24 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     if (faltan.length === 0) return
     const { data } = await supabase
       .from('perfiles_publicos')
-      .select('id, rol')
+      .select('id, rol, verificado_entidad_nombre')
       .in('id', faltan)
     if (!data) return
+    const filas = data as {
+      id: string
+      rol: RolUsuario
+      verificado_entidad_nombre: string | null
+    }[]
     setRoles((prev) => {
       const m = new Map(prev)
-      for (const p of data as { id: string; rol: RolUsuario }[]) m.set(p.id, p.rol)
+      for (const p of filas) m.set(p.id, p.rol)
+      return m
+    })
+    setVerificados((prev) => {
+      const m = new Map(prev)
+      for (const p of filas) {
+        if (p.verificado_entidad_nombre) m.set(p.id, p.verificado_entidad_nombre)
+      }
       return m
     })
   }
@@ -374,7 +400,13 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
               <div className="text-xs text-gray-500">Entrarás como</div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="font-bold">{nombreEfectivo}</span>
-                {perfil?.rol && <EtiquetaRol autor={perfil.id} rol={perfil.rol} />}
+                {perfil?.rol && (
+                  <EtiquetaRol
+                    autor={perfil.id}
+                    rol={perfil.rol}
+                    verificadoPor={verificados.get(perfil.id)}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -461,6 +493,9 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
                           <EtiquetaRol
                             autor={m.autor}
                             rol={m.autor ? roles.get(m.autor) : undefined}
+                            verificadoPor={
+                              m.autor ? verificados.get(m.autor) : undefined
+                            }
                           />
                         </div>
                       )}

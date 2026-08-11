@@ -4,9 +4,10 @@ Esta funcion es obligatoria para que el chat no pueda escribirse saltandose el
 frontend. Valida la IP en servidor y solo inserta el mensaje si el pais
 detectado coincide con el pais dueño de la sala (`ciudad`) a la que se
 escribe: Venezuela (salas = solo el nombre del estado, sin prefijo, para no
-romper el historial anterior al selector de pais) o Chile (salas
-`chile/<region>`). Agregar un pais nuevo implica sumarlo tanto aqui
-(`REGIONES_CHILE`/`ESTADOS_VENEZUELA` y `paisEsperadoDeSala`) como en
+romper el historial anterior al selector de pais), Chile (salas
+`chile/<region>`) o Colombia (salas `colombia/<departamento>`). Agregar un
+pais nuevo implica sumarlo tanto aqui (`REGIONES_CHILE`/`REGIONES_COLOMBIA`/
+`ESTADOS_VENEZUELA` y `paisEsperadoDeSala`) como en
 `web/src/lib/regionesChat.ts` — deben quedar sincronizados.
 
 ## 1) Desplegar la Edge Function

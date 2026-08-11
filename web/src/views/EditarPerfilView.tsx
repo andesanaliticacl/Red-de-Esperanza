@@ -11,13 +11,13 @@ import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import SolicitarPsicologoModal from '../components/SolicitarPsicologoModal'
 import { PAISES_MUNDO } from '../lib/paises'
+import { zonasDePais } from '../lib/zonas'
 import { validarDocumentoPersona } from '../lib/documentos'
 import {
   misSolicitudesPsicologo,
   type SolicitudPsicologo,
 } from '../lib/solicitudesPsicologo'
 import {
-  ESTADOS_VENEZUELA,
   ROL_META,
   type RolRegistro,
   type TipoDocumento,
@@ -58,6 +58,13 @@ export default function EditarPerfilView() {
       ? (rol as Exclude<RolRegistro, 'psicologo'>)
       : null,
   )
+
+  // División territorial del país elegido (Estado/Región/Departamento…).
+  // Antes el <select> de abajo iteraba siempre ESTADOS_VENEZUELA sin
+  // importar el país: para Chile o Colombia mostraba estados venezolanos
+  // que no aplican, y no había forma de elegir una zona real.
+  const isoPais = PAISES_MUNDO.find((p) => p.nombre === pais)?.iso
+  const zona = zonasDePais(isoPais)
 
   const [subiendo, setSubiendo] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -204,7 +211,10 @@ export default function EditarPerfilView() {
             <SelectorBandera
               opciones={OPCIONES_PAIS}
               valor={pais}
-              onChange={(v) => setPais(v)}
+              onChange={(v) => {
+                setPais(v)
+                setEstado('') // la zona anterior ya no aplica
+              }}
             />
           </div>
         )}
@@ -289,7 +299,9 @@ export default function EditarPerfilView() {
               tipoDoc === 'cedula'
                 ? pais === 'Chile'
                   ? 'Ej: 12.345.678-5'
-                  : 'Ej: V-12345678'
+                  : pais === 'Colombia'
+                    ? 'Ej: 1023456789'
+                    : 'Ej: V-12345678'
                 : 'N.º de pasaporte'
             }
           />
@@ -297,19 +309,28 @@ export default function EditarPerfilView() {
 
         <div className="grid grid-cols-2 gap-2">
           <label className="block text-sm font-semibold">
-            Estado
-            <select
-              className="input mt-1"
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-            >
-              <option value="">Estado…</option>
-              {ESTADOS_VENEZUELA.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            {zona.etiqueta}
+            {zona.opciones.length > 0 ? (
+              <select
+                className="input mt-1"
+                value={estado}
+                onChange={(e) => setEstado(e.target.value)}
+              >
+                <option value="">{zona.etiqueta}…</option>
+                {zona.opciones.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="input mt-1"
+                value={estado}
+                onChange={(e) => setEstado(e.target.value)}
+                placeholder={zona.etiqueta}
+              />
+            )}
           </label>
           <label className="block text-sm font-semibold">
             Ciudad

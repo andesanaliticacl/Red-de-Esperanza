@@ -57,6 +57,44 @@ const REGIONES_CHILE = [
   'Magallanes y de la Antartica Chilena',
 ]
 
+// 32 departamentos de Colombia + Bogota D.C. (debe reflejar exactamente
+// web/src/lib/zonas.ts -> ZONAS.co / web/src/lib/regionesChat.ts).
+const REGIONES_COLOMBIA = [
+  'Amazonas',
+  'Antioquia',
+  'Arauca',
+  'Atlantico',
+  'Bogota D.C.',
+  'Bolivar',
+  'Boyaca',
+  'Caldas',
+  'Caqueta',
+  'Casanare',
+  'Cauca',
+  'Cesar',
+  'Choco',
+  'Cordoba',
+  'Cundinamarca',
+  'Guainia',
+  'Guaviare',
+  'Huila',
+  'La Guajira',
+  'Magdalena',
+  'Meta',
+  'Narino',
+  'Norte de Santander',
+  'Putumayo',
+  'Quindio',
+  'Risaralda',
+  'San Andres y Providencia',
+  'Santander',
+  'Sucre',
+  'Tolima',
+  'Valle del Cauca',
+  'Vaupes',
+  'Vichada',
+]
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -151,7 +189,7 @@ async function paisPorIP(ip: string): Promise<{ pais: string | null; codigo: str
 // Codigo ISO del pais dueño de una sala, segun su formato: Venezuela = solo
 // el nombre del estado; el resto = "pais/region". Null si la sala no es
 // valida en ningun pais soportado.
-function paisEsperadoDeSala(ciudad: string): 'VE' | 'CL' | null {
+function paisEsperadoDeSala(ciudad: string): 'VE' | 'CL' | 'CO' | null {
   const sala = normalizarParaComparar(ciudad)
   if (ESTADOS_VENEZUELA.some((e) => normalizarParaComparar(e) === sala)) {
     return 'VE'
@@ -162,16 +200,23 @@ function paisEsperadoDeSala(ciudad: string): 'VE' | 'CL' | null {
       return 'CL'
     }
   }
+  if (sala.startsWith('colombia/')) {
+    const region = sala.slice('colombia/'.length)
+    if (REGIONES_COLOMBIA.some((r) => normalizarParaComparar(r) === region)) {
+      return 'CO'
+    }
+  }
   return null
 }
 
 function geoCoincideConPais(
   geo: { pais: string | null; codigo: string | null },
-  esperado: 'VE' | 'CL',
+  esperado: 'VE' | 'CL' | 'CO',
 ): boolean {
-  const nombrePorCodigo: Record<'VE' | 'CL', string> = {
+  const nombrePorCodigo: Record<'VE' | 'CL' | 'CO', string> = {
     VE: 'venezuela',
     CL: 'chile',
+    CO: 'colombia',
   }
   return (
     geo.codigo?.toUpperCase() === esperado ||
@@ -253,7 +298,12 @@ Deno.serve(async (req) => {
 
     const geo = await paisPorIP(ip)
     if (!geoCoincideConPais(geo, paisEsperado)) {
-      const nombrePais = paisEsperado === 'VE' ? 'Venezuela' : 'Chile'
+      const nombresPais: Record<'VE' | 'CL' | 'CO', string> = {
+        VE: 'Venezuela',
+        CL: 'Chile',
+        CO: 'Colombia',
+      }
+      const nombrePais = nombresPais[paisEsperado]
       return json(
         {
           ok: false,

@@ -26,3 +26,6 @@ npm-debug.log*
 # Empaquetados locales del scraper (no versionar)
 scraper.rar
 *.rar
+
+# Cache local de la CLI de Supabase (supabase link / functions deploy)
+supabase/.temp/
