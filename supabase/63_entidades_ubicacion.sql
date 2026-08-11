@@ -98,8 +98,14 @@ $$;
 
 -- ============================================================
 -- La vista pública suma la dirección (es dato de contacto, no fiscal).
+--
+-- Va DROP + CREATE, no CREATE OR REPLACE: reemplazar una vista solo permite
+-- AGREGAR columnas al final, y aquí `direccion` entra en medio (antes de
+-- lat/lng, que es donde se lee bien). Con REPLACE, Postgres lo interpreta
+-- como "renombrar la columna lat a direccion" y aborta.
 -- ============================================================
-create or replace view entidades_publicas as
+drop view if exists entidades_publicas;
+create view entidades_publicas as
   select
     id, nombre, categoria, tier, profesion, descripcion, logo_url,
     contacto_publico, web, pais, zona, ciudad, direccion, lat, lng,
