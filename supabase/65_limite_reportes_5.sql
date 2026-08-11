@@ -1,6 +1,6 @@
 -- ============================================================
--- Red de Esperanza — Migración 64: el límite diario de reportes sube a 5
--- Ejecutar UNA vez DESPUÉS de la 63, en: SQL Editor → New query → Run
+-- Red de Esperanza — Migración 65: el límite diario de reportes sube a 5
+-- Ejecutar UNA vez DESPUÉS de la 64, en: SQL Editor → New query → Run
 --
 -- Estaba en 3 solicitudes al día por teléfono (migración 56). Sube a 5.
 --
