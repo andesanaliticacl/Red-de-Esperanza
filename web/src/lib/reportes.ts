@@ -6,10 +6,10 @@ import { encolarReporte, reportesEnCola, quitarDeCola } from './colaOffline'
 // Máximo de solicitudes por día con el mismo teléfono (se bloquea la 6.ª).
 //
 // OJO: este número TIENE que coincidir con el del trigger
-// limitar_reportes_por_telefono() en la base (migración 65). Aquí solo se
+// limitar_reportes_por_telefono() en la base (migración 66). Aquí solo se
 // avisa antes de intentar; quien hable directo con la API se salta esto y lo
 // frena el servidor. Si cambias uno, cambia el otro.
-export const LIMITE_POR_TELEFONO_DIA = 5
+export const LIMITE_POR_TELEFONO_DIA = 10
 
 function crearIdReporte() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
