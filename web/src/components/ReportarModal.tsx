@@ -1118,6 +1118,22 @@ export default function ReportarModal({
         ? 'Cuéntanos, con tus palabras, qué estás viviendo'
       : esDerrumbe || esZona ? 'Detalles (opcional)' : '¿Qué necesitas?'
 
+  // Antes cualquier tipo que no fuera derrumbe/zona/psicológica/hospital
+  // caía en el mismo ejemplo de agua, así que "Maquinaria pesada" mostraba
+  // "Familia con 2 niños sin agua desde ayer" — un ejemplo que no tiene nada
+  // que ver con lo que se está reportando.
+  const PLACEHOLDER_POR_TIPO: Partial<Record<string, string>> = {
+    agua_comida: 'Ej: Familia con 2 niños sin agua desde ayer',
+    medicinas: 'Ej: Necesito insulina, se nos acabó ayer',
+    refugio: 'Ej: Familia de 4 sin techo tras el derrumbe',
+    sacos_arena: 'Ej: Bloques y cemento para reforzar una pared agrietada',
+    maquinaria: 'Ej: Retroexcavadora para remover escombros en la entrada',
+    mascota: 'Ej: Cojea de una pata, no come desde ayer',
+    incendio: 'Ej: Se está expandiendo hacia las casas vecinas',
+    inundacion: 'Ej: Agua a la altura de la rodilla y sigue subiendo',
+    otro: 'Cuéntanos qué necesitas',
+  }
+
   const placeholderDetalle = esDerrumbe
     ? 'Ej: 4 pisos, posible gente atrapada en el 2do'
     : esZona
@@ -1126,7 +1142,7 @@ export default function ReportarModal({
         ? 'Ej: No puedo dormir, siento mucha angustia, perdí a un familiar, necesito hablar con alguien...'
       : esHospital
         ? 'Ej: emergencia, triaje, disponibilidad, referencia de acceso'
-        : 'Ej: Familia con 2 niños sin agua desde ayer'
+        : (PLACEHOLDER_POR_TIPO[tipo] ?? 'Cuéntanos qué necesitas')
 
   const titulo =
     paso > 1 ? metaTipo.etiqueta : 'Reportar necesidad'
@@ -1417,11 +1433,15 @@ export default function ReportarModal({
                         ? '¿Quién es?'
                         : '¿Dónde es?'
                     : subPaso === 2
-                      ? esAtencionPsicologica
-                        ? '¿Qué estás viviendo?'
-                        : esDesaparecido
-                          ? '¿Dónde se le vio por última vez?'
-                          : '¿Qué pasa?'
+                      ? // Antes esto decía siempre "¿Qué pasa?" y la pregunta
+                        // se repetía dos veces: la caja de texto de abajo
+                        // tenía su PROPIA etiqueta (etiquetaDetalle), casi
+                        // idéntica. Se usa esa misma variable acá y se le
+                        // quitó la de abajo (ver más adelante), así solo
+                        // pregunta una vez y con el texto correcto por tipo.
+                        esDesaparecido
+                        ? '¿Dónde se le vio por última vez?'
+                        : etiquetaDetalle
                       : '¿Cómo te contactamos?'}
                 </p>
               </div>
@@ -1437,8 +1457,7 @@ export default function ReportarModal({
                 <>
                   🚧 Marca una <strong>zona aislada</strong> (incomunicada o de
                   difícil acceso) para que el equipo la vea de un vistazo en el
-                  mapa. Solo el admin y los líderes de voluntarios pueden
-                  crearlas.
+                  mapa.
                 </>
               ) : esZona ? (
                 <>
@@ -1583,9 +1602,10 @@ export default function ReportarModal({
               enTramo(esDesaparecido ? 2 : 1) &&
               bloqueUbicacionMapa}
 
+            {/* Sin <p>{etiquetaDetalle}</p> encima: el título grande del
+                paso (arriba) ya hace esa misma pregunta. */}
             {!esDesaparecido && enTramo(2) && (
               <div>
-                <p className="font-bold mb-2">{etiquetaDetalle}</p>
                 <textarea
                   className="input min-h-[70px]"
                   placeholder={placeholderDetalle}
