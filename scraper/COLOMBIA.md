@@ -65,10 +65,19 @@ peticiones, 1 s por defecto), `--sin-geo` (no geocodificar).
   por un formulario privado que el reportante decide si responde. La app
   enlaza a la publicación original en vez de abrir un canal paralelo que
   nadie modera.
-- **`--retirar` tiene una guarda:** si faltara más del 25 % de lo guardado, no
+- **`--retirar` solo funciona en recorridos COMPLETOS.** Con `--desde`/`--hasta`
+  se ignora y avisa. Lo que no se leyó parece "ya no está en el origen" cuando
+  en realidad estaba en una página que nunca se pidió: en pruebas, un
+  `--hasta 2 --retirar` habría borrado 123 registros que seguían publicados.
+- **`--retirar` tiene además una guarda del 25 %:** si faltara más de eso, no
   borra nada y avisa. Un listado caído a medias no debe vaciar la tabla: un
   registro de más se corrige en la próxima corrida, uno de menos es una
   persona que dejó de buscarse.
+- **El listado se pide ordenado por más ANTIGUO** (`sort=oldest`). Con el orden
+  por defecto (más recientes primero), cada reporte nuevo empuja todo una
+  posición: recorriendo 254 páginas se perderían registros ya leídos y se
+  repetirían otros. Con `oldest`, lo nuevo se agrega al final y lo ya
+  recorrido no se mueve.
 
 ## Pendiente
 

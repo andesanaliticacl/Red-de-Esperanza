@@ -4,6 +4,16 @@ import argparse
 import json
 import sys
 
+# La consola de Windows viene en cp1252 y revienta al imprimir "✓", "·" o
+# cualquier acento (UnicodeEncodeError). Eso tiraba abajo la corrida DESPUÉS
+# de haber subido los datos, que es la peor forma de fallar: el trabajo está
+# hecho pero el proceso termina en error. Forzamos UTF-8 en la salida.
+for _flujo in (sys.stdout, sys.stderr):
+    try:
+        _flujo.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except Exception:
+        pass
+
 from fuente import Fuente, map_centro, map_persona
 from geocode import Geocoder
 from supabase_sync import (
@@ -148,6 +158,18 @@ def correr_colombia(args, geo) -> int:
     sobran = guardados - vistos
     if not sobran:
         print("  Nada que retirar: el espejo coincide con el origen.")
+        return subidas
+
+    # Un recorrido PARCIAL no puede decidir bajas: lo que no se leyó parece
+    # "ya no está en el origen" cuando en realidad estaba en una página que
+    # nunca se pidió. Comprobado en pruebas: con --hasta 3 reportó 3 bajas
+    # falsas que solo se habían corrido de página.
+    if args.desde > 1 or args.hasta:
+        print(
+            f"  ({len(sobran)} no aparecieron en este recorrido, pero fue "
+            "PARCIAL: no puedo distinguir una baja real de una página que no "
+            "leí. Para retirar, corre el listado completo.)"
+        )
         return subidas
 
     # Guarda de seguridad: si el listado se cayó a medias, `sobran` sería

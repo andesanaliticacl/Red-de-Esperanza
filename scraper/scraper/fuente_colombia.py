@@ -138,12 +138,20 @@ def _parsear_tarjeta(bloque: str) -> Optional[PersonaDesaparecida]:
 
 
 def _pedir(status: str, pagina: int, cortesia: float) -> str:
-    """Descarga una página del listado público. `status`: missing | found."""
+    """Descarga una página del listado público. `status`: missing | found.
+
+    Se pide ordenado por MÁS ANTIGUO a propósito. Con el orden por defecto
+    (más recientes primero), cada publicación nueva empuja a todas las demás
+    una posición hacia atrás: mientras se recorren 254 páginas, registros que
+    ya se leyeron se corren a la página siguiente y se pierden, y otros se
+    leen dos veces. Con 'oldest' lo nuevo se agrega al FINAL y las páginas ya
+    recorridas no se mueven.
+    """
     if cortesia > 0:
         time.sleep(cortesia)
     r = _SESION.get(
         BASE + "/",
-        params={"status": status, "page": pagina},
+        params={"status": status, "page": pagina, "sort": "oldest"},
         timeout=30,
     )
     r.raise_for_status()
