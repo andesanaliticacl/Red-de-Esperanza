@@ -20,6 +20,10 @@ class PersonaDesaparecida:
     contacto_familiar: Optional[str] = None      # "MARIO WhatsApp 0412..."
     lat: Optional[float] = None                  # se rellena al geocodificar
     lng: Optional[float] = None
+    # País del registro (migración 58). La app filtra la capa del mapa por
+    # esta columna, así que un import sin `pais` queda invisible en la UI
+    # aunque esté bien guardado. None = se deja como esté en la base.
+    pais: Optional[str] = None
     fuente: str = "desaparecidos_terremoto_vzla"
 
     def to_row(self) -> dict:

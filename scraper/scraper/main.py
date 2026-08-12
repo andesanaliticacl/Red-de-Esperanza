@@ -7,7 +7,9 @@ import sys
 from fuente import Fuente, map_centro, map_persona
 from geocode import Geocoder
 from supabase_sync import (
+    borrar_desaparecidos,
     faltan_credenciales,
+    ids_de_fuente,
     registrar_corrida,
     subir_centros,
     subir_en_lotes,
@@ -69,6 +71,108 @@ def correr_personas(args, geo) -> int:
                 registrar_corrida("personas", "corriendo", total)
             pagina += 1
     return total
+
+
+def correr_colombia(args, geo) -> int:
+    """Sincroniza colombiatebusca.com → `desaparecidos` (fuente 'colombiatebusca').
+
+    NO es una importación de una sola vez: recorre también a las personas ya
+    marcadas como "Localizada" en el origen para corregir su estado aquí, y
+    puede retirar lo que allá dejaron de publicar (--retirar). Correrlo una
+    sola vez y olvidarse dejaría a gente ya encontrada figurando como
+    desaparecida, que es justo el daño que hay que evitar.
+    """
+    import fuente_colombia as fcol
+
+    personas = list(
+        fcol.recorrer(
+            desde=args.desde,
+            hasta=args.hasta,
+            # Contra un servidor ajeno, 1 s por defecto: son ~254 páginas por
+            # estado y no queremos costarles el sitio.
+            cortesia=args.cortesia if args.cortesia > 0 else 1.0,
+        )
+    )
+    if not personas:
+        print("  (el origen no devolvió a nadie: no toco nada)")
+        return 0
+
+    encontradas = sum(1 for p in personas if p.estado == "encontrado")
+    print(
+        f"  Origen: {len(personas)} publicaciones "
+        f"({len(personas) - encontradas} por localizar · {encontradas} localizadas)"
+    )
+
+    filas = []
+    aproximadas = 0
+    for i, p in enumerate(personas, 1):
+        # A las ya localizadas no se les geocodifica nada: el origen dejó de
+        # publicar su ubicación y aquí tampoco debe quedar (ver
+        # fila_sincronizada), así que buscarles coordenadas sería al revés.
+        if geo and p.estado != "encontrado" and p.lat is None and p.ultima_ubicacion:
+            # Del texto exacto a lo más grueso (ciudad → departamento): sin
+            # coordenadas el registro no se dibuja en el mapa, así que un pin
+            # aproximado vale más que ninguno.
+            for n, variante in enumerate(fcol.variantes_ubicacion(p.ultima_ubicacion)):
+                p.lat, p.lng = geo.geocodificar(variante, pais="Colombia")
+                if p.lat is not None:
+                    if n > 0:
+                        aproximadas += 1
+                    break
+        filas.append(fcol.fila_sincronizada(p))
+        if i % 250 == 0:
+            print(f"  · preparadas {i}/{len(personas)}…")
+
+    por_localizar = [f for f in filas if f.get("estado") != "encontrado"]
+    con_coords = sum(1 for f in por_localizar if f.get("lat") is not None)
+    print(
+        f"  Geocodificadas: {con_coords}/{len(por_localizar)} por localizar"
+        + (f" ({aproximadas} solo a nivel de zona)" if aproximadas else "")
+    )
+
+    if args.sin_subir:
+        print("  (--sin-subir: no se escribe nada en la base)")
+        return len(filas)
+
+    subidas = subir_en_lotes(filas)
+    print(f"  ✓ {subidas} sincronizadas (altas + estado actualizado)")
+
+    # --- Bajas: lo que el origen ya no publica ---
+    vistos = fcol.ids_vistos(personas)
+    try:
+        guardados = ids_de_fuente(fcol.FUENTE)
+    except Exception as exc:
+        print(f"  [!] no pude leer lo ya guardado ({exc}); omito el retiro")
+        return subidas
+
+    sobran = guardados - vistos
+    if not sobran:
+        print("  Nada que retirar: el espejo coincide con el origen.")
+        return subidas
+
+    # Guarda de seguridad: si el listado se cayó a medias, `sobran` sería
+    # enorme y borraríamos gente que sigue publicada. Ante la duda, no se
+    # borra: un registro de más se arregla en la próxima corrida, uno de
+    # menos es una persona que dejó de buscarse.
+    proporcion = len(sobran) / max(len(guardados), 1)
+    if proporcion > 0.25:
+        print(
+            f"  [!] {len(sobran)} de {len(guardados)} faltarían en el origen "
+            f"({proporcion:.0%}). Es demasiado para ser real: probablemente la "
+            "corrida quedó incompleta. NO retiro nada."
+        )
+        return subidas
+
+    if not args.retirar:
+        print(
+            f"  {len(sobran)} publicaciones ya no están en el origen "
+            "(retiradas allá). Corre con --retirar para quitarlas aquí también."
+        )
+        return subidas
+
+    borradas = borrar_desaparecidos(sobran)
+    print(f"  ✓ {borradas} retiradas aquí (ya no estaban en el origen)")
+    return subidas
 
 
 def _geocode_centro(geo, c):
@@ -142,8 +246,11 @@ def main() -> None:
         description="Scraper desaparecidosterremotovenezuela.com → Supabase."
     )
     ap.add_argument("modo", nargs="?", default="personas",
-                    choices=["personas", "centros", "todo"],
-                    help="qué scrapear ('todo' = personas + centros)")
+                    choices=["personas", "centros", "todo", "colombia"],
+                    help="qué scrapear ('todo' = personas + centros; "
+                         "'colombia' = sincronizar colombiatebusca.com)")
+    ap.add_argument("--retirar", action="store_true",
+                    help="(colombia) borra aquí lo que el origen dejó de publicar")
     ap.add_argument("--desde", type=int, default=1, help="página inicial (personas)")
     ap.add_argument("--hasta", type=int, default=0, help="página final (0 = hasta el final)")
     ap.add_argument("--tam", type=int, default=50, help="registros por página")
@@ -183,7 +290,9 @@ def main() -> None:
 
     registrar_corrida(args.modo, "corriendo", 0)
     try:
-        if args.modo == "centros":
+        if args.modo == "colombia":
+            total = correr_colombia(args, geo)
+        elif args.modo == "centros":
             total = correr_centros(args, geo)
         elif args.modo == "todo":
             print("=== 1/2: PERSONAS ===")

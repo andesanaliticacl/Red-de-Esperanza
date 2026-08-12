@@ -20,11 +20,14 @@ export interface Desaparecido {
   pais: string | null
   /** 'persona' o 'mascota' (migración 60), para poder filtrar el mapa. */
   tipo_ser: 'persona' | 'mascota' | null
+  /** Id en el sitio de origen, para los importados (ej. "ctb:<uuid>").
+   *  Permite enlazar a la publicación original. Null en los de la app. */
+  id_fuente: string | null
 }
 
 // Columnas justas para el mapa (sin traer de más).
 const COLS_DESAP =
-  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser'
+  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser, id_fuente'
 
 export interface ZonaMapa {
   norte: number

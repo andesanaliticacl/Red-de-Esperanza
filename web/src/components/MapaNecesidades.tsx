@@ -17,6 +17,7 @@ import {
 // el teléfono): no se descarga hasta que se activa la capa de desaparecidos.
 const MarkerClusterGroup = lazy(() => import('react-leaflet-cluster'))
 import { useDesaparecidosMapa, type ZonaMapa } from '../hooks/useDesaparecidos'
+import { enlaceFuente, fuenteDe } from '../lib/fuentesDesaparecidos'
 import VidaRestante from './VidaRestante'
 import {
   iconoDesaparecido,
@@ -1430,17 +1431,32 @@ export default function MapaNecesidades({
                     📞 {d.contacto_familiar}
                   </div>
                 )}
-                <a
-                  href="https://desaparecidosterremotovenezuela.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center text-xs font-semibold !text-white bg-bandera-azul rounded-lg py-1.5 mt-1 no-underline"
-                >
-                  🔗 Ver en la fuente
-                </a>
-                <div className="text-[10px] text-gray-400 text-center">
-                  Fuente: Desaparecidos Terremoto Venezuela
-                </div>
+                {/* Atribución de la fuente: se enlaza a la PUBLICACIÓN
+                    original cuando se puede reconstruir, no solo al sitio.
+                    Ahí es donde la familia puede actualizar o dar de baja el
+                    caso; sin ese enlace el espejo no lleva a ninguna parte. */}
+                {(() => {
+                  const meta = fuenteDe(d.fuente)
+                  if (!meta) return null
+                  const href = enlaceFuente(d.fuente, d.id_fuente)
+                  return (
+                    <>
+                      {href && (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-center text-xs font-semibold !text-white bg-bandera-azul rounded-lg py-1.5 mt-1 no-underline"
+                        >
+                          🔗 Ver en la fuente
+                        </a>
+                      )}
+                      <div className="text-[10px] text-gray-400 text-center">
+                        Fuente: {meta.etiqueta}
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
               )}
             </Popup>

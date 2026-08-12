@@ -118,6 +118,64 @@ def subir_centros(filas: Iterable[dict], tam: int = 100) -> int:
     return _subir_en_lotes("centros_acopio", filas, "id_fuente", tam)
 
 
+# -- Espejo de una fuente externa: altas, bajas y estado ----------------------
+
+def ids_de_fuente(fuente: str) -> set[str]:
+    """`id_fuente` de todo lo que tenemos guardado de una fuente concreta.
+
+    Se compara contra lo que sigue publicado en el origen para detectar lo
+    que allá retiraron."""
+    _check_env()
+    vistos: set[str] = set()
+    desde = 0
+    paso = 1000
+    while True:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/desaparecidos",
+            headers={**_headers("count=none"), "Range": f"{desde}-{desde + paso - 1}"},
+            params={"select": "id_fuente", "fuente": f"eq.{fuente}"},
+            timeout=60,
+        )
+        if r.status_code >= 300:
+            raise RuntimeError(f"Error leyendo ids ({r.status_code}): {r.text[:300]}")
+        filas = r.json()
+        if not filas:
+            break
+        vistos.update(f["id_fuente"] for f in filas if f.get("id_fuente"))
+        if len(filas) < paso:
+            break
+        desde += paso
+    return vistos
+
+
+def borrar_desaparecidos(ids: Iterable[str], tam: int = 100) -> int:
+    """Borra por `id_fuente` los registros que el origen ya no publica.
+
+    Es un ESPEJO: si allá retiraron una publicación (a pedido de la familia,
+    por moderación o por duplicado), mantenerla aquí sería dejar publicada a
+    una persona que pidió no estarlo. Por eso se borra en vez de ocultarse.
+    Quien llama debe asegurarse de que la corrida fue sana (ver la guarda en
+    main.py): con un listado caído a medias, esto no debe ejecutarse.
+    """
+    _check_env()
+    lista = [i for i in ids if i]
+    borrados = 0
+    for i in range(0, len(lista), tam):
+        lote = lista[i : i + tam]
+        # PostgREST: in.("a","b") — se citan por si el id trae comas.
+        entre = ",".join('"' + x.replace('"', '') + '"' for x in lote)
+        r = requests.delete(
+            f"{SUPABASE_URL}/rest/v1/desaparecidos",
+            headers=_headers("return=minimal"),
+            params={"id_fuente": f"in.({entre})"},
+            timeout=60,
+        )
+        if r.status_code >= 300:
+            raise RuntimeError(f"Error borrando ({r.status_code}): {r.text[:300]}")
+        borrados += len(lote)
+    return borrados
+
+
 # -- Registro de la corrida (para el panel admin) -----------------------------
 
 def registrar_corrida(
