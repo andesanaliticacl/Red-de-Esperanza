@@ -47,16 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // No tiene perfil todavía → lo creamos con lo que escribió en el registro.
     const m = (user.user_metadata ?? {}) as Record<string, string>
-    let rol = ['voluntario', 'rescatista', 'centro_acopio'].includes(m.rol)
+    // Antes bajaba voluntario/rescatista a 'ciudadano' en silencio si el
+    // país no era Venezuela (candado de cuando la red operaba solo ahí).
+    // Ya no: cualquier país puede ser voluntario/rescatista (igual que el
+    // servidor, ver migración 69 — este bloque es solo el respaldo cuando
+    // el trigger de la base no llegó a correr).
+    const rol = ['voluntario', 'rescatista', 'centro_acopio'].includes(m.rol)
       ? m.rol
       : 'ciudadano'
-    // Voluntario/rescatista solo en Venezuela.
-    if (
-      (rol === 'voluntario' || rol === 'rescatista') &&
-      (m.pais || 'Venezuela') !== 'Venezuela'
-    ) {
-      rol = 'ciudadano'
-    }
     const nombre = m.nombre || user.email || 'Usuario'
     const completo = {
       id: user.id,
