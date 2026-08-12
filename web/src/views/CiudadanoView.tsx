@@ -26,7 +26,6 @@ import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
 import { nombresPublicos } from '../lib/perfiles'
 import { geocodificarDireccion, VISTA_PAIS_DESAP } from '../lib/geo'
 import {
-  esRolPsicologia,
   esRolRescatista,
   puedeAtenderNecesidades,
   puedeGestionarComoLider,
@@ -47,8 +46,14 @@ import {
 
 // Opciones del filtro: las alertas reportables (lista única en types.ts) más
 // los centros de acopio. 'hospital' se añade aparte en el desplegable, porque
-// es un subtipo de acopio y no un tipo propio.
-const TIPOS_FILTRO: NecesidadTipo[] = [...TIPOS_ALERTA, 'acopio']
+// es un subtipo de acopio y no un tipo propio. 'atencion_psicologica' se
+// excluye a propósito: esas solicitudes no llevan ubicación (son privadas) y
+// nunca aparecen como marcador, así que filtrar por ese tipo no mostraría
+// nada — la opción solo confundía.
+const TIPOS_FILTRO: NecesidadTipo[] = [
+  ...TIPOS_ALERTA.filter((t) => t !== 'atencion_psicologica'),
+  'acopio',
+]
 // Filtro de tipo: necesidad, 'todos', o 'hospital' (subtipo de acopio).
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 
@@ -870,9 +875,7 @@ export default function CiudadanoView() {
                   onChange={(e) => setTipoFiltro(e.target.value as FiltroTipo)}
                 >
                   <option value="todos">Todo tipo de ayuda</option>
-                  {TIPOS_FILTRO.filter((t) =>
-                    t === 'atencion_psicologica' ? esRolPsicologia(rol) : true,
-                  ).map((t) => (
+                  {TIPOS_FILTRO.map((t) => (
                     <option key={t} value={t}>
                       {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
                     </option>
@@ -1179,7 +1182,6 @@ export default function CiudadanoView() {
           coordInicial={coordAuto}
           fuenteInicial={fuenteAuto}
           puedeReportarHospital={puedeReportarHospital}
-          puedeReportarZonaAislada={esAdmin || rol === 'lider_voluntarios'}
           onCerrar={() => setAbrirReporte(false)}
           onCreado={(tipo, extra) => {
             setAbrirReporte(false)

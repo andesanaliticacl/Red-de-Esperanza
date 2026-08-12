@@ -23,6 +23,7 @@ import IconoRuta from '../components/IconoRuta'
 import {
   TIPO_META,
   URGENCIA_META,
+  ES_RECURSO,
   type Necesidad,
   type NecesidadTipo,
   type PerfilPublico,
@@ -39,6 +40,7 @@ const TIPOS: NecesidadTipo[] = [
   'inundacion',
   'incendio',
   'sacos_arena',
+  'maquinaria',
   'mascota',
   'otro',
 ]
@@ -49,6 +51,7 @@ const RESUMEN_TIPOS: NecesidadTipo[] = [
   'inundacion',
   'incendio',
   'sacos_arena',
+  'maquinaria',
   'mascota',
   'zona_sin_atender',
   'zona_aislada',
@@ -1095,7 +1098,7 @@ function Fila({
         </div>
         {atendidaPor && (
           <div className="text-xs font-semibold text-bandera-azul mt-0.5 flex items-center gap-1.5 flex-wrap">
-            🤝 Atiende: {atendidaPor}
+            {ES_RECURSO.has(n.tipo) ? '📦 Lo trae' : '🤝 Atiende'}: {atendidaPor}
             {atendidaPorEntidad && (
               <InsigniaVerificado entidadNombre={atendidaPorEntidad} compacta />
             )}
@@ -1116,7 +1119,15 @@ function Fila({
               accion === 'asignar' ? 'btn-azul' : 'btn-verde'
             } py-2.5 px-4 disabled:opacity-60 whitespace-nowrap`}
           >
-            {accion === 'asignar' ? 'Me asigno' : 'Atendida'}
+            {accion === 'asignar'
+              ? // "Yo tengo esto" para pedidos de recursos (agua, medicinas,
+                // maquinaria…): quien la toma no va a "rescatar", va a traer
+                // lo que falta. Mismo mecanismo (asignarme) que "Me asigno",
+                // pero el texto dice lo que de verdad va a pasar.
+                ES_RECURSO.has(n.tipo)
+                ? '🙋 Yo tengo esto'
+                : 'Me asigno'
+              : 'Atendida'}
           </button>
         )}
         {onResolver && (

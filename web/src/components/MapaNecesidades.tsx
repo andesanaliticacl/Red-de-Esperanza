@@ -290,6 +290,7 @@ import SelectorBandera from './SelectorBandera'
 import {
   TIPO_META,
   URGENCIA_META,
+  ES_RECURSO,
   type Necesidad,
   type CentroAcopio,
   type NecesidadTipo,
@@ -307,6 +308,7 @@ const TIPOS_ALERTA_EDITABLES: NecesidadTipo[] = [
   'inundacion',
   'incendio',
   'sacos_arena',
+  'maquinaria',
   'mascota',
   'otro',
 ]
@@ -1165,7 +1167,7 @@ export default function MapaNecesidades({
                         onClick={() => onAsignarme(n)}
                         className="inline-flex items-center bg-bandera-rojo !text-white font-semibold px-3 py-1.5 rounded-lg"
                       >
-                        🙋 Asignarme
+                        {ES_RECURSO.has(n.tipo) ? '🙋 Yo tengo esto' : '🙋 Asignarme'}
                       </button>
                     )}
                   {onMensaje && (

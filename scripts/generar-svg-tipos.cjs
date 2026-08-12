@@ -24,6 +24,7 @@ const MAPA = {
   inundacion: 'waves',
   incendio: 'flame',
   sacos_arena: 'boxes',
+  maquinaria: 'tractor',
   zona_sin_atender: 'flag',
   zona_aislada: 'construction',
   mascota: 'paw-print',

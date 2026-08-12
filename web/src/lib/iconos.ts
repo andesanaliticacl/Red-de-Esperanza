@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { TIPO_META, type NecesidadTipo, type NecesidadEstado } from './types'
+import { TIPO_META, ES_RECURSO, type NecesidadTipo, type NecesidadEstado } from './types'
 import { svgIcono } from './svgTipos'
 
 /**
@@ -122,7 +122,9 @@ export function iconoNecesidad(
               font-size:10px;font-weight:700;line-height:1.2;padding:2px 7px;
               border-radius:9999px;white-space:nowrap;border:1px solid #fff;
               box-shadow:0 1px 3px rgba(0,0,0,.45);
-              -webkit-font-smoothing:antialiased;">🚑 Atendiendo solicitud</span>
+              -webkit-font-smoothing:antialiased;">${
+                ES_RECURSO.has(tipo) ? '📦 Ya hay quien lo trae' : '🚑 Atendiendo solicitud'
+              }</span>
           </div>`
       : ''
 

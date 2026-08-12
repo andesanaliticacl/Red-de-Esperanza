@@ -81,7 +81,14 @@ const GRUPOS: {
     // 'mascota' aquí es para un animal PRESENTE que necesita ayuda (herido,
     // atrapado, sin dueño) — no confundir con "Desaparecidos", que es para
     // reportar que no se sabe dónde está.
-    tipos: ['agua_comida', 'medicinas', 'refugio', 'sacos_arena', 'mascota'],
+    tipos: [
+      'agua_comida',
+      'medicinas',
+      'refugio',
+      'sacos_arena',
+      'maquinaria',
+      'mascota',
+    ],
   },
   {
     v: 'peligro',
@@ -91,7 +98,17 @@ const GRUPOS: {
     color: '#CC0001',
     titulo: 'Aviso de un peligro',
     ejemplos: 'Inundación, incendio, derrumbe, zona sin ayuda…',
-    tipos: ['inundacion', 'incendio', 'derrumbe', 'zona_sin_atender'],
+    // 'zona_aislada' ya la puede reportar cualquiera (antes era solo
+    // admin/líder de voluntarios, con un prop `puedeReportarZonaAislada`
+    // aparte). El filtro de quién puede marcar una zona como aislada no
+    // aportaba mucho: quien está ahí y no puede pasar es quien mejor lo sabe.
+    tipos: [
+      'inundacion',
+      'incendio',
+      'derrumbe',
+      'zona_sin_atender',
+      'zona_aislada',
+    ],
   },
 ]
 
@@ -158,7 +175,6 @@ export default function ReportarModal({
   coordInicial,
   fuenteInicial,
   puedeReportarHospital = false,
-  puedeReportarZonaAislada = false,
 }: {
   onCerrar: () => void
   // `extra` solo se llena para 'desaparecido': permite al padre encender la
@@ -172,8 +188,6 @@ export default function ReportarModal({
   coordInicial?: { lat: number; lng: number } | null
   fuenteInicial?: FuenteUbicacion | null
   puedeReportarHospital?: boolean
-  // Solo el admin puede marcar "zona aislada" (para verlas de un vistazo).
-  puedeReportarZonaAislada?: boolean
 }) {
   const { notificar } = useNotificaciones()
   const [paso, setPaso] = useState(1)
@@ -300,17 +314,9 @@ export default function ReportarModal({
       : tipo === 'desaparecido'
         ? DESAPARECIDO_META
         : TIPO_META[tipo]
-  // Opciones del grupo abierto. "Zona aislada" solo la ven quienes pueden
-  // crearla (admin / líder de voluntarios), dentro del grupo de peligros.
+  // Opciones del grupo abierto.
   const grupoAbierto = GRUPOS.find((g) => g.v === grupo) ?? null
-  const tiposDelGrupo: NecesidadTipo[] = grupoAbierto
-    ? [
-        ...grupoAbierto.tipos,
-        ...(grupoAbierto.v === 'peligro' && puedeReportarZonaAislada
-          ? (['zona_aislada'] as NecesidadTipo[])
-          : []),
-      ]
-    : []
+  const tiposDelGrupo: NecesidadTipo[] = grupoAbierto?.tipos ?? []
 
   async function actualizarUbicacion() {
     setGpsEstado('buscando')

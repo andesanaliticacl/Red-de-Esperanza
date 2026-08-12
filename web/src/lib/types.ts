@@ -10,6 +10,7 @@ export type NecesidadTipo =
   | 'inundacion'
   | 'incendio'
   | 'sacos_arena'
+  | 'maquinaria'
   | 'zona_sin_atender'
   | 'zona_aislada'
   | 'mascota'
@@ -243,6 +244,7 @@ export const TIPO_META: Record<
   inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
   sacos_arena: { etiqueta: 'Material de construcción', emoji: '🧱', color: '#92400E' },
+  maquinaria: { etiqueta: 'Maquinaria pesada', emoji: '🚜', color: '#78350F' },
   zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
   zona_aislada: { etiqueta: 'Zona aislada', emoji: '🚧', color: '#4338CA' },
   mascota: { etiqueta: 'Mascota / animal', emoji: '🐾', color: '#B45309' },
@@ -268,9 +270,25 @@ export const TIPOS_ALERTA: NecesidadTipo[] = [
   'inundacion',
   'incendio',
   'sacos_arena',
+  'maquinaria',
   'mascota',
   'otro',
 ]
+
+/**
+ * Pedidos de RECURSO (algo que alguien puede aportar: agua, medicinas,
+ * maquinaria…) en vez de un lugar al que hay que ir a rescatar o atender.
+ * Cambia el texto de "Me asigno"/"Asignarme" a "Yo tengo esto" en el mapa y
+ * en la lista de voluntarios: la mecánica es la misma (te asignas el caso),
+ * pero para maquinaria o agua decir "voy" no dice lo que en realidad pasa.
+ */
+export const ES_RECURSO = new Set<NecesidadTipo>([
+  'agua_comida',
+  'medicinas',
+  'refugio',
+  'sacos_arena',
+  'maquinaria',
+])
 
 /**
  * Color distintivo por rol, para reconocer de un vistazo quién es rescatista,
