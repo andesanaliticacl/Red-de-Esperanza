@@ -385,22 +385,17 @@ export default function CiudadanoView() {
     { lat: number; lng: number; zoom: number } | null
   >(null)
   function elegirPaisDesap(p: string) {
-    if (paisDesap === p) {
-      setPaisDesap(null)
-      return
-    }
     setPaisDesap(p)
+    // Además de filtrar, hay que mover el mapa: si no, el filtro queda bien
+    // puesto pero la vista sigue en el país anterior y parece que no hay
+    // nadie (los puntos están a miles de km, fuera de la zona consultada).
     const vista = VISTA_PAIS_DESAP[p]
     if (vista) setVistaPaisDesap(vista)
   }
   // Persona o mascota en la capa de Desaparecidos: null = ambos mezclados.
-  // Tocar la opción ya elegida la quita (mismo toggle que el de país).
   const [tipoSerDesap, setTipoSerDesap] = useState<'persona' | 'mascota' | null>(
     null,
   )
-  function elegirTipoSerDesap(t: 'persona' | 'mascota') {
-    setTipoSerDesap((actual) => (actual === t ? null : t))
-  }
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
   const [totalDesap, setTotalDesap] = useState<number | null>(null)
@@ -859,12 +854,18 @@ export default function CiudadanoView() {
               ❤️ Ayudar de la barra inferior ya cumple ese rol. Iniciar sesión
               sigue disponible desde el menú de usuario (arriba a la derecha). */}
 
-          {/* Panel de filtros (solo si está abierto) */}
-          {verFiltros && (
+          {/* Filtros y capa de desaparecidos en UNA sola tarjeta.
+              Antes eran dos tarjetas apiladas, cada una con su padding,
+              sombra y margen: solo el cromo repetido costaba ~24px de mapa.
+              Se muestra si hay filtros abiertos O la capa encendida, así
+              cerrar "Filtrar" no te deja sin el buscador de desaparecidos. */}
+          {(verFiltros || verDesap) && (
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
-              <div className="grid grid-cols-2 gap-2">
+              {verFiltros && (
+                <>
+              <div className="grid grid-cols-2 gap-1.5">
                 <select
-                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium"
+                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
                   value={tipoFiltro}
                   onChange={(e) => setTipoFiltro(e.target.value as FiltroTipo)}
                 >
@@ -885,7 +886,7 @@ export default function CiudadanoView() {
                     if (!nuevo) setBusqDesap('')
                   }}
                   aria-pressed={verDesap}
-                  className={`w-full flex items-center justify-center gap-1.5 rounded-lg border-2 px-2 py-2 text-sm font-semibold whitespace-nowrap ${
+                  className={`w-full flex items-center justify-center gap-1.5 rounded-lg border-2 px-2 py-1.5 text-sm font-semibold whitespace-nowrap ${
                     verDesap
                       ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
                       : 'border-gray-200 text-gray-600'
@@ -900,7 +901,7 @@ export default function CiudadanoView() {
                 </button>
               </div>
               <select
-                className="w-full rounded-lg border-2 border-gray-200 px-2 py-2 text-sm font-medium mt-2"
+                className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium mt-1.5"
                 value={urgFiltro}
                 onChange={(e) =>
                   setUrgFiltro(e.target.value as NecesidadUrgencia | 'todas')
@@ -913,22 +914,26 @@ export default function CiudadanoView() {
               </select>
 
               {/* Buscador de direcciones: vuela el mapa al punto encontrado. */}
-              <form onSubmit={buscarDireccionEnMapa} className="mt-2">
-                <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 mb-1">
-                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                  Buscar una dirección en el mapa
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="search"
-                    value={buscarDireccionTexto}
-                    onChange={(e) => {
-                      setBuscarDireccionTexto(e.target.value)
-                      setErrorBuscarDireccion('')
-                    }}
-                    placeholder="Calle, sector, ciudad…"
-                    className="flex-1 min-w-0 rounded-lg border-2 border-gray-200 px-2 py-2 text-sm"
-                  />
+              {/* Sin etiqueta encima: el icono + el placeholder ya dicen qué
+                  hace, y ese renglón costaba ~20px de mapa en el teléfono. */}
+              <form onSubmit={buscarDireccionEnMapa} className="mt-1.5">
+                <div className="flex gap-1.5">
+                  <div className="relative flex-1 min-w-0">
+                    <MapPin
+                      className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="search"
+                      value={buscarDireccionTexto}
+                      onChange={(e) => {
+                        setBuscarDireccionTexto(e.target.value)
+                        setErrorBuscarDireccion('')
+                      }}
+                      placeholder="Buscar dirección en el mapa…"
+                      className="w-full rounded-lg border-2 border-gray-200 pl-7 pr-2 py-1.5 text-sm"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={buscandoDireccion || !buscarDireccionTexto.trim()}
@@ -954,93 +959,60 @@ export default function CiudadanoView() {
                     setTipoFiltro('todos')
                     setUrgFiltro('todas')
                   }}
-                  className="mt-2 text-xs text-bandera-rojo font-semibold"
+                  className="mt-1.5 text-xs text-bandera-rojo font-semibold"
                 >
                   ✕ Quitar filtros
                 </button>
               )}
-            </div>
-          )}
+                </>
+              )}
 
-          {/* Buscador de desaparecidos (solo si la capa está visible) */}
+          {/* Buscador de desaparecidos (solo si la capa está visible). Va
+              dentro de la MISMA tarjeta; si además hay filtros abiertos, se
+              separa con una línea en vez de con otra caja. */}
           {verDesap && (
-            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
-              {/* País: cada catástrofe suma su propio dataset (Venezuela
-                  2026, Colombia 2026…), así que el selector evita
-                  mezclarlos en el mapa. Tocar el país ya elegido lo quita
-                  (vuelve a "Todos"); "Todos" es un botón chico aparte para
-                  no competir con los países. */}
-              <div className="flex items-center gap-1.5 mb-2">
-                {(['Venezuela', 'Chile', 'Colombia'] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => elegirPaisDesap(p)}
-                    aria-pressed={paisDesap === p}
-                    className={`flex-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
-                      paisDesap === p
-                        ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
-                        : 'border-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setPaisDesap(null)}
-                  aria-pressed={paisDesap === null}
-                  title="Ver todos los países"
-                  className={`shrink-0 rounded-xl border-2 px-2 py-1.5 text-[11px] font-bold ${
-                    paisDesap === null
-                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
+            <div
+              className={
+                verFiltros ? 'mt-2 pt-2 border-t border-gray-200' : ''
+              }
+            >
+              {/* País y tipo en UNA fila de selectores.
+                  Antes eran dos filas de botones (4 + 3) que se comían ~80px
+                  del mapa en el teléfono. Como selectores ocupan una sola
+                  fila, dicen en texto qué hay elegido sin tener que leer
+                  cuál está resaltado, y aguantan más países sin desbordarse. */}
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <select
+                  aria-label="País de los desaparecidos"
+                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-xs font-semibold"
+                  value={paisDesap ?? ''}
+                  onChange={(e) =>
+                    e.target.value
+                      ? elegirPaisDesap(e.target.value)
+                      : setPaisDesap(null)
+                  }
                 >
-                  Todos
-                </button>
-              </div>
-              {/* Persona o mascota: un reporte de mascota perdida no es una
-                  persona desaparecida, y mezclarlos en la misma búsqueda
-                  confundía. Mismo patrón de toggle que el de país. */}
-              <div className="flex items-center gap-1.5 mb-2">
-                <button
-                  type="button"
-                  onClick={() => elegirTipoSerDesap('persona')}
-                  aria-pressed={tipoSerDesap === 'persona'}
-                  className={`flex-1 flex items-center justify-center gap-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
-                    tipoSerDesap === 'persona'
-                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
+                  <option value="">🌎 Todos los países</option>
+                  {(['Venezuela', 'Chile', 'Colombia'] as const).map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Personas o mascotas"
+                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-xs font-semibold"
+                  value={tipoSerDesap ?? ''}
+                  onChange={(e) =>
+                    setTipoSerDesap(
+                      (e.target.value || null) as 'persona' | 'mascota' | null,
+                    )
+                  }
                 >
-                  🧑 Personas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => elegirTipoSerDesap('mascota')}
-                  aria-pressed={tipoSerDesap === 'mascota'}
-                  className={`flex-1 flex items-center justify-center gap-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
-                    tipoSerDesap === 'mascota'
-                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
-                >
-                  🐾 Mascotas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTipoSerDesap(null)}
-                  aria-pressed={tipoSerDesap === null}
-                  title="Ver personas y mascotas juntas"
-                  className={`shrink-0 rounded-xl border-2 px-2 py-1.5 text-[11px] font-bold ${
-                    tipoSerDesap === null
-                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
-                >
-                  Todos
-                </button>
+                  <option value="">🧑🐾 Personas y mascotas</option>
+                  <option value="persona">🧑 Solo personas</option>
+                  <option value="mascota">🐾 Solo mascotas</option>
+                </select>
               </div>
               {paisDesap === 'Venezuela' && (
                 <p className="mb-2 text-[11px] font-semibold text-gray-500 text-center">
@@ -1143,6 +1115,8 @@ export default function CiudadanoView() {
                     </ul>
                   )}
                 </div>
+              )}
+            </div>
               )}
             </div>
           )}
