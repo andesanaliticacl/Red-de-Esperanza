@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { User } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -12,6 +13,7 @@ import SelectorBandera from '../components/SelectorBandera'
 import SolicitarPsicologoModal from '../components/SolicitarPsicologoModal'
 import { PAISES_MUNDO } from '../lib/paises'
 import { zonasDePais } from '../lib/zonas'
+import { ICONO_ROL } from '../lib/iconosTipo'
 import { validarDocumentoPersona } from '../lib/documentos'
 import {
   misSolicitudesPsicologo,
@@ -70,7 +72,6 @@ export default function EditarPerfilView() {
   const [guardando, setGuardando] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [verRoles, setVerRoles] = useState(false)
-  const meta = rol ? ROL_META[rol] : null
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
   // Todos los roles autoasignables están disponibles desde cualquier país.
@@ -176,7 +177,7 @@ export default function EditarPerfilView() {
       <form onSubmit={guardar} className="card space-y-4">
         {/* Foto */}
         <div className="flex flex-col items-center gap-3">
-          <div className="h-24 w-24 rounded-full bg-bandera-azul/10 overflow-hidden flex items-center justify-center text-4xl">
+          <div className="h-24 w-24 rounded-full bg-bandera-azul/10 overflow-hidden flex items-center justify-center">
             {fotoUrl ? (
               <img
                 src={fotoUrl}
@@ -184,7 +185,15 @@ export default function EditarPerfilView() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span>{meta?.emoji ?? '👤'}</span>
+              (() => {
+                const IconoActual = rol ? ICONO_ROL[rol] : User
+                return (
+                  <IconoActual
+                    className="h-10 w-10 text-bandera-azul"
+                    aria-hidden="true"
+                  />
+                )
+              })()
             )}
           </div>
           <input
@@ -233,20 +242,28 @@ export default function EditarPerfilView() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {rolesElegibles.map((r) => (
-                <button
-                  type="button"
-                  key={r}
-                  onClick={() => setNuevoRol(r)}
-                  className={`card text-left p-3 border-2 ${
-                    nuevoRol === r ? 'border-bandera-azul' : 'border-transparent'
-                  }`}
-                >
-                  <div className="font-bold text-sm">
-                    {ROL_META[r].emoji} {ROL_META[r].etiqueta}
-                  </div>
-                </button>
-              ))}
+              {rolesElegibles.map((r) => {
+                const Icono = ICONO_ROL[r]
+                return (
+                  <button
+                    type="button"
+                    key={r}
+                    onClick={() => setNuevoRol(r)}
+                    aria-pressed={nuevoRol === r}
+                    className={`card flex items-center gap-2 text-left p-3 border-2 ${
+                      nuevoRol === r ? 'border-bandera-azul' : 'border-transparent'
+                    }`}
+                  >
+                    <Icono
+                      className="h-4 w-4 shrink-0 text-tinta-500"
+                      aria-hidden="true"
+                    />
+                    <span className="font-bold text-sm">
+                      {ROL_META[r].etiqueta}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

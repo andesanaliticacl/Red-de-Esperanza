@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Siren,
   HeartHandshake,
+  HandHeart,
   Soup,
   Pill,
   Home,
@@ -15,16 +16,20 @@ import {
   PawPrint,
   CircleHelp,
   Package,
+  PackageCheck,
   Cross,
   Landmark,
   LifeBuoy,
   Brain,
   Users,
+  User,
+  Star,
+  Shield,
   Stethoscope,
   ShieldCheck,
   BadgeCheck,
 } from 'lucide-react'
-import type { NecesidadTipo } from './types'
+import type { NecesidadTipo, RolUsuario } from './types'
 import type { CategoriaEntidad, TierEntidad } from './entidades'
 
 /**
@@ -75,4 +80,23 @@ export const ICONO_TIER: Record<TierEntidad, LucideIcon> = {
   oficial: ShieldCheck,
   verificada: BadgeCheck,
   profesional: Stethoscope,
+}
+
+/** Icono por rol de usuario. Mismo criterio que ICONO_TIPO: reemplaza los
+ *  emojis (🙋🤝🚑…) de ROL_META en las tarjetas de "¿Cómo participas?" del
+ *  registro y de editar perfil, que habían quedado desactualizadas frente
+ *  al resto de la app. El emoji de ROL_META sigue existiendo para donde no
+ *  se puede pintar SVG (el chat, las pastillas de rol chiquitas). */
+export const ICONO_ROL: Record<RolUsuario, LucideIcon> = {
+  ciudadano: User,
+  voluntario: HandHeart,
+  rescatista: Siren,
+  psicologo: Brain,
+  centro_acopio: Package,
+  acopio_admin: PackageCheck,
+  lider_voluntarios: Star,
+  lider_psicologo: Brain,
+  verificador: BadgeCheck,
+  admin: Shield,
+  entidad: Building2,
 }
