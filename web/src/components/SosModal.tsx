@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { crearNecesidad } from '../lib/reportes'
 import {
   obtenerUbicacion,
@@ -76,6 +76,91 @@ export default function SosModal({
   // Si se envió SIN Internet: quedó en cola y saldrá al reconectar.
   const [enviadoOffline, setEnviadoOffline] = useState(false)
 
+  // ===== Sonido de alarma =====
+  // Para cuando alguien está atrapado o extraviado y necesita que lo
+  // ENCUENTREN por el oído: no depende de Internet ni de un archivo de
+  // audio (se sintetiza con Web Audio), así que funciona incluso sin señal,
+  // que es justo cuando más falta hace. No espera a que se envíe el SOS:
+  // está disponible desde que se abre la pantalla, porque hacer ruido para
+  // que te oigan no debería depender de que el reporte ya haya salido.
+  const [alarmaActiva, setAlarmaActiva] = useState(false)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const osciladorRef = useRef<OscillatorNode | null>(null)
+  const barridoRef = useRef<number | null>(null)
+
+  function detenerAlarma() {
+    if (barridoRef.current !== null) {
+      window.clearTimeout(barridoRef.current)
+      barridoRef.current = null
+    }
+    try {
+      osciladorRef.current?.stop()
+    } catch {
+      /* ya estaba detenido */
+    }
+    void audioCtxRef.current?.close().catch(() => {})
+    osciladorRef.current = null
+    audioCtxRef.current = null
+    if (navigator.vibrate) navigator.vibrate(0)
+    setAlarmaActiva(false)
+  }
+
+  function activarAlarma() {
+    if (alarmaActiva) {
+      detenerAlarma()
+      return
+    }
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const ganancia = ctx.createGain()
+      // 'square' (onda cuadrada) suena más aguda y penetrante que una onda
+      // senoidal — se distingue mejor entre escombros o ruido de fondo.
+      osc.type = 'square'
+      ganancia.gain.value = 1
+      osc.connect(ganancia)
+      ganancia.connect(ctx.destination)
+      osc.start()
+      audioCtxRef.current = ctx
+      osciladorRef.current = osc
+
+      // Barrido de frecuencia tipo sirena (sube y baja entre 700-1900 Hz):
+      // un tono fijo se vuelve "ruido de fondo" para el oído después de
+      // unos segundos; uno que sube y baja sigue llamando la atención.
+      let freq = 700
+      let subiendo = true
+      const paso = () => {
+        freq += subiendo ? 45 : -45
+        if (freq >= 1900) subiendo = false
+        if (freq <= 700) subiendo = true
+        osc.frequency.setValueAtTime(freq, ctx.currentTime)
+        barridoRef.current = window.setTimeout(paso, 55)
+      }
+      paso()
+
+      // Vibración además del sonido: ayuda si el teléfono está en modo
+      // silencio, o si quien busca detecta el zumbido antes que el sonido.
+      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400, 150])
+      setAlarmaActiva(true)
+    } catch {
+      setErrorMsg(
+        'No se pudo activar el sonido en este dispositivo. Sube el volumen y llama a emergencias.',
+      )
+    }
+  }
+
+  // Se apaga sola al cerrar el modal (por cualquier vía) o al desmontar: no
+  // debe quedar sonando de fondo si la persona ya salió de esta pantalla.
+  useEffect(() => detenerAlarma, [])
+  function cerrarYDetener() {
+    detenerAlarma()
+    onCerrar()
+  }
+
   async function usarUbicacion() {
     setGps('buscando')
     try {
@@ -139,12 +224,36 @@ export default function SosModal({
   return (
     <div className="fixed inset-0 z-[2000] bg-bandera-rojo/95 text-white flex flex-col p-6">
       <button
-        onClick={onCerrar}
+        onClick={cerrarYDetener}
         className="self-end text-3xl leading-none"
         aria-label="Cerrar"
       >
         ✕
       </button>
+
+      {/* Sonido de alarma: disponible en TODA la pantalla del SOS, no solo
+          después de enviar el reporte — quien está atrapado o extraviado
+          puede necesitarlo antes que nada más. */}
+      <button
+        onClick={activarAlarma}
+        aria-pressed={alarmaActiva}
+        className={`w-full max-w-md mx-auto shrink-0 rounded-2xl py-4 px-4 text-lg font-extrabold border-2 flex items-center justify-center gap-2 transition-colors ${
+          alarmaActiva
+            ? 'bg-white text-bandera-rojo border-white animate-pulse'
+            : 'bg-white/10 text-white border-white/40 hover:bg-white/20'
+        }`}
+      >
+        {alarmaActiva ? (
+          <>🔊 Sonando — toca para detener</>
+        ) : (
+          <>🔈 Activar sonido de alarma</>
+        )}
+      </button>
+      {alarmaActiva && (
+        <p className="text-center text-sm text-white/90 mt-1 mb-2">
+          Deja el teléfono a la vista, con el volumen al máximo.
+        </p>
+      )}
 
       <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto w-full">
         {paso === 'enviado' ? (
@@ -178,7 +287,7 @@ export default function SosModal({
               {emergencia.boton}
             </a>
             <button
-              onClick={onCerrar}
+              onClick={cerrarYDetener}
               className="btn bg-white/20 text-white w-full"
             >
               Entendido

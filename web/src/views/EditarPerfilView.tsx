@@ -11,6 +11,7 @@ import EntradaTelefono, {
 import RolesInfoModal from '../components/RolesInfoModal'
 import SelectorBandera from '../components/SelectorBandera'
 import SolicitarPsicologoModal from '../components/SolicitarPsicologoModal'
+import SolicitarEntidadModal from '../components/SolicitarEntidadModal'
 import { PAISES_MUNDO } from '../lib/paises'
 import { zonasDePais } from '../lib/zonas'
 import { ICONO_ROL } from '../lib/iconosTipo'
@@ -27,12 +28,24 @@ import {
 
 // 'psicologo' NO se autoasigna: lo otorga el equipo tras revisar una
 // solicitud (ver SolicitarPsicologoModal / lib/solicitudesPsicologo.ts).
+//
+// 'ciudadano' NO es una tarjeta elegible (igual que en RegistroView: ya no
+// es una identidad que alguien "elija" activamente, es solo el estado por
+// defecto de quien todavía no escogió nada). Pero SIGUE en esta lista de
+// "roles que puede editar esta pantalla": si no estuviera, alguien que hoy
+// es ciudadano no podría pasar a voluntario/rescatista/acopio desde aquí,
+// porque `puedeCambiarRol` se apaga para roles fuera de la lista.
 const ROLES_ELEGIBLES: Exclude<RolRegistro, 'psicologo'>[] = [
   'ciudadano',
   'voluntario',
   'rescatista',
   'centro_acopio',
 ]
+// Las que SÍ se muestran como tarjeta para elegir. Quien quiera ser
+// profesional o representar una entidad usa el botón de abajo
+// (SolicitarEntidadModal) en vez de una tarjeta: ese camino pide una
+// revisión, no es un rol que se autoasigne con un clic.
+const ROLES_TARJETAS = ROLES_ELEGIBLES.filter((r) => r !== 'ciudadano')
 const OPCIONES_PAIS = PAISES_MUNDO.map((p) => ({
   value: p.nombre,
   iso: p.iso,
@@ -75,13 +88,19 @@ export default function EditarPerfilView() {
   // El selector de rol solo aparece para roles "elegibles" (no admin/verificador).
   const puedeCambiarRol = rol ? (ROLES_ELEGIBLES as string[]).includes(rol) : false
   // Todos los roles autoasignables están disponibles desde cualquier país.
-  const rolesElegibles: Exclude<RolRegistro, 'psicologo'>[] = ROLES_ELEGIBLES
+  const rolesElegibles: Exclude<RolRegistro, 'psicologo'>[] = ROLES_TARJETAS
 
   // "Quiero ser psicólogo/a": solicitud aparte, no un rol autoasignable.
   // Solo tiene sentido ofrecerla a quien todavía no es del equipo.
   const puedeSolicitarPsicologo =
     rol != null && rol !== 'psicologo' && rol !== 'lider_psicologo' && rol !== 'admin'
   const [solicitudPsico, setSolicitudPsico] = useState<SolicitudPsicologo | null>(null)
+  // "Convertirme en entidad": mismo criterio que psicólogo (rol != null,
+  // no lo tiene ya). 'entidad' también queda excluido: no tendría sentido
+  // pedirlo de nuevo estando ya aprobado.
+  const puedeSolicitarEntidad = rol != null && rol !== 'entidad' && rol !== 'admin'
+  const [abrirSolicitudEntidad, setAbrirSolicitudEntidad] = useState(false)
+  const [solicitudEntidadEnviada, setSolicitudEntidadEnviada] = useState(false)
   const [abrirSolicitudPsico, setAbrirSolicitudPsico] = useState(false)
 
   useEffect(() => {
@@ -397,6 +416,28 @@ export default function EditarPerfilView() {
           </div>
         )}
 
+        {/* Antes no había forma de pedir esto sin crear otra cuenta: en el
+            registro sí se podía elegir "Represento una entidad", pero quien
+            ya tenía cuenta (ciudadano) se quedaba sin ese camino. */}
+        {puedeSolicitarEntidad && (
+          <div className="rounded-2xl border-2 border-teal-100 bg-teal-50/60 p-3">
+            {solicitudEntidadEnviada ? (
+              <p className="text-sm text-teal-900">
+                🛡️ Tu solicitud quedó enviada. El equipo la revisa y te
+                contacta por teléfono.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAbrirSolicitudEntidad(true)}
+                className="text-sm font-bold text-bandera-azul"
+              >
+                🛡️ ¿Eres profesional o representas una entidad? Solicítalo aquí
+              </button>
+            )}
+          </div>
+        )}
+
         {errorMsg && <p className="text-bandera-rojo text-sm">⚠️ {errorMsg}</p>}
 
         <div className="flex gap-2">
@@ -428,6 +469,20 @@ export default function EditarPerfilView() {
             misSolicitudesPsicologo()
               .then((lista) => setSolicitudPsico(lista[0] ?? null))
               .catch(() => {})
+          }}
+        />
+      )}
+      {abrirSolicitudEntidad && (
+        <SolicitarEntidadModal
+          nombreInicial={nombre}
+          telefonoInicial={telefono}
+          paisInicial={pais}
+          zonaInicial={estado}
+          ciudadInicial={ciudad}
+          onCerrar={() => setAbrirSolicitudEntidad(false)}
+          onEnviada={() => {
+            setAbrirSolicitudEntidad(false)
+            setSolicitudEntidadEnviada(true)
           }}
         />
       )}
