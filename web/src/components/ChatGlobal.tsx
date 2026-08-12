@@ -111,12 +111,10 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
     guardada?.estado ?? perfil?.estado ?? 'Bogotá D.C.',
   )
   const [listo, setListo] = useState(Boolean(guardada))
-  const tokenPruebaChat = import.meta.env.DEV
-    ? ((import.meta.env.VITE_CHAT_DEV_BYPASS_TOKEN as string | undefined) ?? '').trim()
-    : ''
-  // El chat en vivo ya es abierto: cualquiera que elija un país/región
-  // disponible puede participar (antes solo se dejaba escribir desde
-  // Venezuela). La sala en sí ya delimita con quién se conversa.
+  // El chat en vivo ya es abierto: cualquier cuenta puede escribir en
+  // cualquier sala, sin importar desde dónde se conecte (antes el servidor
+  // exigía que la IP coincidiera con el país de la sala). La sala en sí ya
+  // delimita con quién se conversa.
   const regionesDisponibles = regionesDe(paisChat)
   const sala = estado ? claveSala(paisChat, estado) : ''
 
@@ -309,7 +307,6 @@ export default function ChatGlobal({ onCerrar }: { onCerrar?: () => void }) {
         // no se adjunta al mensaje (chat_contactos era solo para invitados).
         telefono: null,
         respuestaA,
-        devBypassToken: tokenPruebaChat,
       })
       setRespuestaA(null)
     } catch (err) {

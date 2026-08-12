@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { paisPorIP } from '../lib/visitas'
 import type { Perfil, RolUsuario } from '../lib/types'
 
 interface AuthState {
@@ -86,6 +87,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) await asegurarPerfil(session.user)
   }
 
+  // Guarda desde dónde (país/ciudad por IP) se conectó al iniciar sesión,
+  // solo para estadística del admin (migración 67) — nunca bloquea nada, a
+  // diferencia de la vieja verificación de IP del chat que se quitó. Es
+  // best-effort: si falla, no debe afectar el login.
+  async function registrarLoginGeo(userId: string) {
+    try {
+      const { pais, ciudad } = await paisPorIP()
+      if (!pais && !ciudad) return
+      await supabase
+        .from('perfiles')
+        .update({
+          ultimo_login_pais: pais,
+          ultimo_login_ciudad: ciudad,
+          ultimo_login_en: new Date().toISOString(),
+        })
+        .eq('id', userId)
+    } catch {
+      /* silencioso: es solo estadística */
+    }
+  }
+
   useEffect(() => {
     let activo = true
 
@@ -96,10 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCargando(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (e, s) => {
       setSession(s)
-      if (s?.user) await asegurarPerfil(s.user)
-      else setPerfil(null)
+      if (s?.user) {
+        await asegurarPerfil(s.user)
+        // Solo en el evento de login real (no en cada restauración de
+        // sesión al recargar la página, ni en el refresco de token).
+        if (e === 'SIGNED_IN') void registrarLoginGeo(s.user.id)
+      } else {
+        setPerfil(null)
+      }
     })
 
     return () => {

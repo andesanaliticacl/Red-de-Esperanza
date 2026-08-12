@@ -50,7 +50,7 @@ export async function listarChat(
   return completarRespuesta(respaldo.data ?? []).reverse()
 }
 
-/** Envia un mensaje pasando por la Edge Function que valida la IP en servidor. */
+/** Envia un mensaje pasando por la Edge Function (exige cuenta con sesion). */
 export async function enviarChat(args: {
   ciudad: string
   nombre: string
@@ -61,7 +61,6 @@ export async function enviarChat(args: {
     nombre: string
     cuerpo: string
   } | null
-  devBypassToken?: string | null
 }): Promise<void> {
   const { data, error } = await supabase.functions.invoke<{
     ok: boolean
@@ -75,7 +74,6 @@ export async function enviarChat(args: {
       respuesta_a: args.respuestaA?.id ?? null,
       respuesta_nombre: args.respuestaA?.nombre ?? null,
       respuesta_cuerpo: args.respuestaA?.cuerpo ?? null,
-      dev_bypass_token: args.devBypassToken || null,
     },
   })
   if (error) {

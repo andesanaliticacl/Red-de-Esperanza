@@ -82,6 +82,14 @@ export default function AdminView() {
   const [totalFiltrado, setTotalFiltrado] = useState(0)
   const [cargandoTabla, setCargandoTabla] = useState(false)
   const [visitas, setVisitas] = useState<{ pais: string | null }[]>([])
+  // Desde dónde inicia sesión cada cuenta (migración 67) — a diferencia de
+  // "Visitas" (dispositivos anónimos), esto es gente con cuenta real.
+  const [loginsGeo, setLoginsGeo] = useState<
+    Pick<
+      Perfil,
+      'id' | 'nombre' | 'rol' | 'ultimo_login_pais' | 'ultimo_login_ciudad' | 'ultimo_login_en'
+    >[]
+  >([])
   // Filtro de usuarios por nombre, correo o teléfono.
   const [busqUsuario, setBusqUsuario] = useState('')
   const [pestana, setPestana] = useState<Pestana>('resumen')
@@ -187,10 +195,21 @@ export default function AdminView() {
     if (data) setVisitas(data as { pais: string | null }[])
   }
 
+  async function cargarLoginsGeo() {
+    const { data } = await supabase
+      .from('perfiles')
+      .select('id, nombre, rol, ultimo_login_pais, ultimo_login_ciudad, ultimo_login_en')
+      .not('ultimo_login_en', 'is', null)
+      .order('ultimo_login_en', { ascending: false })
+      .limit(2000)
+    if (data) setLoginsGeo(data as typeof loginsGeo)
+  }
+
   useEffect(() => {
     cargarConteos()
     cargarRescatistas()
     cargarVisitas()
+    cargarLoginsGeo()
     cargarCatastrofes()
   }, [])
 
@@ -218,6 +237,17 @@ export default function AdminView() {
     }
     return [...m.entries()].sort((a, b) => b[1] - a[1])
   }, [visitas])
+
+  // Cuentas con sesión iniciada, por país (de mayor a menor). A diferencia
+  // de "visitas" (dispositivos anónimos), aquí cada fila es una cuenta real.
+  const loginsPorPais = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const l of loginsGeo) {
+      const p = l.ultimo_login_pais?.trim() || 'Desconocido'
+      m.set(p, (m.get(p) ?? 0) + 1)
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [loginsGeo])
 
   // Conteo de usuarios por rol (lo cuenta el servidor, no el navegador).
   const conteoRoles = useMemo(
@@ -426,6 +456,64 @@ export default function AdminView() {
               ))}
             </ul>
           </div>
+        )}
+      </section>
+
+      {/* Cuentas con sesión iniciada, por país (migración 67). El chat en
+          vivo ya no exige que la IP coincida con el país de la sala; esto
+          es la estadística que reemplaza a esa verificación. */}
+      <section className={tab('visitas', 'card')}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-lg">🔐 Inicios de sesión</h2>
+          <div className="text-right">
+            <div className="text-3xl font-extrabold text-bandera-azul">
+              {loginsGeo.length}
+            </div>
+            <div className="text-xs text-gray-500">cuentas (con IP detectada)</div>
+          </div>
+        </div>
+        {loginsPorPais.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            Aún sin datos (o falta correr la migración 67).
+          </p>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-gray-600 mb-2">Por país</p>
+            <ul className="space-y-1 mb-4">
+              {loginsPorPais.map(([pais, n]) => (
+                <li
+                  key={pais}
+                  className="flex items-center justify-between text-sm border-b border-gray-100 pb-1"
+                >
+                  <span>{pais}</span>
+                  <span className="font-semibold">{n}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm font-semibold text-gray-600 mb-2">
+              Últimos logueos
+            </p>
+            <ul className="space-y-1 max-h-64 overflow-y-auto">
+              {loginsGeo.slice(0, 30).map((l) => (
+                <li
+                  key={l.id}
+                  className="flex items-center justify-between text-xs border-b border-gray-100 pb-1 gap-2"
+                >
+                  <span className="truncate flex-1">
+                    {l.nombre ?? 'Sin nombre'}{' '}
+                    <span className="text-gray-400">
+                      ({ROL_META[l.rol]?.etiqueta ?? l.rol})
+                    </span>
+                  </span>
+                  <span className="text-gray-600 shrink-0">
+                    {[l.ultimo_login_ciudad, l.ultimo_login_pais]
+                      .filter(Boolean)
+                      .join(', ') || 'Desconocido'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 

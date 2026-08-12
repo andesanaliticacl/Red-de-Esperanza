@@ -1,14 +1,20 @@
-# Chat con validacion de IP
+# Chat en vivo: Edge Function
 
 Esta funcion es obligatoria para que el chat no pueda escribirse saltandose el
-frontend. Valida la IP en servidor y solo inserta el mensaje si el pais
-detectado coincide con el pais dueño de la sala (`ciudad`) a la que se
-escribe: Venezuela (salas = solo el nombre del estado, sin prefijo, para no
-romper el historial anterior al selector de pais), Chile (salas
-`chile/<region>`) o Colombia (salas `colombia/<departamento>`). Agregar un
-pais nuevo implica sumarlo tanto aqui (`REGIONES_CHILE`/`REGIONES_COLOMBIA`/
-`ESTADOS_VENEZUELA` y `paisEsperadoDeSala`) como en
+frontend. Exige una cuenta con sesion valida (JWT) y que la sala (`ciudad`)
+sea una de las conocidas: Venezuela (salas = solo el nombre del estado, sin
+prefijo, para no romper el historial anterior al selector de pais), Chile
+(salas `chile/<region>`) o Colombia (salas `colombia/<departamento>`).
+Agregar un pais nuevo implica sumarlo tanto aqui (`REGIONES_CHILE`/
+`REGIONES_COLOMBIA`/`ESTADOS_VENEZUELA` y `paisEsperadoDeSala`) como en
 `web/src/lib/regionesChat.ts` — deben quedar sincronizados.
+
+Ya NO valida la IP de quien escribe contra el pais de la sala: cualquier
+cuenta puede escribir en cualquier sala, sin importar desde donde se
+conecte (esa restriccion se quito — antes exigia que la IP coincidiera con
+el pais de la sala). A cambio, el pais/ciudad de conexion se guarda al
+INICIAR SESION (`perfiles.ultimo_login_pais/ultimo_login_ciudad`, migracion
+67) para estadistica en el panel de admin, no para bloquear nada.
 
 ## 1) Desplegar la Edge Function
 
@@ -20,8 +26,9 @@ supabase link --project-ref TU_PROJECT_REF
 supabase functions deploy enviar-chat --no-verify-jwt
 ```
 
-`--no-verify-jwt` permite que tambien escriban invitados anonimos. La funcion
-igualmente valida la IP en servidor antes de insertar.
+`--no-verify-jwt` es necesario porque la funcion valida el JWT ella misma
+(vía `autorDesdeJWT`) y devuelve un error claro en vez de un 401 generico de
+la plataforma.
 
 ## 2) Ejecutar la migracion
 
@@ -43,42 +50,15 @@ la cita del mensaje respondido.
 La migracion `38_chat_borrar_admin.sql` permite borrar mensajes solo al rol
 admin y activa los eventos realtime de borrado.
 
-## 3) Riesgo conocido
+## 3) Redesplegar tras cambios en index.ts
 
-La geolocalizacion por IP detecta el pais del punto de salida. Si una VPN sale
-por fuera de Venezuela, queda bloqueada. Si una VPN sale por una IP venezolana,
-esta regla la tratara como Venezuela salvo que se agregue un proveedor especifico
-de deteccion de VPN/proxy.
-
-## 4) Bypass local para pruebas
-
-Opcionalmente puedes permitir escritura desde `localhost` sin validar IP usando
-un token de prueba.
-
-En Supabase Edge Functions Secrets agrega:
-
-```bash
-CHAT_DEV_BYPASS_TOKEN=un-token-largo-y-random
-```
-
-En `web/.env` local agrega el mismo valor:
-
-```bash
-VITE_CHAT_DEV_BYPASS_TOKEN=un-token-largo-y-random
-```
-
-Este bypass solo se envia desde builds de desarrollo de Vite y la Edge Function
-solo lo acepta si el `Origin` es `localhost`, `127.0.0.1` o `::1`.
-
-## 5) Redesplegar tras cambios en index.ts
-
-Cada vez que se edite `index.ts` (como al sumar Chile) hay que volver a correr:
+Cada vez que se edite `index.ts` (como al sumar un pais nuevo) hay que volver
+a correr:
 
 ```bash
 supabase functions deploy enviar-chat --no-verify-jwt
 ```
 
-El frontend por si solo NO alcanza: la validacion de pais/sala vive en el
-servidor. Sin este redeploy, los mensajes desde Chile seguiran siendo
-rechazados con el error viejo aunque el mapa y el resto de la app ya esten
-actualizados.
+El frontend por si solo NO alcanza: la validacion de que la sala exista vive
+en el servidor. Sin este redeploy, los cambios de `index.ts` no se reflejan
+aunque el resto de la app ya este actualizado.

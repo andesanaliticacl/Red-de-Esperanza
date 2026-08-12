@@ -393,6 +393,14 @@ export default function CiudadanoView() {
     const vista = VISTA_PAIS_DESAP[p]
     if (vista) setVistaPaisDesap(vista)
   }
+  // Persona o mascota en la capa de Desaparecidos: null = ambos mezclados.
+  // Tocar la opción ya elegida la quita (mismo toggle que el de país).
+  const [tipoSerDesap, setTipoSerDesap] = useState<'persona' | 'mascota' | null>(
+    null,
+  )
+  function elegirTipoSerDesap(t: 'persona' | 'mascota') {
+    setTipoSerDesap((actual) => (actual === t ? null : t))
+  }
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
   const [totalDesap, setTotalDesap] = useState<number | null>(null)
@@ -405,6 +413,7 @@ export default function CiudadanoView() {
         .eq('estado', 'no_encontrado')
         .not('lat', 'is', null)
       if (paisDesap) q = q.eq('pais', paisDesap)
+      if (tipoSerDesap) q = q.eq('tipo_ser', tipoSerDesap)
       return q.then(({ count }) => {
         if (!cancel) setTotalDesap(count ?? null)
       })
@@ -414,7 +423,7 @@ export default function CiudadanoView() {
       cancel = true
       window.clearTimeout(t)
     }
-  }, [paisDesap])
+  }, [paisDesap, tipoSerDesap])
   // La ubicación se detecta sola (GPS/IP) y se refresca cada 10 minutos.
   const { coord: coordAuto, fuente: fuenteAuto } = useUbicacionAuto()
   const { notificar } = useNotificaciones()
@@ -578,13 +587,14 @@ export default function CiudadanoView() {
       let q = supabase
         .from('desaparecidos')
         .select(
-          'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais',
+          'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser',
         )
         .eq('estado', 'no_encontrado')
         .ilike('nombre', `%${term}%`)
         .not('lat', 'is', null)
         .limit(50)
       if (paisDesap) q = q.eq('pais', paisDesap)
+      if (tipoSerDesap) q = q.eq('tipo_ser', tipoSerDesap)
       const { data } = await q
       if (!cancel) {
         setResultadosDesap((data ?? []) as Desaparecido[])
@@ -595,7 +605,7 @@ export default function CiudadanoView() {
       cancel = true
       window.clearTimeout(t)
     }
-  }, [busqDesap, paisDesap])
+  }, [busqDesap, paisDesap, tipoSerDesap])
 
   // Tocar a una persona del listado: vuela el mapa a su punto y cierra la lista.
   function irAPersona(d: Desaparecido) {
@@ -791,6 +801,7 @@ export default function CiudadanoView() {
             verDesaparecidos={verDesap}
             busquedaDesap={busqDesap}
             paisDesap={paisDesap}
+            tipoSerDesap={tipoSerDesap}
             irACoordenada={irACoordenada}
             vistaPaisDesap={vistaPaisDesap}
             desaparecidoResaltadoId={desaparecidoSeleccionadoId}
@@ -989,6 +1000,48 @@ export default function CiudadanoView() {
                   Todos
                 </button>
               </div>
+              {/* Persona o mascota: un reporte de mascota perdida no es una
+                  persona desaparecida, y mezclarlos en la misma búsqueda
+                  confundía. Mismo patrón de toggle que el de país. */}
+              <div className="flex items-center gap-1.5 mb-2">
+                <button
+                  type="button"
+                  onClick={() => elegirTipoSerDesap('persona')}
+                  aria-pressed={tipoSerDesap === 'persona'}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
+                    tipoSerDesap === 'persona'
+                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                      : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  🧑 Personas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => elegirTipoSerDesap('mascota')}
+                  aria-pressed={tipoSerDesap === 'mascota'}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-xl border-2 py-1.5 text-xs font-bold ${
+                    tipoSerDesap === 'mascota'
+                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                      : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  🐾 Mascotas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoSerDesap(null)}
+                  aria-pressed={tipoSerDesap === null}
+                  title="Ver personas y mascotas juntas"
+                  className={`shrink-0 rounded-xl border-2 px-2 py-1.5 text-[11px] font-bold ${
+                    tipoSerDesap === null
+                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                      : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  Todos
+                </button>
+              </div>
               {paisDesap === 'Venezuela' && (
                 <p className="mb-2 text-[11px] font-semibold text-gray-500 text-center">
                   Terremoto Venezuela 2026
@@ -1073,6 +1126,7 @@ export default function CiudadanoView() {
                               </span>
                               <span className="block text-xs text-gray-500 truncate">
                                 {[
+                                  d.tipo_ser === 'mascota' ? '🐾 Mascota' : null,
                                   d.edad ? `${d.edad} años` : null,
                                   d.ultima_ubicacion,
                                 ]

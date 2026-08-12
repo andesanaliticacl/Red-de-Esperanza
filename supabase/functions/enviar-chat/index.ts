@@ -108,7 +108,6 @@ interface PayloadChat {
   respuesta_a?: unknown
   respuesta_nombre?: unknown
   respuesta_cuerpo?: unknown
-  dev_bypass_token?: unknown
 }
 
 function json(data: unknown, init: ResponseInit = {}) {
@@ -134,61 +133,12 @@ function normalizarParaComparar(texto: string): string {
     .toLowerCase()
 }
 
-function ipDeRequest(req: Request): string | null {
-  const candidatos = [
-    req.headers.get('cf-connecting-ip'),
-    req.headers.get('x-real-ip'),
-    req.headers.get('x-forwarded-for')?.split(',')[0],
-  ]
-  return candidatos.map((x) => x?.trim()).find(Boolean) ?? null
-}
-
-function origenLocal(req: Request): boolean {
-  const origin = req.headers.get('origin') ?? ''
-  try {
-    const url = new URL(origin)
-    return ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
-  } catch {
-    return false
-  }
-}
-
-function bypassDevPermitido(req: Request, token: unknown): boolean {
-  const esperado = Deno.env.get('CHAT_DEV_BYPASS_TOKEN')?.trim()
-  return (
-    Boolean(esperado) &&
-    typeof token === 'string' &&
-    token.trim() === esperado &&
-    origenLocal(req)
-  )
-}
-
-async function paisPorIP(ip: string): Promise<{ pais: string | null; codigo: string | null }> {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 3500)
-  try {
-    const res = await fetch(
-      `https://ipwho.is/${encodeURIComponent(ip)}?fields=success,country,country_code`,
-      { signal: ctrl.signal },
-    )
-    const data = await res.json()
-    if (data?.success) {
-      return {
-        pais: typeof data.country === 'string' ? data.country : null,
-        codigo: typeof data.country_code === 'string' ? data.country_code : null,
-      }
-    }
-  } catch {
-    // Si no se puede confirmar el pais, no se permite escribir.
-  } finally {
-    clearTimeout(timer)
-  }
-  return { pais: null, codigo: null }
-}
-
 // Codigo ISO del pais dueño de una sala, segun su formato: Venezuela = solo
 // el nombre del estado; el resto = "pais/region". Null si la sala no es
-// valida en ningun pais soportado.
+// valida en ningun pais soportado. Ya NO se usa para exigir que la IP de
+// quien escribe coincida con este pais (antes si) — cualquier cuenta puede
+// escribir en cualquier sala; esto solo valida que la sala exista de
+// verdad, para no insertar mensajes en salas inventadas.
 function paisEsperadoDeSala(ciudad: string): 'VE' | 'CL' | 'CO' | null {
   const sala = normalizarParaComparar(ciudad)
   if (ESTADOS_VENEZUELA.some((e) => normalizarParaComparar(e) === sala)) {
@@ -207,21 +157,6 @@ function paisEsperadoDeSala(ciudad: string): 'VE' | 'CL' | 'CO' | null {
     }
   }
   return null
-}
-
-function geoCoincideConPais(
-  geo: { pais: string | null; codigo: string | null },
-  esperado: 'VE' | 'CL' | 'CO',
-): boolean {
-  const nombrePorCodigo: Record<'VE' | 'CL' | 'CO', string> = {
-    VE: 'venezuela',
-    CL: 'chile',
-    CO: 'colombia',
-  }
-  return (
-    geo.codigo?.toUpperCase() === esperado ||
-    geo.pais?.trim().toLowerCase() === nombrePorCodigo[esperado]
-  )
 }
 
 async function autorDesdeJWT(req: Request): Promise<string | null> {
@@ -284,36 +219,6 @@ Deno.serve(async (req) => {
       },
       { status: 401 },
     )
-  }
-
-  const permiteBypassDev = bypassDevPermitido(req, body.dev_bypass_token)
-  if (!permiteBypassDev) {
-    const ip = ipDeRequest(req)
-    if (!ip) {
-      return json(
-        { ok: false, error: 'No pudimos confirmar tu ubicacion. El chat queda en solo lectura.' },
-        { status: 403 },
-      )
-    }
-
-    const geo = await paisPorIP(ip)
-    if (!geoCoincideConPais(geo, paisEsperado)) {
-      const nombresPais: Record<'VE' | 'CL' | 'CO', string> = {
-        VE: 'Venezuela',
-        CL: 'Chile',
-        CO: 'Colombia',
-      }
-      const nombrePais = nombresPais[paisEsperado]
-      return json(
-        {
-          ok: false,
-          error: geo.pais
-            ? `Esta sala es de ${nombrePais}. Tu conexion se detecta desde ${geo.pais}.`
-            : `Esta sala es de ${nombrePais}. No pudimos confirmar tu ubicacion.`,
-        },
-        { status: 403 },
-      )
-    }
   }
 
   const { data, error } = await supabase

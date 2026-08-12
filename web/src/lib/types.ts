@@ -194,6 +194,11 @@ export interface Perfil {
   zona: string | null
   foto_url: string | null
   creado_en: string
+  /** País/ciudad detectados por IP en el último inicio de sesión (migración
+   *  67), y cuándo. Solo estadística para el admin — nunca bloquea nada. */
+  ultimo_login_pais?: string | null
+  ultimo_login_ciudad?: string | null
+  ultimo_login_en?: string | null
 }
 
 // Etiquetas legibles por rol.
