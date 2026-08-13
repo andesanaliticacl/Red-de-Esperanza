@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { crearNecesidad } from '../lib/reportes'
 import {
   obtenerUbicacion,
@@ -9,7 +9,11 @@ import EntradaTelefono, {
   esTelefonoValido,
   mensajeTelefono,
 } from './EntradaTelefono'
-import { desbloquearAudioIOS, esIOS, liberarAudioIOS } from '../lib/audioIOS'
+import {
+  detenerAlarma,
+  esIOS,
+  iniciarAlarma,
+} from '../lib/alarmaSonido'
 
 // Número de emergencias a mostrar según el país detectado (por coordenadas).
 // Chile: solo Carabineros (133), como pidió el equipo. Colombia: 123 (número
@@ -79,82 +83,23 @@ export default function SosModal({
 
   // ===== Sonido de alarma =====
   // Para cuando alguien está atrapado o extraviado y necesita que lo
-  // ENCUENTREN por el oído: no depende de Internet ni de un archivo de
-  // audio (se sintetiza con Web Audio), así que funciona incluso sin señal,
-  // que es justo cuando más falta hace. No espera a que se envíe el SOS:
-  // está disponible desde que se abre la pantalla, porque hacer ruido para
-  // que te oigan no debería depender de que el reporte ya haya salido.
+  // ENCUENTREN por el oído. El sonido se fabrica dentro del teléfono, sin
+  // descargar nada, así que funciona sin señal — justo cuando más falta hace.
+  // No espera a que se envíe el SOS: está disponible desde que se abre la
+  // pantalla, porque hacer ruido para que te oigan no debería depender de que
+  // el reporte ya haya salido. El motor (y por qué iPhone necesita trato
+  // especial) está en lib/alarmaSonido.ts.
   const [alarmaActiva, setAlarmaActiva] = useState(false)
-  const audioCtxRef = useRef<AudioContext | null>(null)
-  const osciladorRef = useRef<OscillatorNode | null>(null)
-  const barridoRef = useRef<number | null>(null)
 
-  function detenerAlarma() {
-    if (barridoRef.current !== null) {
-      window.clearTimeout(barridoRef.current)
-      barridoRef.current = null
-    }
-    try {
-      osciladorRef.current?.stop()
-    } catch {
-      /* ya estaba detenido */
-    }
-    void audioCtxRef.current?.close().catch(() => {})
-    osciladorRef.current = null
-    audioCtxRef.current = null
-    liberarAudioIOS()
-    if (navigator.vibrate) navigator.vibrate(0)
-    setAlarmaActiva(false)
-  }
-
-  function activarAlarma() {
+  async function activarAlarma() {
     if (alarmaActiva) {
       detenerAlarma()
+      setAlarmaActiva(false)
       return
     }
-    try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext
-      const ctx = new AudioCtx()
-      // iPhone/iPad: sin esto, el interruptor lateral de silencio APAGA la
-      // alarma en el altavoz (por eso se oía con audífonos pero no sin ellos).
-      // Debe ir aquí dentro, que es el toque del usuario. Ver audioIOS.ts.
-      desbloquearAudioIOS(ctx.sampleRate)
-      // En iOS el contexto nace suspendido: hay que reanudarlo en el gesto.
-      void ctx.resume().catch(() => {})
-      const osc = ctx.createOscillator()
-      const ganancia = ctx.createGain()
-      // 'square' (onda cuadrada) suena más aguda y penetrante que una onda
-      // senoidal — se distingue mejor entre escombros o ruido de fondo.
-      osc.type = 'square'
-      ganancia.gain.value = 1
-      osc.connect(ganancia)
-      ganancia.connect(ctx.destination)
-      osc.start()
-      audioCtxRef.current = ctx
-      osciladorRef.current = osc
-
-      // Barrido de frecuencia tipo sirena (sube y baja entre 700-1900 Hz):
-      // un tono fijo se vuelve "ruido de fondo" para el oído después de
-      // unos segundos; uno que sube y baja sigue llamando la atención.
-      let freq = 700
-      let subiendo = true
-      const paso = () => {
-        freq += subiendo ? 45 : -45
-        if (freq >= 1900) subiendo = false
-        if (freq <= 700) subiendo = true
-        osc.frequency.setValueAtTime(freq, ctx.currentTime)
-        barridoRef.current = window.setTimeout(paso, 55)
-      }
-      paso()
-
-      // Vibración además del sonido: ayuda si el teléfono está en modo
-      // silencio, o si quien busca detecta el zumbido antes que el sonido.
-      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400, 150])
+    if (await iniciarAlarma()) {
       setAlarmaActiva(true)
-    } catch {
+    } else {
       setErrorMsg(
         'No se pudo activar el sonido en este dispositivo. Sube el volumen y llama a emergencias.',
       )
@@ -166,6 +111,7 @@ export default function SosModal({
   useEffect(() => detenerAlarma, [])
   function cerrarYDetener() {
     detenerAlarma()
+    setAlarmaActiva(false)
     onCerrar()
   }
 
