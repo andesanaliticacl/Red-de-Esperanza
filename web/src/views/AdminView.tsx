@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useNecesidades } from '../hooks/useNecesidades'
 import ConfirmDialog from '../components/ConfirmDialog'
 import BandejaSolicitudes from '../components/BandejaSolicitudes'
+import EstadisticasEmergencia from '../components/EstadisticasEmergencia'
+import { useAuth } from '../context/AuthContext'
 import {
   listarCatastrofes,
   crearCatastrofe,
@@ -49,20 +51,31 @@ const ROLES: RolUsuario[] = [
   'admin',
 ]
 
-type Pestana = 'resumen' | 'alertas' | 'solicitudes' | 'usuarios' | 'visitas'
+type Pestana =
+  | 'resumen'
+  | 'alertas'
+  | 'solicitudes'
+  | 'usuarios'
+  | 'visitas'
+  | 'analitica'
 
-const PESTANAS: { v: Pestana; etiqueta: string }[] = [
+// `soloAdmin` deja fuera a los líderes, que también entran a este panel: la
+// analítica profunda es solo del administrador. La base lo comprueba igual
+// (migración 72), esto es para no mostrar una pestaña que va a fallar.
+const PESTANAS: { v: Pestana; etiqueta: string; soloAdmin?: boolean }[] = [
   { v: 'resumen', etiqueta: '📊 Resumen' },
   { v: 'alertas', etiqueta: '🔔 Alertas' },
   { v: 'solicitudes', etiqueta: '🛡️ Solicitudes' },
   { v: 'usuarios', etiqueta: '👥 Usuarios' },
   { v: 'visitas', etiqueta: '🌍 Visitas' },
+  { v: 'analitica', etiqueta: '📈 Emergencias', soloAdmin: true },
 ]
 
 /** Filas por página en la tabla de usuarios. */
 const POR_PAGINA = 50
 
 export default function AdminView() {
+  const { rol } = useAuth()
   const { necesidades } = useNecesidades([
     'sin_verificar',
     'verificada',
@@ -324,14 +337,20 @@ export default function AdminView() {
     `${pestana === p ? '' : 'hidden'} ${extra}`.trim()
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-6">
+    // La analítica compara tres emergencias lado a lado: necesita más ancho
+    // que el resto del panel.
+    <div
+      className={`${
+        pestana === 'analitica' ? 'max-w-6xl' : 'max-w-3xl'
+      } mx-auto p-4 space-y-6`}
+    >
       <h1 className="text-2xl font-extrabold text-bandera-azul">
         Panel de administración
       </h1>
 
       {/* El panel era una sola página larguísima; ahora va por pestañas. */}
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200 -mb-2">
-        {PESTANAS.map((p) => (
+        {PESTANAS.filter((p) => !p.soloAdmin || rol === 'admin').map((p) => (
           <button
             key={p.v}
             onClick={() => setPestana(p.v)}
@@ -346,6 +365,11 @@ export default function AdminView() {
           </button>
         ))}
       </div>
+
+      {/* Analítica comparada de las tres emergencias (solo admin). Se monta
+          únicamente al abrir la pestaña: la consulta es pesada y no tiene
+          sentido lanzarla cada vez que un líder entra al panel. */}
+      {pestana === 'analitica' && rol === 'admin' && <EstadisticasEmergencia />}
 
       {/* Panel de estadísticas */}
       <section className={tab('resumen', 'grid grid-cols-2 sm:grid-cols-5 gap-3')}>

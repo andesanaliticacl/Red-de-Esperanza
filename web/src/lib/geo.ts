@@ -186,8 +186,18 @@ export function parsearCoordenadas(
 const VE_BBOX = { sur: 0.5, norte: 13.0, oeste: -73.6, este: -59.0 }
 
 // Recuadros aproximados de los países donde suele haber centros (Venezuela y la
-// diáspora). Se revisan EN ORDEN: el primero que contenga el punto gana, por eso
-// Venezuela y los vecinos van antes que Brasil (que es enorme y se solaparía).
+// diáspora). Se revisan EN ORDEN: el primero que contenga el punto gana.
+//
+// EL ORDEN ES CRÍTICO. Brasil va AL FINAL de Sudamérica: su recuadro llega
+// hasta el oeste de Chile (lng -74) y hasta el sur de Argentina (lat -33.8),
+// así que si va antes se traga a los dos. Estuvo antes que Chile y por eso
+// Santiago, Coquimbo, Valparaíso y Antofagasta se reportaban como "Brasil"
+// —lo que además hacía que el SOS mostrara el 911 en vez de Carabineros 133.
+//
+// Chile va en DOS cajas porque es largo y angosto: una sola caja lo bastante
+// ancha para el norte (donde limita con Bolivia, hacia lng -67) invadía
+// Mendoza y San Juan en Argentina. Partido, el sur queda angosto (hasta
+// lng -69) y los deja fuera.
 const CAJAS_PAIS: {
   nombre: string
   sur: number
@@ -200,9 +210,12 @@ const CAJAS_PAIS: {
   { nombre: 'Ecuador', sur: -5.1, norte: 1.7, oeste: -81.1, este: -75.2 },
   { nombre: 'Perú', sur: -18.4, norte: 0.1, oeste: -81.4, este: -68.6 },
   { nombre: 'Panamá', sur: 7.0, norte: 9.7, oeste: -83.1, este: -77.0 },
-  { nombre: 'Brasil', sur: -33.8, norte: 5.3, oeste: -74.0, este: -34.0 },
-  { nombre: 'Chile', sur: -56.0, norte: -17.4, oeste: -75.7, este: -66.4 },
+  // Chile norte (Arica–Atacama): ancho, limita con Bolivia.
+  { nombre: 'Chile', sur: -27.0, norte: -17.4, oeste: -70.6, este: -66.9 },
+  // Chile centro-sur (Atacama–Magallanes): angosto, para no invadir Argentina.
+  { nombre: 'Chile', sur: -56.0, norte: -27.0, oeste: -75.7, este: -69.0 },
   { nombre: 'Argentina', sur: -55.1, norte: -21.7, oeste: -73.6, este: -53.6 },
+  { nombre: 'Brasil', sur: -33.8, norte: 5.3, oeste: -74.0, este: -34.0 },
   { nombre: 'México', sur: 14.5, norte: 32.8, oeste: -118.5, este: -86.7 },
   { nombre: 'Estados Unidos', sur: 24.0, norte: 49.5, oeste: -125.0, este: -66.9 },
   { nombre: 'España', sur: 35.9, norte: 43.9, oeste: -9.4, este: 4.4 }, // península
