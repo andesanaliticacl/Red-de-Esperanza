@@ -1065,16 +1065,22 @@ function Fila({
 }) {
   return (
     <div
-      className="card flex items-center gap-3"
+      className="card flex flex-col sm:flex-row sm:items-center gap-3"
       style={estiloContornoVerificado(!!atendidaPorEntidad)}
     >
-      {numero != null && (
-        <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bandera-azul text-white text-xs font-bold">
-          {numero}
-        </span>
-      )}
-      <div className="text-3xl">{TIPO_META[n.tipo].emoji}</div>
-      <div className="flex-1 min-w-0">
+      {/* En el teléfono el texto va ARRIBA y los botones abajo. Antes todo iba
+          en una sola fila también en móvil, y como los botones llevan
+          whitespace-nowrap no encogen: se quedaban con ~200 px y al texto le
+          sobraban unos 90, así que cada palabra partía en varias líneas y el
+          teléfono de contacto quedaba ilegible. */}
+      <div className="flex items-center gap-3 min-w-0 sm:flex-1">
+        {numero != null && (
+          <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bandera-azul text-white text-xs font-bold">
+            {numero}
+          </span>
+        )}
+        <div className="text-3xl shrink-0">{TIPO_META[n.tipo].emoji}</div>
+        <div className="flex-1 min-w-0">
         <div className="font-bold">
           {TIPO_META[n.tipo].etiqueta}
           <span
@@ -1104,13 +1110,16 @@ function Fila({
             )}
           </div>
         )}
-        <InfoContacto
-          contacto={contacto}
-          origen={origen}
-          repeticiones={repeticiones}
-        />
+          <InfoContacto
+            contacto={contacto}
+            origen={origen}
+            repeticiones={repeticiones}
+          />
+        </div>
       </div>
-      <div className="flex flex-col gap-2">
+      {/* En el teléfono los botones se reparten en dos columnas ocupando el
+          ancho completo; desde `sm` vuelven a la columna vertical de siempre. */}
+      <div className="flex flex-wrap sm:flex-col gap-2 sm:shrink-0 [&>*]:flex-1 [&>*]:min-w-[8.5rem] sm:[&>*]:flex-none sm:[&>*]:min-w-0">
         {accion && onAccion && (
           <button
             onClick={onAccion}
