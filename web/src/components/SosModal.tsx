@@ -9,6 +9,7 @@ import EntradaTelefono, {
   esTelefonoValido,
   mensajeTelefono,
 } from './EntradaTelefono'
+import { desbloquearAudioIOS, esIOS, liberarAudioIOS } from '../lib/audioIOS'
 
 // Número de emergencias a mostrar según el país detectado (por coordenadas).
 // Chile: solo Carabineros (133), como pidió el equipo. Colombia: 123 (número
@@ -101,6 +102,7 @@ export default function SosModal({
     void audioCtxRef.current?.close().catch(() => {})
     osciladorRef.current = null
     audioCtxRef.current = null
+    liberarAudioIOS()
     if (navigator.vibrate) navigator.vibrate(0)
     setAlarmaActiva(false)
   }
@@ -116,6 +118,12 @@ export default function SosModal({
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext
       const ctx = new AudioCtx()
+      // iPhone/iPad: sin esto, el interruptor lateral de silencio APAGA la
+      // alarma en el altavoz (por eso se oía con audífonos pero no sin ellos).
+      // Debe ir aquí dentro, que es el toque del usuario. Ver audioIOS.ts.
+      desbloquearAudioIOS(ctx.sampleRate)
+      // En iOS el contexto nace suspendido: hay que reanudarlo en el gesto.
+      void ctx.resume().catch(() => {})
       const osc = ctx.createOscillator()
       const ganancia = ctx.createGain()
       // 'square' (onda cuadrada) suena más aguda y penetrante que una onda
@@ -250,9 +258,19 @@ export default function SosModal({
         )}
       </button>
       {alarmaActiva && (
-        <p className="text-center text-sm text-white/90 mt-1 mb-2">
-          Deja el teléfono a la vista, con el volumen al máximo.
-        </p>
+        <div className="text-center text-sm text-white/90 mt-1 mb-2 space-y-1">
+          <p>Deja el teléfono a la vista, con el volumen al máximo.</p>
+          {/* En iPhone el interruptor lateral de silencio puede apagar la
+              alarma. audioIOS.ts intenta esquivarlo, pero si el modelo o la
+              versión de iOS no lo permite, la persona debe poder arreglarlo
+              a mano — y atrapada no es momento de adivinar. */}
+          {esIOS() && (
+            <p className="text-white/80">
+              ¿No se escucha? Baja el <strong>interruptor lateral</strong> del
+              iPhone para quitar el silencio y sube el volumen.
+            </p>
+          )}
+        </div>
       )}
 
       <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto w-full">
