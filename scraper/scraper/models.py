@@ -24,15 +24,17 @@ class PersonaDesaparecida:
     # esta columna, así que un import sin `pais` queda invisible en la UI
     # aunque esté bien guardado. None = se deja como esté en la base.
     pais: Optional[str] = None
-    # Cédula/documento, SOLO si la fuente lo publica completo y en claro
-    # (migración 74). Hoy ninguna lo hace: la fuente de Venezuela no trae el
-    # campo y la de Colombia lo enmascara ("****880") a propósito. Se deja
-    # listo para cuando aparezca una que sí, y para poder contar a cuántos
-    # tenemos identificados.
+    # Documento tal como lo PUBLICA la fuente (migración 74).
     #
-    # NO guardar aquí un documento parcial o enmascarado: no identifica a
-    # nadie y ensucia el conteo de "identificados", que es justo para lo que
-    # sirve este campo.
+    # En Colombia viene enmascarado ("*******007") y así se guarda: nunca se
+    # intenta reconstruir, porque el origen lo oculta a propósito. Lo que
+    # importa no es el número —no identifica a nadie— sino su PRESENCIA: que
+    # haya documento significa que el reporte se hizo con un documento
+    # oficial de por medio y no solo con un nombre. De ahí sale el filtro
+    # "con documento" de la app.
+    #
+    # La fuente de Venezuela todavía no publica este campo, así que sus
+    # registros quedan sin documento hasta que lo haga.
     documento: Optional[str] = None
     fuente: str = "desaparecidos_terremoto_vzla"
 

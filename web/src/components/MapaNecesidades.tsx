@@ -707,6 +707,7 @@ export default function MapaNecesidades({
   paisDesap = null,
   tipoSerDesap = null,
   paginaDesap = 0,
+  soloConDocumentoDesap = false,
   irACoordenada = null,
   desaparecidoResaltadoId,
   onHospitalSeleccionado,
@@ -717,6 +718,8 @@ export default function MapaNecesidades({
 }: {
   /** Página de desaparecidos a mostrar (0 = la primera). */
   paginaDesap?: number
+  /** Mostrar solo desaparecidos cuyo reporte trae documento oficial. */
+  soloConDocumentoDesap?: boolean
   /** Avisa cuántos desaparecidos coinciden aquí y cuáles se están viendo,
    *  para que la vista pinte las flechas de página y un número que cuadre. */
   onDesapEnZona?: (r: {
@@ -961,6 +964,7 @@ export default function MapaNecesidades({
     paisDesap,
     tipoSerDesap,
     paginaDesap,
+    soloConDocumentoDesap,
   )
   // La vista de arriba necesita estos números para pintar las flechas de
   // página y decir exactamente cuáles se están viendo.

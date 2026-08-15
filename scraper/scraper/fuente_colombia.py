@@ -57,8 +57,18 @@ _RE_ESTADO = re.compile(r'badge badge-(missing|found)"')
 _RE_CATEGORIA = re.compile(r'badge badge-category">([^<]*)<')
 _RE_NOMBRE = re.compile(r'<h2><a[^>]*>([^<]*)</a></h2>')
 _RE_CODIGO = re.compile(r'card-code">\s*(CTB-[0-9A-F]+)\s*<')
-# Línea "▣ ****880  - 81 años - masculino" (el documento va enmascarado en
-# origen y NO se guarda: es dato sensible y llega inservible igual).
+# Línea "▣ ****880  - 81 años - masculino", o "▣ Sin documento público".
+#
+# El origen enmascara el documento a propósito, y así se guarda: NUNCA se
+# intenta reconstruir. Lo que importa no es el número —que no identifica a
+# nadie— sino su PRESENCIA: significa que el reporte se hizo con un documento
+# oficial de por medio, no solo con un nombre. Eso es lo que permite filtrar
+# "con documento" y saber qué parte de la lista está respaldada.
+#
+# Se distingue por el asterisco: la fuente escribe literalmente "Sin
+# documento público" cuando no hay, así que basta con exigir el patrón
+# enmascarado para no guardar esa frase como si fuera un documento.
+_RE_DOCUMENTO = re.compile(r'▣\s*(\*+\d+)')
 _RE_EDAD = re.compile(r'(\d{1,3})\s*años')
 _RE_GENERO = re.compile(r'-\s*(masculino|femenino)\s*<', re.I)
 _RE_UBICACION = re.compile(r'<p class="meta">⌖\s*([^<]+)</p>')
@@ -117,6 +127,11 @@ def _parsear_tarjeta(bloque: str) -> Optional[PersonaDesaparecida]:
     # formulario— reconstruyendo la URL desde `id_fuente`.
     referencia = " · ".join(x for x in (codigo, categoria) if x)
 
+    # Documento tal como lo publica el origen (enmascarado). Ver _RE_DOCUMENTO:
+    # vale por su presencia, no por el número.
+    m_doc = _RE_DOCUMENTO.search(bloque)
+    documento = m_doc.group(1) if m_doc else None
+
     return PersonaDesaparecida(
         nombre=nombre,
         id_fuente=f"ctb:{uuid}",
@@ -133,6 +148,7 @@ def _parsear_tarjeta(bloque: str) -> Optional[PersonaDesaparecida]:
         contacto_familiar=referencia or None,
         # Sin esto la capa del mapa no los muestra bajo el filtro "Colombia".
         pais="Colombia",
+        documento=documento,
         fuente=FUENTE,
     )
 

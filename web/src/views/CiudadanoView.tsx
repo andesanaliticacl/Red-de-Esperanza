@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  BadgeCheck,
   Check,
   UserSearch,
   MapPin,
@@ -416,6 +417,11 @@ export default function CiudadanoView() {
     hasta: number
   } | null>(null)
   const [paginaDesap, setPaginaDesap] = useState(0)
+  // Ver solo los reportes que traen documento oficial. La fuente lo publica
+  // enmascarado, así que no sirve para identificar a nadie — sirve para saber
+  // qué parte de la lista está respaldada por un papel y no solo por un
+  // nombre.
+  const [soloConDoc, setSoloConDoc] = useState(false)
   useEffect(() => {
     let cancel = false
     const consultar = () => {
@@ -533,7 +539,7 @@ export default function CiudadanoView() {
   // sin entender por qué.
   useEffect(() => {
     setPaginaDesap(0)
-  }, [paisDesap, tipoSerDesap, busqDesap])
+  }, [paisDesap, tipoSerDesap, busqDesap, soloConDoc])
   // Y si al mover el mapa la zona nueva tiene menos páginas, uno se quedaría
   // en una que ya no existe: mapa vacío y flechas muertas. Esto lo corrige
   // solo, sin tener que avisar desde el mapa cada vez que se desplaza.
@@ -833,6 +839,7 @@ export default function CiudadanoView() {
             // tapa media pantalla.
             onTocarMapa={() => setVerFiltros(false)}
             paginaDesap={paginaDesap}
+            soloConDocumentoDesap={soloConDoc}
             onDesapEnZona={setDesapZona}
             onHospitalSeleccionado={(hospital) => {
               setTipoFiltro('hospital')
@@ -1010,6 +1017,24 @@ export default function CiudadanoView() {
                   pinta los del recuadro visible y con un tope (13.000 pines
                   dejan inservible un teléfono). Sin decirlo, el número
                   parecía estar mal. */}
+              {/* "Con documento": el reporte se hizo con un documento
+                  oficial de por medio, no solo con un nombre. La fuente lo
+                  publica enmascarado, así que NO identifica a nadie: lo que
+                  dice es que ese caso está respaldado. */}
+              <button
+                type="button"
+                onClick={() => setSoloConDoc((v) => !v)}
+                aria-pressed={soloConDoc}
+                className={`mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 py-1.5 text-[11px] font-bold transition-colors ${
+                  soloConDoc
+                    ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                    : 'border-gray-200 text-gray-500'
+                }`}
+              >
+                <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Solo con documento
+              </button>
+
               {desapZona?.enZona != null && (
                 <div className="mb-2">
                   <p className="text-[11px] leading-snug text-gray-600 text-center">
