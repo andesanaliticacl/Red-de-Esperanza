@@ -71,6 +71,10 @@ export function useDesaparecidosMapa(
   // forma de llegar a los 6.379 de Caracas es ir de mil en mil. Sin esto, el
   // contador prometía un número al que no se podía llegar.
   pagina = 0,
+  // Solo los que traen documento. No es un capricho de dato: que un reporte
+  // tenga documento significa que se hizo con un papel oficial de por medio
+  // y no solo con un nombre, así que es la parte de la lista más respaldada.
+  soloConDocumento = false,
 ) {
   const [desaparecidos, setDesaparecidos] = useState<Desaparecido[]>([])
   const [total, setTotal] = useState<number | null>(null)
@@ -114,13 +118,21 @@ export function useDesaparecidosMapa(
       // limitadas Y cuántas coinciden en total. Antes eran dos consultas
       // escritas por separado —una para el contador, otra para el mapa— y
       // por eso decían cosas distintas. Con una sola no pueden desalinearse.
-      let q = supabase
+      // El tipo va suelto A PROPÓSITO: cada `.eq()/.not()` encadenado suma
+      // una capa al tipo inferido, y con tantos filtros TypeScript se rinde
+      // ("type instantiation is excessively deep"). La seguridad se recupera
+      // abajo, al convertir el resultado a Desaparecido[].
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q: any = supabase
         .from('desaparecidos')
         .select(COLS_DESAP, { count: 'exact' })
         .eq('estado', 'no_encontrado')
         .not('lat', 'is', null)
       if (pais) q = q.eq('pais', pais)
       if (tipoSer) q = q.eq('tipo_ser', tipoSer)
+      // El scraper solo escribe `documento` cuando el patrón coincide, así
+      // que no-nulo basta: no hay cadenas vacías que descartar.
+      if (soloConDocumento) q = q.not('documento', 'is', null)
       if (term) {
         q = q.ilike('nombre', `%${term}%`)
       } else if (zona) {
@@ -145,7 +157,7 @@ export function useDesaparecidosMapa(
       cancel = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activo, term, zk, pais, tipoSer, pagina])
+  }, [activo, term, zk, pais, tipoSer, pagina, soloConDocumento])
 
   const paginas =
     totalZona === null ? 1 : Math.max(1, Math.ceil(totalZona / POR_PAGINA))
