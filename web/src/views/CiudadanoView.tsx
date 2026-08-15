@@ -6,6 +6,8 @@ import {
   Heart,
   SlidersHorizontal,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
   UserSearch,
   MapPin,
@@ -409,9 +411,11 @@ export default function CiudadanoView() {
   // nunca cuadraba con las burbujas y parecía un error.
   const [desapZona, setDesapZona] = useState<{
     enZona: number | null
-    pintados: number
-    limitado: boolean
+    paginas: number
+    desde: number
+    hasta: number
   } | null>(null)
+  const [paginaDesap, setPaginaDesap] = useState(0)
   useEffect(() => {
     let cancel = false
     const consultar = () => {
@@ -524,6 +528,18 @@ export default function CiudadanoView() {
   // la activa con el botón 🔍 Desaparecidos. null = aún no ha tocado (oculta).
   const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
   const [busqDesap, setBusqDesap] = useState('')
+  // Volver a la página 1 al cambiar lo que se mira. Sin esto uno podía quedar
+  // en la "página 4" de una zona que ya no tiene tantos y ver el mapa vacío
+  // sin entender por qué.
+  useEffect(() => {
+    setPaginaDesap(0)
+  }, [paisDesap, tipoSerDesap, busqDesap])
+  // Y si al mover el mapa la zona nueva tiene menos páginas, uno se quedaría
+  // en una que ya no existe: mapa vacío y flechas muertas. Esto lo corrige
+  // solo, sin tener que avisar desde el mapa cada vez que se desplaza.
+  useEffect(() => {
+    if (desapZona && paginaDesap >= desapZona.paginas) setPaginaDesap(0)
+  }, [desapZona, paginaDesap])
   // Resultados de la búsqueda de desaparecidos: se muestran como LISTA y solo
   // al tocar a una persona se vuela el mapa hasta su punto.
   const [resultadosDesap, setResultadosDesap] = useState<Desaparecido[]>([])
@@ -816,6 +832,7 @@ export default function CiudadanoView() {
             // Tocar el mapa cierra el panel de filtros, que en el teléfono
             // tapa media pantalla.
             onTocarMapa={() => setVerFiltros(false)}
+            paginaDesap={paginaDesap}
             onDesapEnZona={setDesapZona}
             onHospitalSeleccionado={(hospital) => {
               setTipoFiltro('hospital')
@@ -994,26 +1011,63 @@ export default function CiudadanoView() {
                   dejan inservible un teléfono). Sin decirlo, el número
                   parecía estar mal. */}
               {desapZona?.enZona != null && (
-                <p className="mb-2 text-[11px] leading-snug text-gray-600 text-center">
-                  {desapZona.limitado ? (
-                    <>
-                      Viendo <b>{desapZona.pintados.toLocaleString('es')}</b> de{' '}
-                      <b>{desapZona.enZona.toLocaleString('es')}</b> en esta
-                      zona. Acerca el mapa para verlos todos.
-                    </>
-                  ) : (
-                    <>
-                      <b>{desapZona.enZona.toLocaleString('es')}</b> en esta
-                      zona
-                      {totalDesap != null && totalDesap > desapZona.enZona && (
-                        <>
-                          {' '}
-                          · {totalDesap.toLocaleString('es')} en total
-                        </>
-                      )}
-                    </>
+                <div className="mb-2">
+                  <p className="text-[11px] leading-snug text-gray-600 text-center">
+                    {desapZona.paginas > 1 ? (
+                      <>
+                        Viendo{' '}
+                        <b>
+                          {desapZona.desde.toLocaleString('es')}–
+                          {desapZona.hasta.toLocaleString('es')}
+                        </b>{' '}
+                        de <b>{desapZona.enZona.toLocaleString('es')}</b> aquí
+                      </>
+                    ) : (
+                      <>
+                        <b>{desapZona.enZona.toLocaleString('es')}</b> aquí
+                        {totalDesap != null &&
+                          totalDesap > desapZona.enZona && (
+                            <> · {totalDesap.toLocaleString('es')} en total</>
+                          )}
+                      </>
+                    )}
+                  </p>
+
+                  {/* Flechas: el servidor corta en 1.000 por respuesta, así
+                      que para llegar a los 6.379 de Caracas hay que ir de mil
+                      en mil. Sin esto, el número prometía gente inalcanzable. */}
+                  {desapZona.paginas > 1 && (
+                    <div className="mt-1.5 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPaginaDesap((p) => Math.max(0, p - 1))
+                        }
+                        disabled={paginaDesap === 0}
+                        aria-label="Página anterior de desaparecidos"
+                        className="grid h-8 w-8 place-items-center rounded-lg border-2 border-gray-200 text-gray-600 disabled:opacity-40"
+                      >
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <span className="text-[11px] font-bold text-gray-600">
+                        {paginaDesap + 1} / {desapZona.paginas}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPaginaDesap((p) =>
+                            Math.min((desapZona.paginas ?? 1) - 1, p + 1),
+                          )
+                        }
+                        disabled={paginaDesap >= desapZona.paginas - 1}
+                        aria-label="Página siguiente de desaparecidos"
+                        className="grid h-8 w-8 place-items-center rounded-lg border-2 border-gray-200 text-gray-600 disabled:opacity-40"
+                      >
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
                   )}
-                </p>
+                </div>
               )}
               {/* País y tipo en UNA fila de selectores.
                   Antes eran dos filas de botones (4 + 3) que se comían ~80px

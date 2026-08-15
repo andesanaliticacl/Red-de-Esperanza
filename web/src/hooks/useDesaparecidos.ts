@@ -39,9 +39,7 @@ const COLS_DESAP =
 // entera (13.684) serían ~1,3 MB y 14 viajes: mucho para un teléfono con
 // mala señal en plena emergencia. Por eso se muestran los de la zona visible
 // y se avisa cuántos faltan, en vez de descargarlo todo.
-const LIMITE_BUSQUEDA = 1000
-const LIMITE_ZONA = 1000
-const LIMITE_SIN_ZONA = 1000
+export const POR_PAGINA = 1000
 
 export interface ZonaMapa {
   norte: number
@@ -69,6 +67,10 @@ export function useDesaparecidosMapa(
   // 'persona' | 'mascota' | null (todos). Para distinguir de un vistazo qué
   // se está buscando: los reportes de mascota no son personas desaparecidas.
   tipoSer: 'persona' | 'mascota' | null = null,
+  // Página (0 = la primera). Como el servidor corta en 1.000 filas, la única
+  // forma de llegar a los 6.379 de Caracas es ir de mil en mil. Sin esto, el
+  // contador prometía un número al que no se podía llegar.
+  pagina = 0,
 ) {
   const [desaparecidos, setDesaparecidos] = useState<Desaparecido[]>([])
   const [total, setTotal] = useState<number | null>(null)
@@ -120,18 +122,21 @@ export function useDesaparecidosMapa(
       if (pais) q = q.eq('pais', pais)
       if (tipoSer) q = q.eq('tipo_ser', tipoSer)
       if (term) {
-        q = q.ilike('nombre', `%${term}%`).limit(LIMITE_BUSQUEDA)
+        q = q.ilike('nombre', `%${term}%`)
       } else if (zona) {
         q = q
           .gte('lat', zona.sur)
           .lte('lat', zona.norte)
           .gte('lng', zona.oeste)
           .lte('lng', zona.este)
-          .limit(LIMITE_ZONA)
-      } else {
-        q = q.limit(LIMITE_SIN_ZONA)
       }
+      // Orden ESTABLE: sin él, "página 2" puede repetir o saltarse gente,
+      // porque Postgres no garantiza el mismo orden entre consultas.
+      const desde = pagina * POR_PAGINA
       const { data, count } = await q
+        .order('creado_en', { ascending: false })
+        .order('id', { ascending: true })
+        .range(desde, desde + POR_PAGINA - 1)
       if (cancel) return
       setDesaparecidos((data ?? []) as Desaparecido[])
       setTotalZona(count ?? null)
@@ -140,20 +145,23 @@ export function useDesaparecidosMapa(
       cancel = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activo, term, zk, pais, tipoSer])
+  }, [activo, term, zk, pais, tipoSer, pagina])
+
+  const paginas =
+    totalZona === null ? 1 : Math.max(1, Math.ceil(totalZona / POR_PAGINA))
 
   return {
     desaparecidos,
     /** Cuántos hay en el país (el número grande del botón). */
     total,
-    /** Cuántos hay en el recuadro visible. Con esto se puede decir "viendo
-     *  800 de 3.400 aquí" en vez de mostrar un número que no cuadra. */
+    /** Cuántos coinciden aquí (zona visible o búsqueda), sin el tope. */
     totalZona,
-    /** Se llegó al tope: hay más de los que se pintaron. */
-    limitado:
-      totalZona !== null && desaparecidos.length > 0
-        ? totalZona > desaparecidos.length
-        : false,
+    /** Cuántas páginas hacen falta para verlos TODOS. */
+    paginas,
+    /** Posición del primero y del último que se está viendo (base 1), para
+     *  poder decir "viendo 1.001–2.000 de 6.379". */
+    desde: desaparecidos.length ? pagina * POR_PAGINA + 1 : 0,
+    hasta: pagina * POR_PAGINA + desaparecidos.length,
   }
 }
 
