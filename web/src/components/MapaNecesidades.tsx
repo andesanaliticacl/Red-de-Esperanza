@@ -706,6 +706,7 @@ export default function MapaNecesidades({
   busquedaDesap = '',
   paisDesap = null,
   tipoSerDesap = null,
+  paginaDesap = 0,
   irACoordenada = null,
   desaparecidoResaltadoId,
   onHospitalSeleccionado,
@@ -714,13 +715,15 @@ export default function MapaNecesidades({
   idsAsignadoVerificado,
   vistaPaisDesap,
 }: {
-  /** Avisa cuántos desaparecidos hay en la zona visible y cuántos se
-   *  alcanzaron a pintar, para que la vista pueda mostrar un número que
-   *  cuadre con lo que se ve en el mapa. */
+  /** Página de desaparecidos a mostrar (0 = la primera). */
+  paginaDesap?: number
+  /** Avisa cuántos desaparecidos coinciden aquí y cuáles se están viendo,
+   *  para que la vista pinte las flechas de página y un número que cuadre. */
   onDesapEnZona?: (r: {
     enZona: number | null
-    pintados: number
-    limitado: boolean
+    paginas: number
+    desde: number
+    hasta: number
   }) => void
   /** Se llama al tocar el mapa (no un marcador): sirve para que la vista
    *  cierre los paneles que estén tapándolo. */
@@ -948,23 +951,27 @@ export default function MapaNecesidades({
   const {
     desaparecidos: desapVisibles,
     totalZona: totalDesapZona,
-    limitado: desapLimitado,
+    paginas: paginasDesap,
+    desde: desdeDesap,
+    hasta: hastaDesap,
   } = useDesaparecidosMapa(
     verDesap,
     zona,
     busquedaDesap,
     paisDesap,
     tipoSerDesap,
+    paginaDesap,
   )
-  // La vista de arriba necesita saber cuántos hay AQUÍ y cuántos se pintaron,
-  // para poder decirlo en vez de mostrar un número que no cuadra con el mapa.
+  // La vista de arriba necesita estos números para pintar las flechas de
+  // página y decir exactamente cuáles se están viendo.
   useEffect(() => {
     onDesapEnZona?.({
       enZona: totalDesapZona,
-      pintados: desapVisibles.length,
-      limitado: desapLimitado,
+      paginas: paginasDesap,
+      desde: desdeDesap,
+      hasta: hastaDesap,
     })
-  }, [totalDesapZona, desapVisibles.length, desapLimitado, onDesapEnZona])
+  }, [totalDesapZona, paginasDesap, desdeDesap, hastaDesap, onDesapEnZona])
   // Esparcir los que comparten coordenada (ciudad) para que se puedan ver y
   // abrir uno por uno al acercar, sin apilar cientos en un pixel.
   const posDesap = useMemo(
