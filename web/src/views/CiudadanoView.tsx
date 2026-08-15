@@ -404,6 +404,14 @@ export default function CiudadanoView() {
   // Total de desaparecidos para el contador del botón. Se difiere (no es
   // crítico para la primera pintada) para no competir con la carga del mapa.
   const [totalDesap, setTotalDesap] = useState<number | null>(null)
+  // Cuántos hay en el trozo de mapa que se está viendo y cuántos se pintaron.
+  // El contador del botón cuenta TODO el país, así que sin esto el número
+  // nunca cuadraba con las burbujas y parecía un error.
+  const [desapZona, setDesapZona] = useState<{
+    enZona: number | null
+    pintados: number
+    limitado: boolean
+  } | null>(null)
   useEffect(() => {
     let cancel = false
     const consultar = () => {
@@ -808,6 +816,7 @@ export default function CiudadanoView() {
             // Tocar el mapa cierra el panel de filtros, que en el teléfono
             // tapa media pantalla.
             onTocarMapa={() => setVerFiltros(false)}
+            onDesapEnZona={setDesapZona}
             onHospitalSeleccionado={(hospital) => {
               setTipoFiltro('hospital')
               setHospitalSeleccionado(hospital)
@@ -979,6 +988,33 @@ export default function CiudadanoView() {
                 verFiltros ? 'mt-2 pt-2 border-t border-gray-200' : ''
               }
             >
+              {/* Qué se está viendo, en números que SÍ cuadran con el mapa.
+                  El contador del botón cuenta todo el país; el mapa solo
+                  pinta los del recuadro visible y con un tope (13.000 pines
+                  dejan inservible un teléfono). Sin decirlo, el número
+                  parecía estar mal. */}
+              {desapZona?.enZona != null && (
+                <p className="mb-2 text-[11px] leading-snug text-gray-600 text-center">
+                  {desapZona.limitado ? (
+                    <>
+                      Viendo <b>{desapZona.pintados.toLocaleString('es')}</b> de{' '}
+                      <b>{desapZona.enZona.toLocaleString('es')}</b> en esta
+                      zona. Acerca el mapa para verlos todos.
+                    </>
+                  ) : (
+                    <>
+                      <b>{desapZona.enZona.toLocaleString('es')}</b> en esta
+                      zona
+                      {totalDesap != null && totalDesap > desapZona.enZona && (
+                        <>
+                          {' '}
+                          · {totalDesap.toLocaleString('es')} en total
+                        </>
+                      )}
+                    </>
+                  )}
+                </p>
+              )}
               {/* País y tipo en UNA fila de selectores.
                   Antes eran dos filas de botones (4 + 3) que se comían ~80px
                   del mapa en el teléfono. Como selectores ocupan una sola

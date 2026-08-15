@@ -24,6 +24,16 @@ class PersonaDesaparecida:
     # esta columna, así que un import sin `pais` queda invisible en la UI
     # aunque esté bien guardado. None = se deja como esté en la base.
     pais: Optional[str] = None
+    # Cédula/documento, SOLO si la fuente lo publica completo y en claro
+    # (migración 74). Hoy ninguna lo hace: la fuente de Venezuela no trae el
+    # campo y la de Colombia lo enmascara ("****880") a propósito. Se deja
+    # listo para cuando aparezca una que sí, y para poder contar a cuántos
+    # tenemos identificados.
+    #
+    # NO guardar aquí un documento parcial o enmascarado: no identifica a
+    # nadie y ensucia el conteo de "identificados", que es justo para lo que
+    # sirve este campo.
+    documento: Optional[str] = None
     fuente: str = "desaparecidos_terremoto_vzla"
 
     def to_row(self) -> dict:

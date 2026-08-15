@@ -710,9 +710,18 @@ export default function MapaNecesidades({
   desaparecidoResaltadoId,
   onHospitalSeleccionado,
   onTocarMapa,
+  onDesapEnZona,
   idsAsignadoVerificado,
   vistaPaisDesap,
 }: {
+  /** Avisa cuántos desaparecidos hay en la zona visible y cuántos se
+   *  alcanzaron a pintar, para que la vista pueda mostrar un número que
+   *  cuadre con lo que se ve en el mapa. */
+  onDesapEnZona?: (r: {
+    enZona: number | null
+    pintados: number
+    limitado: boolean
+  }) => void
   /** Se llama al tocar el mapa (no un marcador): sirve para que la vista
    *  cierre los paneles que estén tapándolo. */
   onTocarMapa?: () => void
@@ -936,13 +945,26 @@ export default function MapaNecesidades({
   // miles de visitantes sin descargar las 66k a cada uno.
   const verDesap = verDesaparecidos
   const [zona, setZona] = useState<ZonaMapa | null>(null)
-  const { desaparecidos: desapVisibles } = useDesaparecidosMapa(
+  const {
+    desaparecidos: desapVisibles,
+    totalZona: totalDesapZona,
+    limitado: desapLimitado,
+  } = useDesaparecidosMapa(
     verDesap,
     zona,
     busquedaDesap,
     paisDesap,
     tipoSerDesap,
   )
+  // La vista de arriba necesita saber cuántos hay AQUÍ y cuántos se pintaron,
+  // para poder decirlo en vez de mostrar un número que no cuadra con el mapa.
+  useEffect(() => {
+    onDesapEnZona?.({
+      enZona: totalDesapZona,
+      pintados: desapVisibles.length,
+      limitado: desapLimitado,
+    })
+  }, [totalDesapZona, desapVisibles.length, desapLimitado, onDesapEnZona])
   // Esparcir los que comparten coordenada (ciudad) para que se puedan ver y
   // abrir uno por uno al acercar, sin apilar cientos en un pixel.
   const posDesap = useMemo(
