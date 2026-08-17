@@ -20,6 +20,7 @@ import CampanaNotificaciones from '../components/CampanaNotificaciones'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
 import OfertaModal from '../components/OfertaModal'
+import RegistroEnVivo from '../components/RegistroEnVivo'
 import ChatGlobal from '../components/ChatGlobal'
 import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
@@ -1385,6 +1386,24 @@ export default function CiudadanoView() {
           data-map-overlay="bottom"
         >
           <div className="px-4 pb-4 pt-2">
+            {/* Registro en vivo, encima de los botones: se lee de paso, no
+                hay que ir a buscarlo. Se oculta solo si no ha pasado nada. */}
+            <div className="mx-auto w-full max-w-md mb-2">
+              <RegistroEnVivo
+                onIr={(m) => {
+                  if (m.lat == null || m.lng == null) return
+                  setIrACoordenada([m.lat, m.lng])
+                  // Enciende la capa que corresponda, o el marcador al que
+                  // llevamos no estaría dibujado y el mapa iría a un punto
+                  // vacío: peor que no hacer nada.
+                  if (m.clase === 'oferta') {
+                    setCapas((c) => ({ ...c, tengo: true }))
+                  } else {
+                    setVerDesapManual(false)
+                  }
+                }}
+              />
+            </div>
             <div className="mx-auto w-full max-w-md flex flex-col gap-2.5 pointer-events-auto">
               {/* "Crear Cuenta" desaparece para quien ya tiene sesión. */}
               {!session && (
