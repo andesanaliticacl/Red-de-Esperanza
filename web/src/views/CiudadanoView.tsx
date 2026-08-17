@@ -43,7 +43,6 @@ import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   TIPO_META,
-  TIPOS_ALERTA,
   TIPOS_PELIGRO,
   type Necesidad,
   type CentroAcopio,
@@ -51,16 +50,6 @@ import {
   type NecesidadUrgencia,
 } from '../lib/types'
 
-// Opciones del filtro: las alertas reportables (lista única en types.ts) más
-// los centros de acopio. 'hospital' se añade aparte en el desplegable, porque
-// es un subtipo de acopio y no un tipo propio. 'atencion_psicologica' se
-// excluye a propósito: esas solicitudes no llevan ubicación (son privadas) y
-// nunca aparecen como marcador, así que filtrar por ese tipo no mostraría
-// nada — la opción solo confundía.
-const TIPOS_FILTRO: NecesidadTipo[] = [
-  ...TIPOS_ALERTA.filter((t) => t !== 'atencion_psicologica'),
-  'acopio',
-]
 // Filtro de tipo: necesidad, 'todos', o 'hospital' (subtipo de acopio).
 type FiltroTipo = NecesidadTipo | 'todos' | 'hospital'
 
@@ -744,7 +733,6 @@ export default function CiudadanoView() {
   // que el usuario pulse el botón 🔍 Desaparecidos (o busque por nombre). Así no
   // tapan las necesidades a primera vista.
   const verDesap = verDesapManual ?? false
-  const desapConCoords = totalDesap ?? 0
 
   // Se consulta UNA sola vez, la primera vez que se abre la capa (no en cada
   // toggle). El scraper (Python, fuera de la web) está PAUSADO: la fuente
@@ -1011,41 +999,14 @@ export default function CiudadanoView() {
                   )
                 })}
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                <select
-                  className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
-                  value={tipoFiltro}
-                  onChange={(e) => setTipoFiltro(e.target.value as FiltroTipo)}
-                >
-                  <option value="todos">Todo tipo de ayuda</option>
-                  {TIPOS_FILTRO.map((t) => (
-                    <option key={t} value={t}>
-                      {TIPO_META[t].emoji} {TIPO_META[t].etiqueta}
-                    </option>
-                  ))}
-                  <option value="hospital">🏥 Hospital</option>
-                </select>
-                <button
-                  onClick={() => {
-                    const nuevo = !verDesap
-                    setVerDesapManual(nuevo)
-                    if (!nuevo) setBusqDesap('')
-                  }}
-                  aria-pressed={verDesap}
-                  className={`w-full flex items-center justify-center gap-1.5 rounded-lg border-2 px-2 py-1.5 text-sm font-semibold whitespace-nowrap ${
-                    verDesap
-                      ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
-                      : 'border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {verDesap ? (
-                    <Check className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <UserSearch className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  Desaparecidos{desapConCoords ? ` (${desapConCoords})` : ''}
-                </button>
-              </div>
+              {/* Se quitó el desplegable "Todo tipo de ayuda": los cuatro
+                  botones de arriba ya dicen qué se ve, y una lista de catorce
+                  tipos encima era pedirle a la persona que eligiera dos veces
+                  lo mismo. El estado `tipoFiltro` sigue existiendo porque el
+                  mapa lo usa al tocar un hospital.
+                  El botón de Desaparecidos se mudó abajo, junto a SOS y
+                  Reportar: buscar a alguien es de lo primero que hace la gente
+                  y estaba escondido detrás de "Filtrar". */}
               <select
                 className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium mt-1.5"
                 value={urgFiltro}
@@ -1461,6 +1422,29 @@ export default function CiudadanoView() {
                 >
                   <MessageSquarePlus className="h-5 w-5 shrink-0" aria-hidden="true" />
                   Reportar
+                </button>
+                {/* Desaparecidos sale de los filtros y se pone aquí, con los
+                    otros dos: buscar a alguien es de lo primero que hace la
+                    gente y estaba escondido detrás de "Filtrar". */}
+                <button
+                  onClick={() => {
+                    const nuevo = !verDesap
+                    setVerDesapManual(nuevo)
+                    if (!nuevo) setBusqDesap('')
+                    // Al encenderla se abren los filtros, que es donde están
+                    // el buscador por nombre y "Ya encontradas": sin eso, el
+                    // botón prende una capa y no se ve cómo usarla.
+                    if (nuevo) setVerFiltros(true)
+                  }}
+                  aria-pressed={verDesap}
+                  className={`flex-1 min-h-[3.5rem] px-3 text-sm sm:text-base leading-tight rounded-2xl font-bold border-2 flex items-center justify-center gap-1.5 ${
+                    verDesap
+                      ? 'bg-purple-700 border-purple-700 text-white'
+                      : 'bg-white border-purple-700 text-purple-700'
+                  }`}
+                >
+                  <UserSearch className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  Desaparecidos
                 </button>
               </div>
             </div>
