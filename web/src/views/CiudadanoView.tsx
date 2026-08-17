@@ -1092,35 +1092,40 @@ export default function CiudadanoView() {
                   oficial de por medio, no solo con un nombre. La fuente lo
                   publica enmascarado, así que NO identifica a nadie: lo que
                   dice es que ese caso está respaldado. */}
-              <button
-                type="button"
-                onClick={() => setSoloConDoc((v) => !v)}
-                aria-pressed={soloConDoc}
-                className={`mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 py-1.5 text-[11px] font-bold transition-colors ${
-                  soloConDoc
-                    ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
-                    : 'border-gray-200 text-gray-500'
-                }`}
-              >
-                <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Solo con documento
-              </button>
+              {/* Los dos en UNA fila: apilados se comían el doble de alto sin
+                  aportar nada, y son la misma clase de cosa (dos maneras de
+                  acotar la misma lista). */}
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setSoloConDoc((v) => !v)}
+                  aria-pressed={soloConDoc}
+                  className={`flex items-center justify-center gap-1 rounded-lg border-2 py-1.5 px-1 text-[11px] font-bold leading-tight transition-colors ${
+                    soloConDoc
+                      ? 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                      : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Con documento
+                </button>
 
-              {/* Ya localizados. No pisa la capa de desaparecidos: se suma. */}
-              <button
-                type="button"
-                onClick={() => setVerEncontrados((v) => !v)}
-                aria-pressed={verEncontrados}
-                className={`mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 py-1.5 text-[11px] font-bold transition-colors ${
-                  verEncontrados
-                    ? 'border-green-600 bg-green-50 text-green-700'
-                    : 'border-gray-200 text-gray-500'
-                }`}
-              >
-                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Ya encontradas
-                {totalEncontrados != null ? ` (${totalEncontrados})` : ''}
-              </button>
+                {/* Ya localizados. No pisa la capa de desaparecidos: se suma. */}
+                <button
+                  type="button"
+                  onClick={() => setVerEncontrados((v) => !v)}
+                  aria-pressed={verEncontrados}
+                  className={`flex items-center justify-center gap-1 rounded-lg border-2 py-1.5 px-1 text-[11px] font-bold leading-tight transition-colors ${
+                    verEncontrados
+                      ? 'border-green-600 bg-green-50 text-green-700'
+                      : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Encontradas
+                  {totalEncontrados != null ? ` (${totalEncontrados})` : ''}
+                </button>
+              </div>
 
               {verEncontrados && (
                 <div className="mb-2 rounded-lg border-2 border-green-100 bg-green-50/60 p-1.5">
@@ -1163,9 +1168,22 @@ export default function CiudadanoView() {
                 </div>
               )}
 
+              {/* Flechas A LOS LADOS del texto, no debajo: antes eran dos
+                  filas (el conteo y luego los controles) y ahora es una. */}
               {desapZona?.enZona != null && (
-                <div className="mb-2">
-                  <p className="text-[11px] leading-snug text-gray-600 text-center">
+                <div className="mb-2 flex items-center justify-center gap-2">
+                  {desapZona.paginas > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setPaginaDesap((p) => Math.max(0, p - 1))}
+                      disabled={paginaDesap === 0}
+                      aria-label="Página anterior de desaparecidos"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 border-gray-200 text-gray-600 disabled:opacity-40"
+                    >
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
+                  <p className="min-w-0 text-[11px] leading-snug text-gray-600 text-center">
                     {desapZona.paginas > 1 ? (
                       <>
                         Viendo{' '}
@@ -1185,40 +1203,23 @@ export default function CiudadanoView() {
                       </>
                     )}
                   </p>
-
-                  {/* Flechas: el servidor corta en 1.000 por respuesta, así
-                      que para llegar a los 6.379 de Caracas hay que ir de mil
-                      en mil. Sin esto, el número prometía gente inalcanzable. */}
+                  {/* El servidor corta en 1.000 por respuesta, así que para
+                      llegar a los 6.379 de Caracas hay que ir de mil en mil.
+                      Sin esto, el número prometía gente inalcanzable. */}
                   {desapZona.paginas > 1 && (
-                    <div className="mt-1.5 flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPaginaDesap((p) => Math.max(0, p - 1))
-                        }
-                        disabled={paginaDesap === 0}
-                        aria-label="Página anterior de desaparecidos"
-                        className="grid h-8 w-8 place-items-center rounded-lg border-2 border-gray-200 text-gray-600 disabled:opacity-40"
-                      >
-                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                      <span className="text-[11px] font-bold text-gray-600">
-                        {paginaDesap + 1} / {desapZona.paginas}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPaginaDesap((p) =>
-                            Math.min((desapZona.paginas ?? 1) - 1, p + 1),
-                          )
-                        }
-                        disabled={paginaDesap >= desapZona.paginas - 1}
-                        aria-label="Página siguiente de desaparecidos"
-                        className="grid h-8 w-8 place-items-center rounded-lg border-2 border-gray-200 text-gray-600 disabled:opacity-40"
-                      >
-                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPaginaDesap((p) =>
+                          Math.min((desapZona.paginas ?? 1) - 1, p + 1),
+                        )
+                      }
+                      disabled={paginaDesap >= desapZona.paginas - 1}
+                      aria-label="Página siguiente de desaparecidos"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 border-gray-200 text-gray-600 disabled:opacity-40"
+                    >
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
                   )}
                 </div>
               )}
@@ -1393,16 +1394,41 @@ export default function CiudadanoView() {
               />
             </div>
             <div className="mx-auto w-full max-w-md flex flex-col gap-2.5 pointer-events-auto">
-              {/* "Crear Cuenta" desaparece para quien ya tiene sesión. */}
-              {!session && (
+              {/* Fila chica: "Crear Cuenta" a la izquierda y "Desaparecidos"
+                  a la derecha. Desaparecidos bajó de botón grande a pastilla
+                  porque compite con SOS y Reportar sin ser una urgencia del
+                  mismo tipo: se busca a alguien con calma, no en tres
+                  segundos. Y devuelve alto al mapa. */}
+              <div className="flex items-center justify-between gap-2">
+                {!session ? (
+                  <button
+                    onClick={() => navigate('/registro?rol=voluntario')}
+                    className="btn-verde w-auto text-sm py-2 px-5"
+                  >
+                    <Heart className="h-4 w-4" aria-hidden="true" />
+                    Crear Cuenta
+                  </button>
+                ) : (
+                  <span />
+                )}
                 <button
-                  onClick={() => navigate('/registro?rol=voluntario')}
-                  className="btn-verde self-center w-auto text-sm py-2 px-6"
+                  onClick={() => {
+                    const nuevo = !verDesap
+                    setVerDesapManual(nuevo)
+                    if (!nuevo) setBusqDesap('')
+                    if (nuevo) setVerFiltros(true)
+                  }}
+                  aria-pressed={verDesap}
+                  className={`flex items-center gap-1.5 rounded-full border-2 py-2 px-4 text-sm font-bold whitespace-nowrap ${
+                    verDesap
+                      ? 'bg-purple-700 border-purple-700 text-white'
+                      : 'bg-white border-purple-700 text-purple-700'
+                  }`}
                 >
-                  <Heart className="h-4 w-4" aria-hidden="true" />
-                  Crear Cuenta
+                  <UserSearch className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  Desaparecidos
                 </button>
-              )}
+              </div>
               {/* SOS + Reportar lado a lado: más compacto y deja más mapa
                   visible. Misma altura mínima para que el SOS, que lleva dos
                   líneas, no deje al otro botón descuadrado. */}
@@ -1422,29 +1448,6 @@ export default function CiudadanoView() {
                 >
                   <MessageSquarePlus className="h-5 w-5 shrink-0" aria-hidden="true" />
                   Reportar
-                </button>
-                {/* Desaparecidos sale de los filtros y se pone aquí, con los
-                    otros dos: buscar a alguien es de lo primero que hace la
-                    gente y estaba escondido detrás de "Filtrar". */}
-                <button
-                  onClick={() => {
-                    const nuevo = !verDesap
-                    setVerDesapManual(nuevo)
-                    if (!nuevo) setBusqDesap('')
-                    // Al encenderla se abren los filtros, que es donde están
-                    // el buscador por nombre y "Ya encontradas": sin eso, el
-                    // botón prende una capa y no se ve cómo usarla.
-                    if (nuevo) setVerFiltros(true)
-                  }}
-                  aria-pressed={verDesap}
-                  className={`flex-1 min-h-[3.5rem] px-3 text-sm sm:text-base leading-tight rounded-2xl font-bold border-2 flex items-center justify-center gap-1.5 ${
-                    verDesap
-                      ? 'bg-purple-700 border-purple-700 text-white'
-                      : 'bg-white border-purple-700 text-purple-700'
-                  }`}
-                >
-                  <UserSearch className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  Desaparecidos
                 </button>
               </div>
             </div>
