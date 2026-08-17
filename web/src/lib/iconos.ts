@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import { TIPO_META, ES_RECURSO, type NecesidadTipo, type NecesidadEstado } from './types'
 import { svgIcono } from './svgTipos'
+import { OFERTA_META, type OfertaTipo } from './ofertas'
 
 /**
  * Íconos de Leaflet como divIcon (sin imágenes externas → evita el clásico
@@ -150,6 +151,47 @@ export function iconoNecesidad(
     popupAnchor: [0, -tam + 2],
   })
   _cacheNecesidad.set(clave, icono)
+  return icono
+}
+
+/**
+ * Marcador de OFERTA ("Yo tengo"): cuadrado redondeado.
+ *
+ * La forma es lo que lo distingue, no el color. En el mapa ya hay dos formas
+ * en uso —la GOTA que apunta al suelo (necesidades y acopio) y el CÍRCULO
+ * (desaparecidos)—, así que la oferta estrena una tercera. Si solo cambiara
+ * el color, quien no distingue rojo de verde vería el mismo mapa que hoy, y
+ * aquí se toman decisiones urgentes.
+ *
+ * También cambia el ancla: la gota apunta a un punto exacto ("el problema es
+ * AQUÍ"); la oferta va centrada, porque dice "esto está por acá".
+ */
+const _cacheOferta = new Map<string, L.DivIcon>()
+
+export function iconoOferta(tipo: OfertaTipo, compacto = false): L.DivIcon {
+  const clave = `${tipo}|${compacto ? 1 : 0}`
+  const enCache = _cacheOferta.get(clave)
+  if (enCache) return enCache
+
+  const { color, emoji } = OFERTA_META[tipo]
+  const tam = compacto ? 34 : 42
+  const fuente = Math.round(tam * 0.5)
+  const icono = L.divIcon({
+    className: 'marcador-oferta',
+    html: `
+      <div style="
+        width:${tam}px;height:${tam}px;
+        background:${color};
+        border-radius:${Math.round(tam * 0.3)}px;
+        border:3px solid #fff;
+        ${compacto ? '' : 'box-shadow:0 2px 6px rgba(0,0,0,.4);'}
+        display:flex;align-items:center;justify-content:center;
+        font-size:${fuente}px;line-height:1;">${emoji}</div>`,
+    iconSize: [tam, tam],
+    iconAnchor: [tam / 2, tam / 2],
+    popupAnchor: [0, -tam / 2],
+  })
+  _cacheOferta.set(clave, icono)
   return icono
 }
 
