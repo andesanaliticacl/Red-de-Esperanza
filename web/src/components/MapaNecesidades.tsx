@@ -32,7 +32,10 @@ import {
   iconoHospitalCompacto,
   iconoHospitalFuera,
   iconoUsuario,
+  iconoOferta,
 } from '../lib/iconos'
+import { useOfertas } from '../hooks/useOfertas'
+import { OFERTA_META } from '../lib/ofertas'
 import IconoRuta from './IconoRuta'
 
 function IconoCompartir({ className = '' }: { className?: string }) {
@@ -703,6 +706,7 @@ export default function MapaNecesidades({
   resaltadaAcopioId,
   ajustarVista = false,
   verDesaparecidos = false,
+  verOfertas = false,
   busquedaDesap = '',
   paisDesap = null,
   tipoSerDesap = null,
@@ -737,6 +741,9 @@ export default function MapaNecesidades({
   miFoto?: string | null
   /** Si la capa de desaparecidos está visible (controlada desde la vista). */
   verDesaparecidos?: boolean
+  /** Si la capa de ofertas ("Yo tengo") está visible. Apagada por defecto:
+   *  el mapa no debe llenarse solo, solo si la persona la pide. */
+  verOfertas?: boolean
   /** Texto de búsqueda por nombre de desaparecido. */
   busquedaDesap?: string
   /** País a mostrar en la capa de desaparecidos (null = todos). */
@@ -950,6 +957,12 @@ export default function MapaNecesidades({
   // la zona visible (o por nombre si hay búsqueda). Sin realtime. Escala a
   // miles de visitantes sin descargar las 66k a cada uno.
   const verDesap = verDesaparecidos
+
+  // Capa de ofertas ("Yo tengo"): igual que los desaparecidos, solo se
+  // consulta si la capa está encendida. Quien no la pide no paga la consulta
+  // ni ve el mapa más cargado.
+  const { ofertas } = useOfertas(verOfertas)
+
   const [zona, setZona] = useState<ZonaMapa | null>(null)
   const {
     desaparecidos: desapVisibles,
@@ -1085,7 +1098,7 @@ export default function MapaNecesidades({
           >
             <Popup>
               {abierto === n.id && (
-              <div className="relative space-y-1 pr-28">
+              <div className="relative space-y-1 pr-10">
                 <button
                   type="button"
                   onClick={() =>
@@ -1094,12 +1107,11 @@ export default function MapaNecesidades({
                       url: linkDirecto('necesidad', n.id),
                     })
                   }
-                  className="absolute right-0 top-0 inline-flex h-8 items-center gap-1.5 rounded-lg border border-bandera-azul/20 bg-white px-2.5 text-xs font-semibold text-bandera-azul shadow-sm hover:bg-bandera-azul/5"
+                  className="absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-bandera-azul/20 bg-white text-bandera-azul shadow-sm hover:bg-bandera-azul/5"
                   title="Compartir alerta"
                   aria-label="Compartir alerta"
                 >
                   <IconoCompartir className="h-4 w-4" />
-                  <span>Compartir</span>
                 </button>
                 <div className="font-bold">
                   {TIPO_META[n.tipo].emoji} {TIPO_META[n.tipo].etiqueta}
@@ -1295,7 +1307,7 @@ export default function MapaNecesidades({
         >
           <Popup>
             {abierto === `acopio:${a.id}` && (
-            <div className="relative pr-28">
+            <div className="relative pr-10">
             <button
               type="button"
               onClick={() =>
@@ -1304,12 +1316,11 @@ export default function MapaNecesidades({
                   url: linkDirecto('acopio', a.id),
                 })
               }
-              className="absolute right-0 top-0 inline-flex h-8 items-center gap-1.5 rounded-lg border border-bandera-azul/20 bg-white px-2.5 text-xs font-semibold text-bandera-azul shadow-sm hover:bg-bandera-azul/5"
+              className="absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-bandera-azul/20 bg-white text-bandera-azul shadow-sm hover:bg-bandera-azul/5"
               title="Compartir alerta"
               aria-label="Compartir alerta"
             >
               <IconoCompartir className="h-4 w-4" />
-              <span>Compartir</span>
             </button>
             <div className="font-bold">
               {esHospital ? '🏥' : esAnimal ? '🐾' : '📦'} {a.nombre}
@@ -1394,6 +1405,40 @@ export default function MapaNecesidades({
         </Marker>
         )
       })}
+
+      {/* Ofertas ("Yo tengo"): solo si la capa está activada. No se agrupan en
+          clusters como los desaparecidos porque son decenas, no miles, y
+          agruparlas escondería justo lo que se vino a buscar. Van en cuadrado
+          redondeado para distinguirse por FORMA de la gota de las necesidades
+          y del círculo de los desaparecidos, no solo por color. */}
+      {ofertas
+        .filter((o) => o.lat != null && o.lng != null)
+        .map((o) => (
+          <Marker
+            key={`oferta-${o.id}`}
+            position={[o.lat as number, o.lng as number]}
+            icon={iconoOferta(o.tipo, esMovil)}
+          >
+            <Popup>
+              <div className="min-w-0 max-w-[220px]">
+                <div className="font-extrabold text-sm mb-1">
+                  {OFERTA_META[o.tipo].emoji} {OFERTA_META[o.tipo].etiqueta}
+                </div>
+                <p className="text-sm break-words">{o.descripcion}</p>
+                {o.enlace && (
+                  <a
+                    href={o.enlace}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-block text-sm font-bold text-bandera-azul break-all"
+                  >
+                    Entrar al grupo →
+                  </a>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
       {/* Desaparecidos: solo si la capa está activada. Se cargan por zona
           visible y se agrupan en clusters (burbujas con número). */}
