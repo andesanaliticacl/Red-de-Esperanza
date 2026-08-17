@@ -175,8 +175,12 @@ export default function ReportarModal({
   coordInicial,
   fuenteInicial,
   puedeReportarHospital = false,
+  onYoTengo,
 }: {
   onCerrar: () => void
+  /** Abre el formulario de "Yo tengo" (ofrecer ayuda). Si no se pasa, la
+   *  opción no aparece. */
+  onYoTengo?: () => void
   // `extra` solo se llena para 'desaparecido': permite al padre encender la
   // capa del mapa, elegir el país correcto y resaltar el registro recién
   // creado (antes se le decía al usuario "ya aparece en el mapa" sin hacer
@@ -1202,6 +1206,21 @@ export default function ReportarModal({
               ejemplos="Persona o mascota, con nombre y foto"
               onClick={() => setPasoPersonaAnimal('elegir')}
             />
+
+            {/* "Yo tengo" vive aquí, junto a lo demás, y no escondido en los
+                filtros del mapa: quien abre "Reportar" viene a contar algo, y
+                ofrecer ayuda es contar algo. En verde, porque es lo único de
+                esta lista que SUMA en vez de pedir. */}
+            {onYoTengo && (
+              <BloqueOpcion
+                icono={HeartHandshake}
+                color="#16A34A"
+                titulo="Yo tengo"
+                ejemplos="Agua, comida, techo, internet, un grupo del barrio…"
+                onClick={onYoTengo}
+                flecha
+              />
+            )}
 
             {/* Salidas poco frecuentes: presentes, pero sin competir con las
                 opciones grandes de arriba. */}

@@ -547,6 +547,7 @@ export default function CiudadanoView() {
     necesito: true,
     peligro: true,
     tengo: false,
+    mascotas: true,
   })
   const [ofertaAbierta, setOfertaAbierta] = useState(false)
   const [busqDesap, setBusqDesap] = useState('')
@@ -780,13 +781,18 @@ export default function CiudadanoView() {
   // "Aviso de peligro" no es una tabla aparte: son los tipos de necesidad que
   // avisan de un riesgo en vez de pedir un recurso. Separarlos en la interfaz
   // es lo que permite mirar solo los peligros sin el ruido de los pedidos.
-  const porCapa = useMemo(() => {
-    if (capas.necesito && capas.peligro) return filtradas
-    if (!capas.necesito && !capas.peligro) return []
-    return filtradas.filter((n) =>
-      capas.peligro ? TIPOS_PELIGRO.has(n.tipo) : !TIPOS_PELIGRO.has(n.tipo),
-    )
-  }, [filtradas, capas.necesito, capas.peligro])
+  // Cada reporte cae en UNA sola de las tres casillas, y cada casilla tiene su
+  // interruptor. Así "Mascotas" se puede mirar sola —o apagar— sin tocar el
+  // resto, que es lo que se pidió: todo lo de animales junto y aparte.
+  const porCapa = useMemo(
+    () =>
+      filtradas.filter((n) => {
+        if (n.tipo === 'mascota') return capas.mascotas
+        if (TIPOS_PELIGRO.has(n.tipo)) return capas.peligro
+        return capas.necesito
+      }),
+    [filtradas, capas.necesito, capas.peligro, capas.mascotas],
+  )
 
   const necesidadesMapa = verDesap ? [] : porCapa
   const acopiosMapa = verDesap ? [] : acopiosVisibles
@@ -948,12 +954,18 @@ export default function CiudadanoView() {
               {/* Qué se ve en el mapa. Van dentro de la tarjeta que ya existía
                   en vez de una barra propia: sumar otra franja fija habría
                   costado mapa, que es lo que la gente vino a mirar. */}
-              <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+              {/* Dos por fila y no cuatro: a 320 px, cuatro columnas dejan
+                  botones de 66 px donde "Mascotas" se parte en dos lineas.
+                  Grandes y de a dos se leen sin esfuerzo, que es el punto. */}
+              <div className="grid grid-cols-2 gap-1.5 mb-1.5">
                 {(
                   [
-                    ['necesito', '🆘', 'Necesito'],
+                    // 🙋 y no 🆘: el botón SOS ya usa 🆘, y repetirlo aquí
+                    // hacía pensar que este filtro tenía que ver con el SOS.
+                    ['necesito', '🙋', 'Necesito'],
                     ['peligro', '⚠️', 'Peligro'],
                     ['tengo', '🤝', 'Yo tengo'],
+                    ['mascotas', '🐾', 'Mascotas'],
                   ] as const
                 ).map(([clave, emoji, etiqueta]) => {
                   const activa = capas[clave]
@@ -964,26 +976,18 @@ export default function CiudadanoView() {
                         setCapas((c) => ({ ...c, [clave]: !c[clave] }))
                       }
                       aria-pressed={activa}
-                      className={`rounded-lg border-2 px-1 py-1.5 text-xs font-bold flex flex-col items-center gap-0.5 ${
+                      className={`rounded-lg border-2 px-1 py-3 text-sm font-bold flex items-center justify-center gap-1.5 ${
                         activa
                           ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
                           : 'border-gray-200 text-gray-500'
                       }`}
                     >
-                      <span className="text-base leading-none">{emoji}</span>
+                      <span className="text-lg leading-none">{emoji}</span>
                       {etiqueta}
                     </button>
                   )
                 })}
               </div>
-              {capas.tengo && (
-                <button
-                  onClick={() => setOfertaAbierta(true)}
-                  className="w-full rounded-lg border-2 border-green-600 text-green-700 px-2 py-1.5 text-sm font-bold mb-1.5"
-                >
-                  ＋ Publicar lo que tengo
-                </button>
-              )}
               <div className="grid grid-cols-2 gap-1.5">
                 <select
                   className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
@@ -1455,6 +1459,12 @@ export default function CiudadanoView() {
           coordInicial={coordAuto}
           fuenteInicial={fuenteAuto}
           puedeReportarHospital={puedeReportarHospital}
+          onYoTengo={() => {
+            setAbrirReporte(false)
+            setOfertaAbierta(true)
+            // Enciende la capa, o publicaría algo que después no ve en el mapa.
+            setCapas((c) => ({ ...c, tengo: true }))
+          }}
           onCerrar={() => setAbrirReporte(false)}
           onCreado={(tipo, extra) => {
             setAbrirReporte(false)
