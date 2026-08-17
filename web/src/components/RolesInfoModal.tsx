@@ -30,7 +30,7 @@ const OPCIONES: { icono: LucideIcon; t: string; d: string }[] = [
   {
     icono: ShieldCheck,
     t: 'Entidad o profesional',
-    d: 'Bomberos, municipalidad, rescate, ONG, junta vecinal, empresa — o tu profesión (psicólogo/a, veterinario/a…). El equipo verifica antes de publicar.',
+    d: 'Bomberos, municipalidad, rescate, ONG de personas o de animales, junta vecinal, empresa — o tu profesión (psicólogo/a, veterinario/a…). El equipo verifica antes de publicar.',
   },
 ]
 

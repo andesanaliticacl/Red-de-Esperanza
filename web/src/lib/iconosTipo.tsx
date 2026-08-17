@@ -71,6 +71,7 @@ export const ICONO_CATEGORIA_ENTIDAD: Record<CategoriaEntidad, LucideIcon> = {
   animal: PawPrint,
   psicosocial: Brain,
   junta_vecinal: Users,
+  ong: HeartHandshake,
   empresa: Building2,
   profesional: Stethoscope,
 }

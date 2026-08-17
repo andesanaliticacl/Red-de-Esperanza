@@ -128,7 +128,11 @@ const OPCIONES_PARTICIPAR: {
     v: 'entidad',
     icono: ShieldCheck,
     titulo: 'Represento una entidad o soy profesional',
-    descripcion: 'Bomberos, municipalidad, rescate, ONG, psicólogo/a…',
+    // Se nombran las ONG de animales aparte a propósito: la categoría
+    // "Rescate y ayuda animal" ya existe, pero decir solo "ONG" hacía que un
+    // refugio animalista no se diera por aludido y no entrara a mirar.
+    descripcion:
+      'Bomberos, municipalidad, rescate, ONG de personas o de animales, psicólogo/a…',
   },
 ]
 

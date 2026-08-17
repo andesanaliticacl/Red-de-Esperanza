@@ -16,6 +16,7 @@ export type CategoriaEntidad =
   | 'animal'
   | 'psicosocial'
   | 'junta_vecinal'
+  | 'ong'
   | 'empresa'
   | 'profesional'
 
@@ -91,8 +92,11 @@ export const CATEGORIA_META: Record<
     facturablePorDefecto: false,
   },
   animal: {
-    etiqueta: 'Rescate y ayuda animal',
-    ejemplos: 'Refugio, ONG animalista, brigada veterinaria',
+    // Dice "ONG de animales" con todas sus letras: cuando la etiqueta era
+    // solo "Rescate y ayuda animal", un refugio animalista no se daba por
+    // aludido y buscaba una casilla de "ONG" que no existía.
+    etiqueta: 'ONG de animales o rescate animal',
+    ejemplos: 'Refugio, ONG animalista, brigada veterinaria, albergue',
     sede: true,
     tierSugerido: 'verificada',
     facturablePorDefecto: false,
@@ -105,8 +109,17 @@ export const CATEGORIA_META: Record<
     facturablePorDefecto: false,
   },
   junta_vecinal: {
-    etiqueta: 'Junta vecinal u organización comunitaria',
-    ejemplos: 'Junta de vecinos, comité de emergencia del barrio',
+    etiqueta: 'Junta vecinal u organización del barrio',
+    ejemplos: 'Junta de vecinos, comité de emergencia, ONG del pueblo',
+    sede: true,
+    tierSugerido: 'verificada',
+    facturablePorDefecto: false,
+  },
+  // La casilla que faltaba: una fundación humanitaria que trabaja con
+  // PERSONAS no era bomberos, ni rescate, ni animal, ni junta vecinal.
+  ong: {
+    etiqueta: 'ONG o fundación (ayuda a personas)',
+    ejemplos: 'Fundación, corporación, banco de alimentos, albergue',
     sede: true,
     tierSugerido: 'verificada',
     facturablePorDefecto: false,
@@ -132,6 +145,7 @@ export const CATEGORIAS_ORDEN: CategoriaEntidad[] = [
   'bomberos',
   'rescate',
   'animal',
+  'ong',
   'municipalidad',
   'junta_vecinal',
   'psicosocial',
