@@ -36,6 +36,7 @@ import {
   puedeVerNecesidad,
 } from '../lib/roles'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
+import { useEncontrados } from '../hooks/useEncontrados'
 import { useUbicacionAuto } from '../hooks/useUbicacionAuto'
 import { useAuth } from '../context/AuthContext'
 import { useNotificaciones } from '../context/NotificacionesContext'
@@ -548,6 +549,22 @@ export default function CiudadanoView() {
   })
   const [ofertaAbierta, setOfertaAbierta] = useState(false)
   const [busqDesap, setBusqDesap] = useState('')
+
+  // Capa de YA LOCALIZADOS. Se SUMA a la de desaparecidos, no la reemplaza:
+  // son dos preguntas distintas ("¿a quién buscamos?" y "¿a quién ya
+  // encontramos?") y quien mira una puede querer mirar la otra.
+  // Es una lista y no marcadores porque los localizados no tienen
+  // coordenadas: el scraper se las borra al encontrarlos (ver useEncontrados).
+  const [verEncontrados, setVerEncontrados] = useState(false)
+  const {
+    encontrados,
+    total: totalEncontrados,
+    cargando: cargandoEncontrados,
+  } = useEncontrados(verEncontrados, {
+    busqueda: busqDesap,
+    pais: paisDesap,
+    tipoSer: tipoSerDesap,
+  })
   // Volver a la página 1 al cambiar lo que se mira. Sin esto uno podía quedar
   // en la "página 4" de una zona que ya no tiene tantos y ver el mapa vacío
   // sin entender por qué.
@@ -1099,6 +1116,63 @@ export default function CiudadanoView() {
                 <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 Solo con documento
               </button>
+
+              {/* Ya localizados. No pisa la capa de desaparecidos: se suma. */}
+              <button
+                type="button"
+                onClick={() => setVerEncontrados((v) => !v)}
+                aria-pressed={verEncontrados}
+                className={`mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 py-1.5 text-[11px] font-bold transition-colors ${
+                  verEncontrados
+                    ? 'border-green-600 bg-green-50 text-green-700'
+                    : 'border-gray-200 text-gray-500'
+                }`}
+              >
+                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Ya encontradas
+                {totalEncontrados != null ? ` (${totalEncontrados})` : ''}
+              </button>
+
+              {verEncontrados && (
+                <div className="mb-2 rounded-lg border-2 border-green-100 bg-green-50/60 p-1.5">
+                  <p className="text-[11px] text-green-800 mb-1.5 px-0.5">
+                    🎉 Ya aparecieron. No salen en el mapa porque, al
+                    encontrarlas, la fuente deja de publicar dónde estaban.
+                  </p>
+                  {cargandoEncontrados && (
+                    <p className="text-[11px] text-gray-500 px-0.5">Cargando…</p>
+                  )}
+                  {!cargandoEncontrados && encontrados.length === 0 && (
+                    <p className="text-[11px] text-gray-500 px-0.5">
+                      {busqDesap.trim()
+                        ? 'Nadie con ese nombre entre las encontradas.'
+                        : 'Todavía no hay personas localizadas aquí.'}
+                    </p>
+                  )}
+                  <ul className="max-h-52 overflow-y-auto divide-y divide-green-100">
+                    {encontrados.map((e) => (
+                      <li key={e.id} className="py-1.5 px-0.5 flex items-start gap-2">
+                        <span className="text-sm shrink-0" aria-hidden="true">
+                          {e.tipo_ser === 'mascota' ? '🐾' : '✅'}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-gray-800 break-words">
+                            {e.nombre}
+                          </p>
+                          {e.contacto_familiar && (
+                            <a
+                              href={`tel:${e.contacto_familiar}`}
+                              className="text-[11px] font-semibold text-bandera-azul break-all"
+                            >
+                              📞 {e.contacto_familiar}
+                            </a>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {desapZona?.enZona != null && (
                 <div className="mb-2">
