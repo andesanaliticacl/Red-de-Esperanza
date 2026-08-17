@@ -12,14 +12,27 @@ import { useMovimientos, type Movimiento } from '../hooks/useMovimientos'
  *    eso tocarlo lleva hasta allá.
  *  · Se puede ocultar. Nada que tape el mapa debe ser obligatorio.
  */
+// Se CARGAN 5 al abrir pero se MUESTRAN 3. Medido a 320 px: con cinco
+// filas, la tira mas los botones ocupaban 296 px, el 52 % de la pantalla, y
+// al mapa le quedaban 277. Con tres baja a 232 px y el mapa recupera 64.
+// Las otras dos siguen en memoria y aparecen a medida que las de arriba
+// envejecen.
 const VISIBLES = 3
 
+/**
+ * Desde que la tira carga las últimas al abrir, hay líneas de hace horas o
+ * días. Se dice con todas sus letras ("hace 2d") para que ninguna aparente
+ * ser más reciente de lo que es: una tira que insinúa actividad que no hubo
+ * desinforma justo cuando más caro sale.
+ */
 function hace(ms: number): string {
   const s = Math.max(0, Math.round((Date.now() - ms) / 1000))
   if (s < 60) return `hace ${s}s`
   const m = Math.round(s / 60)
   if (m < 60) return `hace ${m}m`
-  return `hace ${Math.round(m / 60)}h`
+  const h = Math.round(m / 60)
+  if (h < 24) return `hace ${h}h`
+  return `hace ${Math.round(h / 24)}d`
 }
 
 export default function RegistroEnVivo({
