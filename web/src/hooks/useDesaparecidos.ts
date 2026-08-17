@@ -130,9 +130,13 @@ export function useDesaparecidosMapa(
         .not('lat', 'is', null)
       if (pais) q = q.eq('pais', pais)
       if (tipoSer) q = q.eq('tipo_ser', tipoSer)
-      // El scraper solo escribe `documento` cuando el patrón coincide, así
-      // que no-nulo basta: no hay cadenas vacías que descartar.
-      if (soloConDocumento) q = q.not('documento', 'is', null)
+      // Se filtra por `tiene_documento` (verdadero/falso) y NO por la columna
+      // `documento`: el número de documento dejó de ser legible para el
+      // público en la migración 76, y filtrar por una columna sin permiso de
+      // lectura falla. Además nunca hizo falta el número para esto: lo único
+      // que importa es si el reporte se hizo con un papel oficial de por
+      // medio o solo con un nombre.
+      if (soloConDocumento) q = q.eq('tiene_documento', true)
       if (term) {
         q = q.ilike('nombre', `%${term}%`)
       } else if (zona) {
