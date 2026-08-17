@@ -83,7 +83,12 @@ export function useDesaparecidosMapa(
   // no había forma de saber si faltaban por el tope o porque no existen.
   const [totalZona, setTotalZona] = useState<number | null>(null)
 
-  // Total (una sola vez POR PAÍS + TIPO) para el contador del botón.
+  // Total para el contador del botón.
+  //
+  // Aplica TAMBIÉN "solo con documento". Sin eso, marcar ese filtro achicaba
+  // la lista pero el número de arriba seguía contando a todos: el contador
+  // prometía gente que la lista ya no mostraba, que es justo el descuadre
+  // entre número y mapa que se venía arrastrando.
   useEffect(() => {
     let cancel = false
     let q = supabase
@@ -93,13 +98,14 @@ export function useDesaparecidosMapa(
       .not('lat', 'is', null)
     if (pais) q = q.eq('pais', pais)
     if (tipoSer) q = q.eq('tipo_ser', tipoSer)
+    if (soloConDocumento) q = q.eq('tiene_documento', true)
     q.then(({ count }) => {
       if (!cancel) setTotal(count ?? null)
     })
     return () => {
       cancel = true
     }
-  }, [pais, tipoSer])
+  }, [pais, tipoSer, soloConDocumento])
 
   const term = busqueda.trim()
   const zk = zona
