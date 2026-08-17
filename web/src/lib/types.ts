@@ -282,6 +282,23 @@ export const TIPOS_ALERTA: NecesidadTipo[] = [
  * en la lista de voluntarios: la mecánica es la misma (te asignas el caso),
  * pero para maquinaria o agua decir "voy" no dice lo que en realidad pasa.
  */
+/**
+ * AVISOS DE PELIGRO: tipos que advierten de un riesgo en vez de pedir algo.
+ * No son una tabla aparte —viven en `necesidades` como el resto— pero se
+ * separan en la interfaz porque se miran distinto: quien busca a un familiar
+ * quiere ver qué edificio se cayó, no quién pidió agua.
+ *
+ * Ojo con la diferencia frente a ES_RECURSO: ahí la pregunta es "¿esto se
+ * trae o se va a atender?"; aquí es "¿esto avisa de un riesgo?".
+ */
+export const TIPOS_PELIGRO = new Set<NecesidadTipo>([
+  'derrumbe',
+  'incendio',
+  'inundacion',
+  'zona_aislada',
+  'zona_sin_atender',
+])
+
 export const ES_RECURSO = new Set<NecesidadTipo>([
   'agua_comida',
   'medicinas',

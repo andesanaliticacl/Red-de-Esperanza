@@ -19,6 +19,7 @@ import MapaNecesidades from '../components/MapaNecesidades'
 import CampanaNotificaciones from '../components/CampanaNotificaciones'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
+import OfertaModal from '../components/OfertaModal'
 import ChatGlobal from '../components/ChatGlobal'
 import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
@@ -41,6 +42,7 @@ import { useNotificaciones } from '../context/NotificacionesContext'
 import {
   TIPO_META,
   TIPOS_ALERTA,
+  TIPOS_PELIGRO,
   type Necesidad,
   type CentroAcopio,
   type NecesidadTipo,
@@ -533,6 +535,18 @@ export default function CiudadanoView() {
   // Capa de desaparecidos: OCULTA al entrar. Solo se muestra cuando el usuario
   // la activa con el botón 🔍 Desaparecidos. null = aún no ha tocado (oculta).
   const [verDesapManual, setVerDesapManual] = useState<boolean | null>(null)
+
+  // Qué capas se ven. "Yo tengo" arranca APAGADA: el mapa no debe llenarse
+  // solo, y quien no la pide tampoco paga la consulta. Son interruptores
+  // independientes y no un selector de una sola opción, porque pedir ayuda y
+  // avisar de un peligro se miran juntos: quien busca a alguien necesita ver
+  // también qué edificio se cayó.
+  const [capas, setCapas] = useState({
+    necesito: true,
+    peligro: true,
+    tengo: false,
+  })
+  const [ofertaAbierta, setOfertaAbierta] = useState(false)
   const [busqDesap, setBusqDesap] = useState('')
   // Volver a la página 1 al cambiar lo que se mira. Sin esto uno podía quedar
   // en la "página 4" de una zona que ya no tiene tantos y ver el mapa vacío
@@ -745,7 +759,18 @@ export default function CiudadanoView() {
     if (tipoFiltro === 'hospital') return acopios.filter((a) => esHosp(a))
     return []
   }, [acopios, tipoFiltro])
-  const necesidadesMapa = verDesap ? [] : filtradas
+  // "Aviso de peligro" no es una tabla aparte: son los tipos de necesidad que
+  // avisan de un riesgo en vez de pedir un recurso. Separarlos en la interfaz
+  // es lo que permite mirar solo los peligros sin el ruido de los pedidos.
+  const porCapa = useMemo(() => {
+    if (capas.necesito && capas.peligro) return filtradas
+    if (!capas.necesito && !capas.peligro) return []
+    return filtradas.filter((n) =>
+      capas.peligro ? TIPOS_PELIGRO.has(n.tipo) : !TIPOS_PELIGRO.has(n.tipo),
+    )
+  }, [filtradas, capas.necesito, capas.peligro])
+
+  const necesidadesMapa = verDesap ? [] : porCapa
   const acopiosMapa = verDesap ? [] : acopiosVisibles
   const hayFiltro =
     tipoFiltro !== 'todos' ||
@@ -829,6 +854,7 @@ export default function CiudadanoView() {
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}
             verDesaparecidos={verDesap}
+            verOfertas={capas.tengo}
             busquedaDesap={busqDesap}
             paisDesap={paisDesap}
             tipoSerDesap={tipoSerDesap}
@@ -901,6 +927,45 @@ export default function CiudadanoView() {
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
               {verFiltros && (
                 <>
+              {/* Qué se ve en el mapa. Van dentro de la tarjeta que ya existía
+                  en vez de una barra propia: sumar otra franja fija habría
+                  costado mapa, que es lo que la gente vino a mirar. */}
+              <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+                {(
+                  [
+                    ['necesito', '🆘', 'Necesito'],
+                    ['peligro', '⚠️', 'Peligro'],
+                    ['tengo', '🤝', 'Yo tengo'],
+                  ] as const
+                ).map(([clave, emoji, etiqueta]) => {
+                  const activa = capas[clave]
+                  return (
+                    <button
+                      key={clave}
+                      onClick={() =>
+                        setCapas((c) => ({ ...c, [clave]: !c[clave] }))
+                      }
+                      aria-pressed={activa}
+                      className={`rounded-lg border-2 px-1 py-1.5 text-xs font-bold flex flex-col items-center gap-0.5 ${
+                        activa
+                          ? 'bg-bandera-azul/10 border-bandera-azul text-bandera-azul'
+                          : 'border-gray-200 text-gray-500'
+                      }`}
+                    >
+                      <span className="text-base leading-none">{emoji}</span>
+                      {etiqueta}
+                    </button>
+                  )
+                })}
+              </div>
+              {capas.tengo && (
+                <button
+                  onClick={() => setOfertaAbierta(true)}
+                  className="w-full rounded-lg border-2 border-green-600 text-green-700 px-2 py-1.5 text-sm font-bold mb-1.5"
+                >
+                  ＋ Publicar lo que tengo
+                </button>
+              )}
               <div className="grid grid-cols-2 gap-1.5">
                 <select
                   className="w-full rounded-lg border-2 border-gray-200 px-2 py-1.5 text-sm font-medium"
@@ -1334,6 +1399,9 @@ export default function CiudadanoView() {
       )}
       {abrirSos && (
         <SosModal onCerrar={() => setAbrirSos(false)} coordInicial={coordAuto} />
+      )}
+      {ofertaAbierta && (
+        <OfertaModal onCerrar={() => setOfertaAbierta(false)} />
       )}
       {abrirTutorial && <TutorialModal onCerrar={cerrarTutorial} />}
       {chatNec && (
