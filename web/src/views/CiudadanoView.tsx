@@ -982,10 +982,8 @@ export default function CiudadanoView() {
               sombra y margen: solo el cromo repetido costaba ~24px de mapa.
               Se muestra si hay filtros abiertos O la capa encendida, así
               cerrar "Filtrar" no te deja sin el buscador de desaparecidos. */}
-          {(verFiltros || verDesap) && (
+          {verFiltros && (
             <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
-              {verFiltros && (
-                <>
               {/* Qué se ve en el mapa. Van dentro de la tarjeta que ya existía
                   en vez de una barra propia: sumar otra franja fija habría
                   costado mapa, que es lo que la gente vino a mirar. */}
@@ -1095,18 +1093,31 @@ export default function CiudadanoView() {
                   ✕ Quitar filtros
                 </button>
               )}
-                </>
-              )}
+            </div>
+          )}
 
-          {/* Buscador de desaparecidos (solo si la capa está visible). Va
-              dentro de la MISMA tarjeta; si además hay filtros abiertos, se
-              separa con una línea en vez de con otra caja. */}
+          {/* Desaparecidos tiene su PROPIA tarjeta, aparte de "Filtrar".
+              Antes compartían caja y quedaban revueltos dos menús que no
+              tienen nada que ver: uno decide qué se ve en el mapa y el otro
+              busca personas. Separados, cada uno se abre y se cierra solo. */}
           {verDesap && (
-            <div
-              className={
-                verFiltros ? 'mt-2 pt-2 border-t border-gray-200' : ''
-              }
-            >
+            <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow p-2 mt-2">
+              {/* Ingresar a alguien, dentro del mismo panel: se descubre que
+                  a un desaparecido lo puedes agregar tú JUSTO cuando estás
+                  buscando y no lo encuentras. Lleva al formulario de siempre,
+                  a elegir persona o mascota. */}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-bold text-purple-700">
+                  🔍 Desaparecidos
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAbrirDesapNuevo(true)}
+                  className="rounded-lg border-2 border-purple-700 text-purple-700 px-2.5 py-1 text-[11px] font-bold whitespace-nowrap"
+                >
+                  ＋ Ingresar
+                </button>
+              </div>
               {/* Qué se está viendo, en números que SÍ cuadran con el mapa.
                   El contador del botón cuenta todo el país; el mapa solo
                   pinta los del recuadro visible y con un tope (13.000 pines
@@ -1388,8 +1399,6 @@ export default function CiudadanoView() {
                 </div>
               )}
             </div>
-              )}
-            </div>
           )}
         </div>
 
@@ -1425,8 +1434,9 @@ export default function CiudadanoView() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
+                        // Ya no abre el filtro general: desaparecidos tiene
+                        // su propio panel y mezclarlos era el problema.
                         setVerDesapManual(true)
-                        setVerFiltros(true)
                         setMenuDesap(false)
                       }}
                       className="flex items-center gap-1.5 rounded-full border-2 border-purple-700 bg-purple-700 text-white py-2 px-3.5 text-sm font-bold whitespace-nowrap"

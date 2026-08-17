@@ -108,6 +108,20 @@ export default function OfertaModal({
 
   return (
     <Marco onCerrar={onCerrar}>
+      {/* Volver: al elegir un tipo la cuadrícula sigue arriba, pero si te
+          equivocaste de casilla el camino de salida tiene que estar a la
+          vista. Sin esto había que cerrar todo y empezar de nuevo. */}
+      {tipo && (
+        <button
+          onClick={() => {
+            setTipo(null)
+            setError('')
+          }}
+          className="mb-2 flex items-center gap-1 text-sm font-bold text-gray-500"
+        >
+          ← Volver
+        </button>
+      )}
       <h2 className="text-xl font-extrabold mb-1">🤝 Yo tengo</h2>
       <p className="text-sm text-gray-600 mb-4">
         Cuenta qué puedes ofrecer. Aparecerá en el mapa para quien lo necesite.
