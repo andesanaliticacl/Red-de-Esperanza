@@ -59,7 +59,7 @@ export const OFERTA_META: Record<
   },
   comida: {
     etiqueta: 'Comida',
-    emoji: '🍲',
+    emoji: '🥫', // el mismo que 'Agua / Comida' en el resto de la app
     color: '#EA580C',
     ejemplo: 'Preparo comida caliente, pueden venir a buscarla',
   },
@@ -101,7 +101,7 @@ export const OFERTA_META: Record<
   },
   herramientas: {
     etiqueta: 'Herramientas',
-    emoji: '🛠️',
+    emoji: '🚜', // el mismo que 'Maquinaria pesada'
     color: '#78350F',
     ejemplo: 'Tengo herramientas para remover escombros',
   },
@@ -116,7 +116,7 @@ export const OFERTA_META: Record<
   },
   otro: {
     etiqueta: 'Otro',
-    emoji: '🤝',
+    emoji: '❓', // el mismo 'Otro' que en los tipos de necesidad
     color: '#475569',
     ejemplo: 'Cuenta qué puedes ofrecer',
   },

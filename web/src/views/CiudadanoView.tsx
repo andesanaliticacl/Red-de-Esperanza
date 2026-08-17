@@ -552,6 +552,9 @@ export default function CiudadanoView() {
   // Es una lista y no marcadores porque los localizados no tienen
   // coordenadas: el scraper se las borra al encontrarlos (ver useEncontrados).
   const [verEncontrados, setVerEncontrados] = useState(false)
+  // Menú del botón Desaparecidos (Ver / Ingresar) y alta directa.
+  const [menuDesap, setMenuDesap] = useState(false)
+  const [abrirDesapNuevo, setAbrirDesapNuevo] = useState(false)
   const {
     encontrados,
     total: totalEncontrados,
@@ -947,6 +950,27 @@ export default function CiudadanoView() {
               {session && <CampanaNotificaciones claro />}
               <MenuUsuario claro />
             </div>
+          </div>
+
+          {/* Registro en vivo, justo bajo el logo. Estaba abajo, encima de
+              SOS y Reportar, donde competía por el borde inferior —el que más
+              se usa con una sola mano— y empujaba los botones. Arriba se lee
+              de paso al entrar y no le quita sitio a nada urgente. */}
+          <div className="mt-2">
+            <RegistroEnVivo
+              onIr={(m) => {
+                if (m.lat == null || m.lng == null) return
+                setIrACoordenada([m.lat, m.lng])
+                // Enciende la capa que corresponda, o el marcador al que
+                // llevamos no estaría dibujado y el mapa iría a un punto
+                // vacío: peor que no hacer nada.
+                if (m.clase === 'oferta') {
+                  setCapas((c) => ({ ...c, tengo: true }))
+                } else {
+                  setVerDesapManual(false)
+                }
+              }}
+            />
           </div>
 
           {/* El acceso "Entra o crea tu cuenta" se retiró de aquí: el botón
@@ -1375,24 +1399,6 @@ export default function CiudadanoView() {
           data-map-overlay="bottom"
         >
           <div className="px-4 pb-4 pt-2">
-            {/* Registro en vivo, encima de los botones: se lee de paso, no
-                hay que ir a buscarlo. Se oculta solo si no ha pasado nada. */}
-            <div className="mx-auto w-full max-w-md mb-2">
-              <RegistroEnVivo
-                onIr={(m) => {
-                  if (m.lat == null || m.lng == null) return
-                  setIrACoordenada([m.lat, m.lng])
-                  // Enciende la capa que corresponda, o el marcador al que
-                  // llevamos no estaría dibujado y el mapa iría a un punto
-                  // vacío: peor que no hacer nada.
-                  if (m.clase === 'oferta') {
-                    setCapas((c) => ({ ...c, tengo: true }))
-                  } else {
-                    setVerDesapManual(false)
-                  }
-                }}
-              />
-            </div>
             <div className="mx-auto w-full max-w-md flex flex-col gap-2.5 pointer-events-auto">
               {/* Fila chica: "Crear Cuenta" a la izquierda y "Desaparecidos"
                   a la derecha. Desaparecidos bajó de botón grande a pastilla
@@ -1411,23 +1417,57 @@ export default function CiudadanoView() {
                 ) : (
                   <span />
                 )}
-                <button
-                  onClick={() => {
-                    const nuevo = !verDesap
-                    setVerDesapManual(nuevo)
-                    if (!nuevo) setBusqDesap('')
-                    if (nuevo) setVerFiltros(true)
-                  }}
-                  aria-pressed={verDesap}
-                  className={`flex items-center gap-1.5 rounded-full border-2 py-2 px-4 text-sm font-bold whitespace-nowrap ${
-                    verDesap
-                      ? 'bg-purple-700 border-purple-700 text-white'
-                      : 'bg-white border-purple-700 text-purple-700'
-                  }`}
-                >
-                  <UserSearch className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  Desaparecidos
-                </button>
+                {/* Un toque abre las dos únicas cosas que se hacen aquí:
+                    MIRAR quién falta o INGRESAR a alguien. Antes el botón
+                    solo prendía la capa y para ingresar había que ir a
+                    "Reportar", que no es donde uno lo busca. */}
+                {menuDesap ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        setVerDesapManual(true)
+                        setVerFiltros(true)
+                        setMenuDesap(false)
+                      }}
+                      className="flex items-center gap-1.5 rounded-full border-2 border-purple-700 bg-purple-700 text-white py-2 px-3.5 text-sm font-bold whitespace-nowrap"
+                    >
+                      <UserSearch className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      Ver
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAbrirDesapNuevo(true)
+                        setMenuDesap(false)
+                      }}
+                      className="flex items-center gap-1 rounded-full border-2 border-purple-700 bg-white text-purple-700 py-2 px-3.5 text-sm font-bold whitespace-nowrap"
+                    >
+                      ＋ Ingresar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      // Si la capa ya está encendida, el botón la apaga: es
+                      // lo que espera quien acaba de prenderla y quiere el
+                      // mapa limpio otra vez.
+                      if (verDesap) {
+                        setVerDesapManual(false)
+                        setBusqDesap('')
+                      } else {
+                        setMenuDesap(true)
+                      }
+                    }}
+                    aria-pressed={verDesap}
+                    className={`flex items-center gap-1.5 rounded-full border-2 py-2 px-4 text-sm font-bold whitespace-nowrap ${
+                      verDesap
+                        ? 'bg-purple-700 border-purple-700 text-white'
+                        : 'bg-white border-purple-700 text-purple-700'
+                    }`}
+                  >
+                    <UserSearch className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    Desaparecidos
+                  </button>
+                )}
               </div>
               {/* SOS + Reportar lado a lado: más compacto y deja más mapa
                   visible. Misma altura mínima para que el SOS, que lleva dos
@@ -1464,20 +1504,30 @@ export default function CiudadanoView() {
         />
       )}
 
-      {abrirReporte && (
+      {(abrirReporte || abrirDesapNuevo) && (
         <ReportarModal
+          // "Ingresar" desde el botón de Desaparecidos entra directo a elegir
+          // persona o mascota: ya sabe a qué viene, no hay que pasearlo por
+          // una lista donde esa opción ya no está.
+          abrirEnDesaparecido={abrirDesapNuevo}
           coordInicial={coordAuto}
           fuenteInicial={fuenteAuto}
           puedeReportarHospital={puedeReportarHospital}
           onYoTengo={() => {
             setAbrirReporte(false)
+            setAbrirDesapNuevo(false)
             setOfertaAbierta(true)
             // Enciende la capa, o publicaría algo que después no ve en el mapa.
             setCapas((c) => ({ ...c, tengo: true }))
           }}
-          onCerrar={() => setAbrirReporte(false)}
+          onCerrar={() => {
+            setAbrirReporte(false)
+            setAbrirDesapNuevo(false)
+            setAbrirDesapNuevo(false)
+          }}
           onCreado={(tipo, extra) => {
             setAbrirReporte(false)
+            setAbrirDesapNuevo(false)
             notificar(
               tipo === 'hospital'
                 ? 'Hospital registrado correctamente. Gracias por ayudar a mantener la información actualizada.'

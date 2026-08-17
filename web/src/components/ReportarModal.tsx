@@ -37,7 +37,6 @@ import {
   Ambulance,
   Globe,
   HeartHandshake,
-  UserSearch,
   PawPrint,
   User,
   Heart,
@@ -176,11 +175,15 @@ export default function ReportarModal({
   fuenteInicial,
   puedeReportarHospital = false,
   onYoTengo,
+  abrirEnDesaparecido = false,
 }: {
   onCerrar: () => void
   /** Abre el formulario de "Yo tengo" (ofrecer ayuda). Si no se pasa, la
    *  opción no aparece. */
   onYoTengo?: () => void
+  /** Entra directo a reportar un desaparecido (persona o mascota), saltando
+   *  la lista inicial. Lo usa "Ingresar" desde el botón de Desaparecidos. */
+  abrirEnDesaparecido?: boolean
   // `extra` solo se llena para 'desaparecido': permite al padre encender la
   // capa del mapa, elegir el país correcto y resaltar el registro recién
   // creado (antes se le decía al usuario "ya aparece en el mapa" sin hacer
@@ -203,8 +206,12 @@ export default function ReportarModal({
   // mascota). El animal que necesita ayuda ESTANDO PRESENTE va aparte,
   // dentro de "Necesito algo" → "Para mi mascota".
   // null = no está en este recorrido (se ve la lista de bloques grandes).
+  // Con `abrirEnDesaparecido` se entra directo a elegir persona o mascota:
+  // es lo que hace "Ingresar" desde el botón de Desaparecidos del mapa, que
+  // ya sabe a qué viene. Sin eso habría que pasar por una lista donde
+  // "Desaparecidos" ya no está.
   const [pasoPersonaAnimal, setPasoPersonaAnimal] = useState<'elegir' | null>(
-    null,
+    abrirEnDesaparecido ? 'elegir' : null,
   )
   // Tramo del formulario en los reportes comunes: 1 ¿dónde? · 2 ¿qué pasa? ·
   // 3 ¿tu teléfono? Una sola pregunta por pantalla se sigue mucho mejor bajo
@@ -1199,14 +1206,10 @@ export default function ReportarModal({
               />
             ))}
 
-            <BloqueOpcion
-              icono={UserSearch}
-              color={DESAPARECIDO_META.color}
-              titulo="Desaparecidos"
-              ejemplos="Persona o mascota, con nombre y foto"
-              onClick={() => setPasoPersonaAnimal('elegir')}
-            />
-
+            {/* Desaparecidos ya NO está aquí: tiene su propio botón en el
+                mapa, con "Ver" e "Ingresar". Dejarlo en los dos lados hacía
+                que la misma cosa se pidiera de dos maneras distintas. Esta
+                lista queda en tres: peligro, necesito, yo tengo. */}
             {/* "Yo tengo" vive aquí, junto a lo demás, y no escondido en los
                 filtros del mapa: quien abre "Reportar" viene a contar algo, y
                 ofrecer ayuda es contar algo. En verde, porque es lo único de
