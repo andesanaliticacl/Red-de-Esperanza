@@ -201,8 +201,12 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
                   : 'bg-white border-gray-200 text-gray-800'
             }`}
           >
-            <div className="flex-1">
-              <div>{a.mensaje}</div>
+            {/* `min-w-0` + `break-words`: sin los dos, un texto sin espacios
+                —un enlace de grupo de WhatsApp, por ejemplo— no encuentra
+                dónde cortarse y se sale de la caja. Medido en una pantalla de
+                320 px: el texto llegaba a 457 px dentro de una caja de 294. */}
+            <div className="flex-1 min-w-0">
+              <div className="break-words">{a.mensaje}</div>
               {a.accion && (
                 <button
                   onClick={() => alAccion(a.accion!, a.id)}
@@ -214,7 +218,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
             </div>
             <button
               onClick={() => quitarToast(a.id)}
-              className="leading-none opacity-60 hover:opacity-100"
+              className="leading-none opacity-60 hover:opacity-100 shrink-0"
               aria-label="Cerrar aviso"
             >
               ✕
