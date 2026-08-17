@@ -543,10 +543,15 @@ export default function CiudadanoView() {
   // independientes y no un selector de una sola opción, porque pedir ayuda y
   // avisar de un peligro se miran juntos: quien busca a alguien necesita ver
   // también qué edificio se cayó.
+  // "Yo tengo" arranca ENCENDIDA desde que contiene los centros de acopio.
+  // Cuando solo tenía las ofertas nuevas venía apagada para no llenar el mapa
+  // solo, pero los acopios ya existen y se veían siempre: dejarla apagada
+  // habría hecho desaparecer ~156 centros de la vista inicial sin que nadie
+  // lo pidiera.
   const [capas, setCapas] = useState({
     necesito: true,
     peligro: true,
-    tengo: false,
+    tengo: true,
     mascotas: true,
   })
   const [ofertaAbierta, setOfertaAbierta] = useState(false)
@@ -795,7 +800,25 @@ export default function CiudadanoView() {
   )
 
   const necesidadesMapa = verDesap ? [] : porCapa
-  const acopiosMapa = verDesap ? [] : acopiosVisibles
+
+  // Los centros de acopio son "Yo tengo": un lugar donde HAY cosas, no donde
+  // faltan. Los que atienden animales salen además con "Mascotas", porque
+  // pertenecen a las dos miradas y quien busca ayuda para su perro no debería
+  // tener que adivinar en cuál de las dos está.
+  //
+  // Los HOSPITALES viven en la misma tabla pero no se tocan: no son una
+  // oferta que alguien publicó, son infraestructura, y esconderlos detrás de
+  // un filtro en plena emergencia sería un retroceso.
+  const acopiosMapa = useMemo(() => {
+    if (verDesap) return []
+    return acopiosVisibles.filter((a) => {
+      const esHospital =
+        a.es_hospital || (a.descripcion ?? '').toLowerCase().includes('hospital')
+      if (esHospital) return true
+      if (a.atiende_animales) return capas.tengo || capas.mascotas
+      return capas.tengo
+    })
+  }, [verDesap, acopiosVisibles, capas.tengo, capas.mascotas])
   const hayFiltro =
     tipoFiltro !== 'todos' ||
     urgFiltro !== 'todas'
