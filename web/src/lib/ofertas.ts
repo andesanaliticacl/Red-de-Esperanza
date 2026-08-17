@@ -70,19 +70,19 @@ export const OFERTA_META: Record<
     ejemplo: 'Tengo remedios básicos y material de curación',
   },
   refugio: {
-    etiqueta: 'Techo o alojamiento',
+    etiqueta: 'Techo',
     emoji: '🏠',
     color: '#7C3AED',
     ejemplo: 'Puedo alojar a una familia',
   },
   electricidad: {
-    etiqueta: 'Electricidad o carga',
+    etiqueta: 'Energía',
     emoji: '🔌',
     color: '#CA8A04',
     ejemplo: 'Tengo generador, pueden cargar el celular',
   },
   internet: {
-    etiqueta: 'Internet o señal',
+    etiqueta: 'Internet',
     emoji: '📶',
     color: '#0891B2',
     ejemplo: 'Tengo wifi abierto para quien necesite avisar que está bien',
@@ -94,13 +94,13 @@ export const OFERTA_META: Record<
     ejemplo: 'Tengo camioneta para mover cosas o personas',
   },
   higiene: {
-    etiqueta: 'Baño, ducha o lavado',
+    etiqueta: 'Baño y ducha',
     emoji: '🚿',
     color: '#0D9488',
     ejemplo: 'Pueden venir a ducharse o lavar ropa',
   },
   herramientas: {
-    etiqueta: 'Herramientas o maquinaria',
+    etiqueta: 'Herramientas',
     emoji: '🛠️',
     color: '#78350F',
     ejemplo: 'Tengo herramientas para remover escombros',
@@ -109,13 +109,13 @@ export const OFERTA_META: Record<
   // que ir a buscarlo y sirve a cien personas a la vez. Por eso es la única
   // que puede ir sin coordenadas y con un enlace en vez de una dirección.
   comunidad: {
-    etiqueta: 'Comunidad o grupo',
+    etiqueta: 'Comunidad',
     emoji: '💬',
     color: '#16A34A',
     ejemplo: 'Grupo de WhatsApp del barrio para coordinarnos',
   },
   otro: {
-    etiqueta: 'Otra ayuda',
+    etiqueta: 'Otro',
     emoji: '🤝',
     color: '#475569',
     ejemplo: 'Cuenta qué puedes ofrecer',
