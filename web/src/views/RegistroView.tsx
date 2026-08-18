@@ -31,6 +31,7 @@ import { zonasDePais, ciudadesDeZona } from '../lib/zonas'
 import {
   validarDocumentoPsicologo,
   validarDocumentoPersona,
+  etiquetaDocumento,
   validarIdFiscal,
 } from '../lib/documentos'
 import { type RolRegistro, type TipoDocumento } from '../lib/types'
@@ -260,6 +261,12 @@ export default function RegistroView() {
   // Colombia por defecto: es la emergencia activa ahora mismo (se puede cambiar).
   const [pais, setPais] = useState('Colombia')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('cedula')
+  // Nombre y ejemplo del documento SEGÚN EL PAÍS elegido: en Chile RUT, en
+  // Perú DNI, en Brasil CPF. Se recalcula solo al cambiar el país.
+  const { etiqueta: etiquetaDoc, ejemplo: ejemploDoc } = etiquetaDocumento(
+    pais,
+    tipoDoc,
+  )
   const [documento, setDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
   const [estado, setEstado] = useState('')
@@ -1041,25 +1048,16 @@ export default function RegistroView() {
                         : 'border-tinta-200 text-tinta-500 hover:border-tinta-300'
                     }`}
                   >
-                    {t === 'cedula'
-                      ? pais === 'Chile'
-                        ? 'RUT'
-                        : 'Cédula'
-                      : 'Pasaporte'}
+                    {/* El nombre sale de la tabla por país (documentos.ts):
+                        antes solo distinguía Chile y a todo el resto le decía
+                        "Cédula", aunque en Perú sea DNI y en Brasil CPF. */}
+                    {etiquetaDocumento(pais, t).etiqueta}
                   </button>
                 ))}
               </div>
               <input
                 className="input"
-                placeholder={
-                  tipoDoc === 'cedula'
-                    ? pais === 'Chile'
-                      ? 'Ej: 12.345.678-5'
-                      : pais === 'Colombia'
-                        ? 'Ej: 1023456789'
-                        : 'Ej: V-12345678'
-                    : 'N.º de pasaporte'
-                }
+                placeholder={ejemploDoc ? `Ej: ${ejemploDoc}` : etiquetaDoc}
                 value={documento}
                 onChange={(e) => setDocumento(e.target.value)}
               />

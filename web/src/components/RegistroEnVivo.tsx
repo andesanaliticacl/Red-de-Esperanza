@@ -42,7 +42,10 @@ export default function RegistroEnVivo({
   onIr: (m: Movimiento) => void
 }) {
   const movimientos = useMovimientos()
-  const [oculto, setOculto] = useState(false)
+  // Arranca COLAPSADO: desplegado ocupaba cuatro renglones bajo el logo y le
+  // quitaba sitio a los filtros. Como pastilla es una línea, y quien no
+  // necesita el detalle ni la nota. El que quiera mirar, la toca.
+  const [oculto, setOculto] = useState(true)
   // Solo para que los "hace Xs" se refresquen sin depender de que llegue
   // otro movimiento.
   const [, setTic] = useState(0)
