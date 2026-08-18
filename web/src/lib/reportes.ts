@@ -243,6 +243,31 @@ export async function eliminarDelMapa(
   if (error) throw error
 }
 
+/**
+ * Marca un reporte como VERIFICADO (o le quita la verificación).
+ *
+ * Verificar significa "alguien del equipo confirmó que esto es real". Es la
+ * señal que hace que un reporte valga más que otro en un mapa lleno, así que
+ * quién puede darla importa: en la interfaz el botón solo se le muestra a
+ * líderes, verificadores y admin.
+ *
+ * OJO: hoy la política de la base es más ancha que eso (deja actualizar a
+ * cualquier voluntario, porque es la MISMA política con la que alguien se
+ * asigna un caso). Hasta que corra la migración 79, la restricción vive solo
+ * en la pantalla.
+ */
+export async function verificarNecesidad(id: string, verificar = true) {
+  const { data: auth } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from('necesidades')
+    .update({
+      estado: verificar ? 'verificada' : 'sin_verificar',
+      verificada_por: verificar ? (auth?.user?.id ?? null) : null,
+    })
+    .eq('id', id)
+  if (error) throw error
+}
+
 /** Cambia solo el tipo de una necesidad. El servidor valida que sea admin. */
 export async function cambiarTipoNecesidad(id: string, tipo: NecesidadTipo) {
   const { error } = await supabase.rpc('cambiar_tipo_necesidad', {

@@ -27,7 +27,11 @@ import TutorialModal from '../components/TutorialModal'
 import MenuUsuario from '../components/MenuUsuario'
 import Paloma from '../components/Paloma'
 import { useNecesidades } from '../hooks/useNecesidades'
-import { cambiarTipoNecesidad, eliminarDelMapa } from '../lib/reportes'
+import {
+  cambiarTipoNecesidad,
+  eliminarDelMapa,
+  verificarNecesidad,
+} from '../lib/reportes'
 import { nombresPublicos } from '../lib/perfiles'
 import { geocodificarDireccion, VISTA_PAIS_DESAP } from '../lib/geo'
 import {
@@ -465,6 +469,25 @@ export default function CiudadanoView() {
   // Solo líder de voluntarios/admin pueden quitar una solicitud del mapa.
   const puedeEliminarDelMapa = puedeGestionarComoLider(rol)
   const puedeCambiarTipo = esAdmin
+  // Verificar es dar una insignia de confianza, así que la da el equipo de
+  // coordinación: líderes, verificador y admin. Un voluntario atiende, pero
+  // no acredita. (La migración 79 lo exige también en la base; hasta que
+  // corra, esto vive solo en la pantalla.)
+  const puedeVerificar = puedeGestionarComoLider(rol) || rol === 'verificador'
+
+  async function verificarHandler(n: Necesidad, verificar: boolean) {
+    try {
+      await verificarNecesidad(n.id, verificar)
+      notificar(
+        verificar
+          ? '★ Reporte verificado: ya se ve con aura celeste en el mapa.'
+          : 'Se quitó la verificación del reporte.',
+        'exito',
+      )
+    } catch (e) {
+      notificar((e as Error).message, 'alerta')
+    }
+  }
 
   // Quitar una necesidad del mapa (borrado suave). Realtime la marca como
   // eliminada y el mapa deja de mostrarla al instante.
@@ -887,6 +910,7 @@ export default function CiudadanoView() {
               puedeEliminarDelMapa ? eliminarDelMapaHandler : undefined
             }
             onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
+            onVerificar={puedeVerificar ? verificarHandler : undefined}
             idsAsignadoVerificado={idsVerificados}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}

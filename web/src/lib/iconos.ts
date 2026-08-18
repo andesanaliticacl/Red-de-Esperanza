@@ -42,12 +42,20 @@ export function iconoNecesidad(
   // El marcador NO desaparece al ser atendido: cambia de aspecto.
   //  · en proceso → borde azul (alguien ya lo tomó), sigue bien visible.
   //  · resuelta    → atenuado + check verde.
+  // El borde dice en qué punto del ciclo está el reporte:
+  //   sin verificar → blanco   ·  VERIFICADA → celeste
+  //   en proceso    → azul     ·  resuelta   → verde
+  // La verificada lleva ADEMÁS un halo celeste difuso (ver `sombra`): el
+  // borde solo no alcanzaba para distinguirla del azul de "en proceso" de un
+  // vistazo, y en un mapa lleno eso es justo lo que hay que poder hacer.
   const borde =
     estado === 'en_proceso'
       ? '3px solid #002FA7'
       : estado === 'resuelta'
         ? '3px solid #16A34A'
-        : '3px solid #ffffff'
+        : estado === 'verificada'
+          ? '3px solid #38BDF8'
+          : '3px solid #ffffff'
   const opacidadBase = estado === 'resuelta' ? 0.5 : 1
   // Si hay que atenuar (sin teléfono / repetido), se baja bastante la opacidad
   // para distinguirlo de un vistazo, pero sin ocultarlo.
@@ -57,7 +65,12 @@ export function iconoNecesidad(
   const insignia =
     estado === 'resuelta'
       ? '<span style="position:absolute;top:-6px;right:-6px;background:#16A34A;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">✓</span>'
-      : ''
+      : estado === 'verificada'
+        ? // Estrella y no check: el check ya significa "resuelta". La estrella
+          // dice "alguien del equipo confirmó que esto es real", que es otra
+          // cosa — y es el mismo símbolo del botón con que se verifica.
+          '<span style="position:absolute;top:-6px;right:-6px;background:#38BDF8;color:#fff;border-radius:9999px;font-size:9px;padding:1px 4px;border:1.5px solid #fff;">★</span>'
+        : ''
   // Insignia "sin teléfono" (📵) en una esquinita del pin, al estilo del ⚠️ de
   // peligro (solo el símbolo, sin recuadro), para reconocerlos sin atenuarlos.
   const insigniaSinTel = sinTelefono
@@ -95,6 +108,12 @@ export function iconoNecesidad(
   // sola capa extra, barata comparada con el drop-shadow).
   const sombra = [
     verificado ? '0 0 0 3px #0EA5E9' : '',
+    // AURA de reporte verificado: halo celeste difuso alrededor del pin. Es
+    // una sombra suave y no un anillo duro a propósito, para no confundirse
+    // con el anillo de `verificado`, que significa otra cosa (que quien
+    // ATIENDE fue acreditado por una entidad). Dos señales azules distintas
+    // en el mismo mapa tienen que verse distintas.
+    estado === 'verificada' ? '0 0 10px 4px rgba(56,189,248,.85)' : '',
     compacto ? '' : '0 2px 6px rgba(0,0,0,.4)',
   ]
     .filter(Boolean)

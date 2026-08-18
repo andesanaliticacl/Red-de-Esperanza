@@ -700,6 +700,7 @@ export default function MapaNecesidades({
   onAsignarme,
   onEliminarDelMapa,
   onCambiarTipo,
+  onVerificar,
   mostrarEliminadas = false,
   puedeVerContacto = false,
   resaltadaId,
@@ -778,6 +779,9 @@ export default function MapaNecesidades({
   onEliminarDelMapa?: (n: Necesidad, motivo: string) => void
   /** Si se pasa (solo admin), permite cambiar exclusivamente el tipo de alerta. */
   onCambiarTipo?: (n: Necesidad, tipo: NecesidadTipo) => void
+  /** Marca o desmarca un reporte como verificado. Solo se pasa a quien
+   *  puede hacerlo (verificador, líder o admin). */
+  onVerificar?: (n: Necesidad, verificar: boolean) => void
   /** Admin: muestra tambien solicitudes ocultas/eliminadas del mapa. */
   mostrarEliminadas?: boolean
   /**
@@ -1229,6 +1233,26 @@ export default function MapaNecesidades({
                     </button>
                   )}
                 </div>
+                {/* Verificar: la estrella dice "el equipo confirmó que esto es
+                    real". Solo se le muestra a quien puede darla; el aura
+                    celeste del marcador es la misma señal vista desde lejos. */}
+                {onVerificar && (
+                  <button
+                    type="button"
+                    onClick={() => onVerificar(n, n.estado !== 'verificada')}
+                    aria-pressed={n.estado === 'verificada'}
+                    className={`mt-2 w-full rounded-lg border-2 px-2 py-1.5 text-xs font-bold ${
+                      n.estado === 'verificada'
+                        ? 'border-sky-400 bg-sky-50 text-sky-700'
+                        : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {n.estado === 'verificada'
+                      ? '★ Verificada — tocar para quitar'
+                      : '☆ Verificar este reporte'}
+                  </button>
+                )}
+
                 {/* Eliminar del mapa: solo líder/admin (si se pasó el callback).
                     Abre un modal aparte para escribir el motivo (el popup del
                     mapa se cierra con cualquier clic, por eso no va aquí dentro). */}
