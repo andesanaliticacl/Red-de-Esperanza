@@ -186,27 +186,45 @@ export default function MisReportesView() {
                 >
                   💬 Contactar
                 </button>
-                {/* Ver el pin en el mapa. Solo si el reporte tiene
-                    coordenadas: sin ellas el mapa volaría a ninguna parte,
-                    y un botón que no hace nada es peor que no tenerlo.
-                    `?necesidad=` es el mismo enlace directo que ya usa
-                    "Compartir", así que abre el mapa centrado y con el
-                    marcador resaltado. */}
-                {n.lat != null &&
-                  n.lng != null &&
-                  // El mapa solo carga estos tres estados: uno ya resuelto o
-                  // rechazado no está dibujado, y el botón volaría a un punto
-                  // vacío. Mejor no ofrecerlo que ofrecer algo que falla.
-                  (n.estado === 'sin_verificar' ||
+                {/* Ver el pin en el mapa. `?necesidad=` es el mismo enlace
+                    directo que ya usa "Compartir": el mapa vuela al punto,
+                    abre el globo y lo resalta.
+                    Cuando NO se puede, se dice por qué en vez de esconder el
+                    botón: si en unos reportes aparece y en otros no, sin
+                    explicación, parece que la app falla. */}
+                {(() => {
+                  if (n.lat == null || n.lng == null) {
+                    return (
+                      <span className="py-2.5 px-4 text-center text-xs font-semibold text-gray-400 leading-tight">
+                        📍 Sin ubicación
+                      </span>
+                    )
+                  }
+                  // El mapa solo dibuja estos tres estados. Un reporte ya
+                  // resuelto o rechazado no está ahí, y el botón habría
+                  // centrado el mapa en un punto vacío.
+                  const enElMapa =
+                    n.estado === 'sin_verificar' ||
                     n.estado === 'verificada' ||
-                    n.estado === 'en_proceso') && (
-                  <Link
-                    to={`/?necesidad=${n.id}`}
-                    className="btn-gris py-2.5 px-4 whitespace-nowrap text-center no-underline"
-                  >
-                    🗺️ Ver en el mapa
-                  </Link>
-                )}
+                    n.estado === 'en_proceso'
+                  if (!enElMapa) {
+                    return (
+                      <span className="py-2.5 px-4 text-center text-xs font-semibold text-gray-400 leading-tight">
+                        🗺️ Ya no está
+                        <br />
+                        en el mapa
+                      </span>
+                    )
+                  }
+                  return (
+                    <Link
+                      to={`/?necesidad=${n.id}`}
+                      className="btn-gris py-2.5 px-4 whitespace-nowrap text-center no-underline"
+                    >
+                      🗺️ Ver en el mapa
+                    </Link>
+                  )
+                })()}
                 <button
                   onClick={() => borrar(n)}
                   disabled={borrando === n.id}
