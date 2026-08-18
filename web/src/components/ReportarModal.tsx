@@ -96,7 +96,7 @@ const GRUPOS: {
     // en el mapa (derrumbe, inundación, incendio…).
     color: '#CC0001',
     titulo: 'Aviso de un peligro',
-    ejemplos: 'Inundación, incendio, derrumbe, zona sin ayuda…',
+    ejemplos: 'Inundación, incendio, edificio derrumbado o no habitable…',
     // 'zona_aislada' ya la puede reportar cualquiera (antes era solo
     // admin/líder de voluntarios, con un prop `puedeReportarZonaAislada`
     // aparte). El filtro de quién puede marcar una zona como aislada no

@@ -270,9 +270,12 @@ export const TIPO_META: Record<
   // de este hay que SACARLA a tiempo. Por eso va en rojo más claro: grave,
   // pero no es lo mismo.
   edificio_inhabitable: {
-    etiqueta: 'Edificio no habitable',
+    etiqueta: 'No disponible para la vivienda',
     emoji: '🏢',
     color: '#B45309',
+    // En el cuadradito no cabe el nombre completo (30 caracteres se parten
+    // en tres líneas). El completo se sigue leyendo en el mapa y en el popup,
+    // que es donde alguien decide si va o no.
     corta: 'No habitable',
   },
   inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
