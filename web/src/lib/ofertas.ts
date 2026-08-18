@@ -119,7 +119,7 @@ export const OFERTA_META: Record<
   // Un médico, un veterinario, un eléctrico o un albañil que ofrezca sus
   // horas es una oferta como cualquier otra y no tenía dónde publicarse.
   profesional: {
-    etiqueta: 'Un profesional',
+    etiqueta: 'Profesional',
     emoji: '🩺', // el mismo oficio que la categoría 'profesional' de entidades
     color: '#0F766E',
     ejemplo: 'Soy enfermera y puedo atender curaciones',

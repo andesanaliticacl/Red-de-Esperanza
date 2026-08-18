@@ -230,18 +230,41 @@ export const ESTADOS_VENEZUELA = [
 // Metadatos visuales por tipo de necesidad.
 export const TIPO_META: Record<
   NecesidadTipo,
-  { etiqueta: string; emoji: string; color: string }
+  {
+    etiqueta: string
+    emoji: string
+    color: string
+    /**
+     * Nombre CORTO para las cuadrículas de botones. El completo se sigue
+     * usando en el mapa, los popups y las listas, donde sí hay sitio; en un
+     * cuadradito de ~88 px se parte en dos líneas y descuadra toda la fila,
+     * que fue justo lo que pasó con "Mascotas" en los filtros.
+     * Solo lo llevan los tipos cuyo nombre no cabe.
+     */
+    corta?: string
+  }
 > = {
   rescate: { etiqueta: 'Rescate', emoji: '🆘', color: '#CC0001' },
   atencion_psicologica: {
     etiqueta: 'Apoyo emocional',
     emoji: '💙',
     color: '#7C3AED',
+    corta: 'Emocional',
   },
-  agua_comida: { etiqueta: 'Agua / Comida', emoji: '🥫', color: '#EA580C' },
+  agua_comida: {
+    etiqueta: 'Agua / Comida',
+    emoji: '🥫',
+    color: '#EA580C',
+    corta: 'Agua/Comida',
+  },
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
-  derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
+  derrumbe: {
+    etiqueta: 'Edificio derrumbado',
+    emoji: '🏚️',
+    color: '#7F1D1D',
+    corta: 'Derrumbado',
+  },
   // El que sigue EN PIE pero no se puede habitar. Es distinto del derrumbe y
   // se atiende distinto: al derrumbado se va a buscar gente entre escombros,
   // de este hay que SACARLA a tiempo. Por eso va en rojo más claro: grave,
@@ -250,16 +273,42 @@ export const TIPO_META: Record<
     etiqueta: 'Edificio no habitable',
     emoji: '🏢',
     color: '#B45309',
+    corta: 'No habitable',
   },
   inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
-  sacos_arena: { etiqueta: 'Material de construcción', emoji: '🧱', color: '#92400E' },
-  maquinaria: { etiqueta: 'Maquinaria pesada', emoji: '🚜', color: '#78350F' },
-  zona_sin_atender: { etiqueta: 'Zona sin atender', emoji: '🚩', color: '#CC0001' },
+  sacos_arena: {
+    etiqueta: 'Material de construcción',
+    emoji: '🧱',
+    color: '#92400E',
+    corta: 'Materiales',
+  },
+  maquinaria: {
+    etiqueta: 'Maquinaria pesada',
+    emoji: '🚜',
+    color: '#78350F',
+    corta: 'Maquinaria',
+  },
+  zona_sin_atender: {
+    etiqueta: 'Zona sin atender',
+    emoji: '🚩',
+    color: '#CC0001',
+    corta: 'Sin atender',
+  },
   zona_aislada: { etiqueta: 'Zona aislada', emoji: '🚧', color: '#4338CA' },
-  mascota: { etiqueta: 'Mascota / animal', emoji: '🐾', color: '#B45309' },
+  mascota: {
+    etiqueta: 'Mascota / animal',
+    emoji: '🐾',
+    color: '#B45309',
+    corta: 'Mascota',
+  },
   otro: { etiqueta: 'Otro', emoji: '❓', color: '#475569' },
-  acopio: { etiqueta: 'Centro de acopio', emoji: '📦', color: '#16A34A' },
+  acopio: {
+    etiqueta: 'Centro de acopio',
+    emoji: '📦',
+    color: '#16A34A',
+    corta: 'Acopio',
+  },
 }
 
 /**

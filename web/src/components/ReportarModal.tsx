@@ -105,6 +105,9 @@ const GRUPOS: {
       'inundacion',
       'incendio',
       'derrumbe',
+      // Va justo después del derrumbe para que se lea el par: uno ya se cayó,
+      // el otro sigue en pie pero hay que sacar a la gente.
+      'edificio_inhabitable',
       'zona_sin_atender',
       'zona_aislada',
     ],
@@ -1295,19 +1298,40 @@ export default function ReportarModal({
               <grupoAbierto.icono className="h-5 w-5 text-tinta-500" aria-hidden="true" />
               {grupoAbierto.titulo}
             </p>
-            {tiposDelGrupo.map((t) => (
-              <BloqueOpcion
-                key={t}
+            {/* Cuadrícula igual que la de "Yo tengo": en filas grandes, seis
+                o siete opciones obligaban a desplazar la pantalla para verlas
+                todas. En cuadraditos entran de una sola vista, que es lo que
+                hace falta cuando hay que elegir rápido. */}
+            <div className="grid grid-cols-3 gap-2">
+              {tiposDelGrupo.map((t) => {
                 // "mascota" aquí es un animal presente que necesita ayuda:
                 // ícono propio (Dog) para distinguirlo de la patita (PawPrint)
                 // que usa "Desaparecidos" — ambos hablan de mascotas, pero
                 // cada uno de una situación distinta.
-                icono={t === 'mascota' ? Dog : ICONO_TIPO[t]}
-                color={TIPO_META[t].color}
-                titulo={t === 'mascota' ? 'Para mi mascota' : TIPO_META[t].etiqueta}
-                onClick={() => elegirTipo(t)}
-              />
-            ))}
+                const Icono = t === 'mascota' ? Dog : ICONO_TIPO[t]
+                const meta = TIPO_META[t]
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => elegirTipo(t)}
+                    className="rounded-2xl border-2 border-tinta-200 bg-white p-2 flex flex-col items-center gap-1 text-center transition-colors hover:border-bandera-azul/40"
+                  >
+                    <Icono
+                      className="h-6 w-6"
+                      strokeWidth={2}
+                      style={{ color: meta.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="text-[11px] font-bold leading-tight text-tinta-800">
+                      {/* El nombre corto, si lo tiene: el completo se parte en
+                          dos líneas y descuadra la fila. */}
+                      {t === 'mascota' ? 'Mi mascota' : (meta.corta ?? meta.etiqueta)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
             <button
               type="button"
               onClick={() => setGrupo(null)}
