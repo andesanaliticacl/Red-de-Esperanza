@@ -186,6 +186,27 @@ export default function MisReportesView() {
                 >
                   💬 Contactar
                 </button>
+                {/* Ver el pin en el mapa. Solo si el reporte tiene
+                    coordenadas: sin ellas el mapa volaría a ninguna parte,
+                    y un botón que no hace nada es peor que no tenerlo.
+                    `?necesidad=` es el mismo enlace directo que ya usa
+                    "Compartir", así que abre el mapa centrado y con el
+                    marcador resaltado. */}
+                {n.lat != null &&
+                  n.lng != null &&
+                  // El mapa solo carga estos tres estados: uno ya resuelto o
+                  // rechazado no está dibujado, y el botón volaría a un punto
+                  // vacío. Mejor no ofrecerlo que ofrecer algo que falla.
+                  (n.estado === 'sin_verificar' ||
+                    n.estado === 'verificada' ||
+                    n.estado === 'en_proceso') && (
+                  <Link
+                    to={`/?necesidad=${n.id}`}
+                    className="btn-gris py-2.5 px-4 whitespace-nowrap text-center no-underline"
+                  >
+                    🗺️ Ver en el mapa
+                  </Link>
+                )}
                 <button
                   onClick={() => borrar(n)}
                   disabled={borrando === n.id}
