@@ -473,7 +473,13 @@ export default function CiudadanoView() {
   // coordinación: líderes, verificador y admin. Un voluntario atiende, pero
   // no acredita. (La migración 79 lo exige también en la base; hasta que
   // corra, esto vive solo en la pantalla.)
-  const puedeVerificar = puedeGestionarComoLider(rol) || rol === 'verificador'
+  // Quién puede poner la estrella: los tres roles de coordinación (líder de
+  // voluntarios, líder de acopios y admin) más el verificador, que existe
+  // justamente para esto. Un voluntario ATIENDE, pero no acredita.
+  const puedeVerificar =
+    puedeGestionarComoLider(rol) ||
+    rol === 'verificador' ||
+    rol === 'acopio_admin'
 
   async function verificarHandler(n: Necesidad, verificar: boolean) {
     try {
