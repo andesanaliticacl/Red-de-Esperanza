@@ -33,9 +33,14 @@ begin
   -- o si el cambio es hacia otro estado, no hay nada que revisar.
   if NEW.estado::text = 'verificada'
      and OLD.estado::text is distinct from 'verificada' then
-    if not public.tiene_rol(array[
-      'verificador', 'admin', 'lider_voluntarios', 'lider_psicologo'
-    ]::rol_usuario[]) then
+    -- `auth.uid()` nulo = no hay usuario detrás: es el propio servidor (la
+    -- clave de servicio, una migración, mantenimiento). Ese camino no es el
+    -- que hay que proteger —ya exige la clave secreta— y bloquearlo dejaría
+    -- sin poder corregir datos desde el editor SQL.
+    if auth.uid() is not null
+       and not public.tiene_rol(array[
+         'verificador', 'admin', 'lider_voluntarios', 'lider_psicologo'
+       ]::rol_usuario[]) then
       raise exception
         'Verificar un reporte es del equipo de coordinacion (verificador, lider o admin).';
     end if;

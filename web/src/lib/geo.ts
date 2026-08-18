@@ -46,6 +46,9 @@ export const VISTA_PAIS_DESAP: Record<
   { lat: number; lng: number; zoom: number }
 > = {
   Venezuela: { lat: CENTRO_VENEZUELA[0], lng: CENTRO_VENEZUELA[1], zoom: 6 },
+  // Indonesia: el archipiélago es enorme (5.000 km de punta a punta), así
+  // que el zoom va más abierto que en los países de América.
+  Indonesia: { lat: -2.5, lng: 118.0, zoom: 5 },
   Chile: { lat: CENTRO_CHILE[0], lng: CENTRO_CHILE[1], zoom: ZOOM_INICIAL_CHILE },
   Colombia: {
     lat: CENTRO_COLOMBIA[0],
@@ -215,6 +218,9 @@ const CAJAS_PAIS: {
   // Chile centro-sur (Atacama–Magallanes): angosto, para no invadir Argentina.
   { nombre: 'Chile', sur: -56.0, norte: -27.0, oeste: -75.7, este: -69.0 },
   { nombre: 'Argentina', sur: -55.1, norte: -21.7, oeste: -73.6, este: -53.6 },
+  // Indonesia está al otro lado del planeta: su recuadro no se solapa con
+  // ninguno de América, así que da igual dónde vaya en el orden.
+  { nombre: 'Indonesia', sur: -11.0, norte: 6.1, oeste: 95.0, este: 141.0 },
   { nombre: 'Brasil', sur: -33.8, norte: 5.3, oeste: -74.0, este: -34.0 },
   { nombre: 'México', sur: 14.5, norte: 32.8, oeste: -118.5, este: -86.7 },
   { nombre: 'Estados Unidos', sur: 24.0, norte: 49.5, oeste: -125.0, este: -66.9 },

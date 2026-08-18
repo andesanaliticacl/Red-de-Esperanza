@@ -1299,7 +1299,7 @@ export default function CiudadanoView() {
                   }
                 >
                   <option value="">🌎 Todos los países</option>
-                  {(['Venezuela', 'Chile', 'Colombia'] as const).map((p) => (
+                  {(['Venezuela', 'Chile', 'Colombia', 'Indonesia'] as const).map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>
