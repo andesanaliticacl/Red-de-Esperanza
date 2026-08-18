@@ -567,6 +567,10 @@ export default function CiudadanoView() {
     mascotas: true,
   })
   const [ofertaAbierta, setOfertaAbierta] = useState(false)
+  // Filtro de calidad, no de categoría: deja solo lo que el equipo
+  // confirmó que es real. Apagado por defecto — encenderlo de entrada
+  // escondería casi todo el mapa.
+  const [soloVerificados, setSoloVerificados] = useState(false)
   const [busqDesap, setBusqDesap] = useState('')
 
   // Capa de YA LOCALIZADOS. Se SUMA a la de desaparecidos, no la reemplaza:
@@ -810,11 +814,29 @@ export default function CiudadanoView() {
   const porCapa = useMemo(
     () =>
       filtradas.filter((n) => {
+        // "Solo verificados" se aplica ANTES que la categoría: si está
+        // encendido, no importa de qué tipo sea, importa si el equipo lo
+        // confirmó. Cuenta también lo que ya está en proceso o resuelto:
+        // para atenderlo alguien tuvo que darlo por bueno.
+        if (
+          soloVerificados &&
+          n.estado !== 'verificada' &&
+          n.estado !== 'en_proceso' &&
+          n.estado !== 'resuelta'
+        ) {
+          return false
+        }
         if (n.tipo === 'mascota') return capas.mascotas
         if (TIPOS_PELIGRO.has(n.tipo)) return capas.peligro
         return capas.necesito
       }),
-    [filtradas, capas.necesito, capas.peligro, capas.mascotas],
+    [
+      filtradas,
+      capas.necesito,
+      capas.peligro,
+      capas.mascotas,
+      soloVerificados,
+    ],
   )
 
   const necesidadesMapa = verDesap ? [] : porCapa
@@ -997,7 +1019,11 @@ export default function CiudadanoView() {
               {/* Dos por fila y no cuatro: a 320 px, cuatro columnas dejan
                   botones de 66 px donde "Mascotas" se parte en dos lineas.
                   Grandes y de a dos se leen sin esfuerzo, que es el punto. */}
-              <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+              {/* `relative` + gap más ancho: la estrella de "verificados" va
+                  ANCLADA AL CENTRO exacto de los cuatro, en el cruce. Como el
+                  contenido de cada botón está centrado, el círculo solo tapa
+                  las esquinas interiores, que están vacías. */}
+              <div className="relative grid grid-cols-2 gap-3 mb-1.5">
                 {(
                   [
                     // 🙋 y no 🆘: el botón SOS ya usa 🆘, y repetirlo aquí
@@ -1027,7 +1053,33 @@ export default function CiudadanoView() {
                     </button>
                   )
                 })}
+
+                {/* La estrella, justo en el cruce de los cuatro. Lleva un aro
+                    blanco grueso para que se lea como una pieza aparte y no
+                    como un pedazo de los botones que hay debajo. */}
+                <button
+                  onClick={() => setSoloVerificados((v) => !v)}
+                  aria-pressed={soloVerificados}
+                  aria-label="Ver solo reportes verificados"
+                  title="Ver solo reportes verificados"
+                  className={`absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-full border-4 border-white text-lg shadow-md transition-colors ${
+                    soloVerificados
+                      ? 'bg-sky-400 text-white'
+                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                  }`}
+                >
+                  {soloVerificados ? '★' : '☆'}
+                </button>
               </div>
+
+              {/* Al encenderlo se dice en palabras, porque una estrella sola
+                  no explica qué hizo. Solo aparece si está activo, así que no
+                  ocupa sitio el resto del tiempo. */}
+              {soloVerificados && (
+                <p className="mb-1.5 text-center text-[11px] font-bold text-sky-700">
+                  ★ Mostrando solo reportes verificados
+                </p>
+              )}
               {/* Se quitó el desplegable "Todo tipo de ayuda": los cuatro
                   botones de arriba ya dicen qué se ve, y una lista de catorce
                   tipos encima era pedirle a la persona que eligiera dos veces

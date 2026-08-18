@@ -41,6 +41,8 @@ export default function OfertaModal({
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [listo, setListo] = useState(false)
+  // Especie a la que va dirigida la comida de mascota.
+  const [especie, setEspecie] = useState<'Perro' | 'Gato' | 'Otro' | null>(null)
 
   const necesitaEnlace = tipo != null && TIPOS_CON_ENLACE.includes(tipo)
 
@@ -63,11 +65,18 @@ export default function OfertaModal({
     setError('')
     const datos = {
       tipo,
-      descripcion,
+      descripcion:
+        tipo === 'comida_mascota' && especie
+          ? `Para ${especie.toLowerCase()}. ${descripcion}`
+          : descripcion,
       lat: coord?.lat ?? null,
       lng: coord?.lng ?? null,
       enlace: enlace || null,
       contacto: contacto || null,
+    }
+    if (tipo === 'comida_mascota' && !especie) {
+      setError('Dinos para qué animal es: perro, gato u otro.')
+      return
     }
     const problema = validarOferta(datos)
     if (problema) {
@@ -163,6 +172,30 @@ export default function OfertaModal({
 
       {tipo && (
         <div className="space-y-3 mt-2">
+          {/* ¿Para qué animal? Un saco de alimento para perro no le sirve a
+              quien tiene un gato, y al revés. Va como botones y no como texto
+              libre para que quien busca pueda filtrarlo después. */}
+          {tipo === 'comida_mascota' && (
+            <div>
+              <p className="text-sm font-bold mb-1.5">¿Para qué animal es?</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Perro', 'Gato', 'Otro'] as const).map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setEspecie(e)}
+                    aria-pressed={especie === e}
+                    className={`rounded-xl border-2 py-2 text-sm font-bold ${
+                      especie === e
+                        ? 'border-amber-600 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <textarea
               value={descripcion}

@@ -13,6 +13,7 @@ import {
   Wifi,
   Truck,
   ShowerHead,
+  Bone,
   Waves,
   Flame,
   Boxes,
@@ -132,6 +133,7 @@ export const ICONO_OFERTA: Record<OfertaTipo, LucideIcon> = {
   transporte: Truck,
   higiene: ShowerHead,
   herramientas: Tractor, // el mismo de 'Maquinaria pesada'
+  comida_mascota: Bone,
   comunidad: Users, // el mismo de 'Junta vecinal'
   profesional: Stethoscope, // el mismo de la categoría 'profesional'
   otro: CircleHelp, // el mismo de 'Otro'

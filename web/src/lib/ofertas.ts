@@ -19,6 +19,7 @@ export type OfertaTipo =
   | 'transporte'
   | 'higiene'
   | 'herramientas'
+  | 'comida_mascota'
   | 'comunidad'
   | 'profesional'
   | 'otro'
@@ -106,6 +107,16 @@ export const OFERTA_META: Record<
     color: '#78350F',
     ejemplo: 'Tengo herramientas para remover escombros',
   },
+  // La comida de animales NO es la misma que la de personas ni sirve para lo
+  // mismo: quien tiene un saco de alimento para perro no puede ofrecerlo como
+  // "Comida" sin confundir a una familia que busca qué comer, y quien busca
+  // para su gato no lo encontraría entre las ofertas de comida.
+  comida_mascota: {
+    etiqueta: 'Comida mascota',
+    emoji: '🦴',
+    color: '#B45309', // el mismo de 'Mascota / animal'
+    ejemplo: 'Tengo alimento para perro. Di para qué animal es.',
+  },
   // No es un recurso físico sino un PUNTO DE ENCUENTRO: no se agota, no hay
   // que ir a buscarlo y sirve a cien personas a la vez. Por eso es la única
   // que puede ir sin coordenadas y con un enlace en vez de una dirección.
@@ -143,6 +154,7 @@ export const OFERTAS_ORDEN: OfertaTipo[] = [
   'higiene',
   'transporte',
   'herramientas',
+  'comida_mascota',
   'comunidad',
   'profesional',
   'otro',
