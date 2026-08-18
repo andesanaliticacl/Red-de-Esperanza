@@ -104,10 +104,12 @@ const GRUPOS: {
     tipos: [
       'inundacion',
       'incendio',
+      // Un SOLO botón de edificio. Al tocarlo se pregunta en qué estado está
+      // (derrumbado o no habitable): son dos reportes distintos, pero para
+      // quien mira la cuadrícula es una sola cosa —"un edificio con daño"— y
+      // separarlos ahí le hacía leer dos opciones parecidas antes de saber
+      // que existía esa diferencia. Ver `pasoEdificio`.
       'derrumbe',
-      // Va justo después del derrumbe para que se lea el par: uno ya se cayó,
-      // el otro sigue en pie pero hay que sacar a la gente.
-      'edificio_inhabitable',
       'zona_sin_atender',
       'zona_aislada',
     ],
@@ -213,6 +215,8 @@ export default function ReportarModal({
   // es lo que hace "Ingresar" desde el botón de Desaparecidos del mapa, que
   // ya sabe a qué viene. Sin eso habría que pasar por una lista donde
   // "Desaparecidos" ya no está.
+  // Paso intermedio del edificio: derrumbado o no disponible para vivienda.
+  const [pasoEdificio, setPasoEdificio] = useState(false)
   const [pasoPersonaAnimal, setPasoPersonaAnimal] = useState<'elegir' | null>(
     abrirEnDesaparecido ? 'elegir' : null,
   )
@@ -1255,6 +1259,64 @@ export default function ReportarModal({
         {/* Bloque "Desaparecidos": a quién busca. Va directo al formulario
             de desaparecido en ambos casos (el animal que necesita ayuda
             ESTANDO PRESENTE vive aparte, dentro de "Necesito algo"). */}
+        {/* ¿En qué estado está el edificio? Dos reportes MUY distintos: al
+            derrumbado se va a buscar gente entre escombros; del otro hay que
+            SACARLA antes de que se caiga. Se pregunta aquí y no en la
+            cuadrícula porque, hasta que no eliges "Edificio", esa diferencia
+            todavía no te importa. */}
+        {paso === 1 && pasoEdificio && (
+          <div className="space-y-2">
+            <p className="font-bold mb-1">¿En qué estado está el edificio?</p>
+            <button
+              type="button"
+              onClick={() => {
+                setPasoEdificio(false)
+                elegirTipo('derrumbe')
+              }}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-tinta-200 bg-white p-3.5 hover:border-bandera-azul"
+            >
+              <span className="text-2xl shrink-0" aria-hidden="true">
+                🏚️
+              </span>
+              <span className="min-w-0">
+                <span className="block font-extrabold text-tinta-800">
+                  Derrumbado
+                </span>
+                <span className="block text-sm text-tinta-500 leading-snug">
+                  Ya se cayó. Puede haber gente atrapada.
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPasoEdificio(false)
+                elegirTipo('edificio_inhabitable')
+              }}
+              className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-tinta-200 bg-white p-3.5 hover:border-bandera-azul"
+            >
+              <span className="text-2xl shrink-0" aria-hidden="true">
+                🏢
+              </span>
+              <span className="min-w-0">
+                <span className="block font-extrabold text-tinta-800">
+                  No disponible para la vivienda
+                </span>
+                <span className="block text-sm text-tinta-500 leading-snug">
+                  Sigue en pie, pero no se puede habitar.
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPasoEdificio(false)}
+              className="btn-gris w-full mt-2"
+            >
+              ← Atrás
+            </button>
+          </div>
+        )}
+
         {paso === 1 && pasoPersonaAnimal === 'elegir' && (
           <div className="space-y-2">
             <p className="font-bold mb-1">¿Es una persona o una mascota?</p>
@@ -1292,7 +1354,7 @@ export default function ReportarModal({
         )}
 
         {/* PASO 1-B: opciones del grupo elegido */}
-        {paso === 1 && grupoAbierto && (
+        {paso === 1 && grupoAbierto && !pasoEdificio && (
           <div className="space-y-2">
             <p className="font-bold mb-1 flex items-center gap-2 text-tinta-800">
               <grupoAbierto.icono className="h-5 w-5 text-tinta-500" aria-hidden="true" />
@@ -1310,11 +1372,16 @@ export default function ReportarModal({
                 // cada uno de una situación distinta.
                 const Icono = t === 'mascota' ? Dog : ICONO_TIPO[t]
                 const meta = TIPO_META[t]
+                // El edificio no elige tipo aquí: abre el paso donde se dice
+                // en qué estado está.
+                const esEdificio = t === 'derrumbe'
                 return (
                   <button
                     key={t}
                     type="button"
-                    onClick={() => elegirTipo(t)}
+                    onClick={() =>
+                      esEdificio ? setPasoEdificio(true) : elegirTipo(t)
+                    }
                     className="rounded-2xl border-2 border-tinta-200 bg-white p-2 flex flex-col items-center gap-1 text-center transition-colors hover:border-bandera-azul/40"
                   >
                     <Icono
@@ -1326,7 +1393,11 @@ export default function ReportarModal({
                     <span className="text-[11px] font-bold leading-tight text-tinta-800">
                       {/* El nombre corto, si lo tiene: el completo se parte en
                           dos líneas y descuadra la fila. */}
-                      {t === 'mascota' ? 'Mi mascota' : (meta.corta ?? meta.etiqueta)}
+                      {t === 'mascota'
+                        ? 'Mi mascota'
+                        : esEdificio
+                          ? 'Edificio'
+                          : (meta.corta ?? meta.etiqueta)}
                     </span>
                   </button>
                 )
