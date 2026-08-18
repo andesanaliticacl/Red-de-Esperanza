@@ -811,33 +811,27 @@ export default function CiudadanoView() {
   // Cada reporte cae en UNA sola de las tres casillas, y cada casilla tiene su
   // interruptor. Así "Mascotas" se puede mirar sola —o apagar— sin tocar el
   // resto, que es lo que se pidió: todo lo de animales junto y aparte.
-  const porCapa = useMemo(
-    () =>
-      filtradas.filter((n) => {
-        // "Solo verificados" se aplica ANTES que la categoría: si está
-        // encendido, no importa de qué tipo sea, importa si el equipo lo
-        // confirmó. Cuenta también lo que ya está en proceso o resuelto:
-        // para atenderlo alguien tuvo que darlo por bueno.
-        if (
-          soloVerificados &&
-          n.estado !== 'verificada' &&
-          n.estado !== 'en_proceso' &&
-          n.estado !== 'resuelta'
-        ) {
-          return false
-        }
-        if (n.tipo === 'mascota') return capas.mascotas
-        if (TIPOS_PELIGRO.has(n.tipo)) return capas.peligro
-        return capas.necesito
-      }),
-    [
-      filtradas,
-      capas.necesito,
-      capas.peligro,
-      capas.mascotas,
-      soloVerificados,
-    ],
-  )
+  const porCapa = useMemo(() => {
+    // "Solo verificados" MANDA SOBRE LAS CATEGORÍAS, no se suma a ellas.
+    // Al encenderlo se ven TODOS los verificados —necesito, peligro,
+    // mascotas, lo que sea—, porque la pregunta que se está haciendo ya no
+    // es "¿de qué tipo?" sino "¿qué está confirmado?". Combinarlo con las
+    // cuatro casillas escondía verificados solo porque su categoría estaba
+    // apagada, que era justo lo contrario de lo que se pedía.
+    // ESTRICTO: solo `verificada`. Se probó contar también "en proceso" y
+    // "resuelta" —para atenderlas alguien tuvo que darlas por buenas— pero
+    // eso diluye lo único que la estrella promete: que un líder la confirmó.
+    // Que el mapa quede vacío cuando no hay ninguna verificada es la
+    // respuesta correcta, no un error.
+    if (soloVerificados) {
+      return filtradas.filter((n) => n.estado === 'verificada')
+    }
+    return filtradas.filter((n) => {
+      if (n.tipo === 'mascota') return capas.mascotas
+      if (TIPOS_PELIGRO.has(n.tipo)) return capas.peligro
+      return capas.necesito
+    })
+  }, [filtradas, capas.necesito, capas.peligro, capas.mascotas, soloVerificados])
 
   const necesidadesMapa = verDesap ? [] : porCapa
 
@@ -851,6 +845,10 @@ export default function CiudadanoView() {
   // un filtro en plena emergencia sería un retroceso.
   const acopiosMapa = useMemo(() => {
     if (verDesap) return []
+    // Con "solo verificados" no van: un centro de acopio no se verifica, así
+    // que dejarlos visibles rompería la promesa de que TODO lo que se ve en
+    // el mapa está confirmado.
+    if (soloVerificados) return []
     return acopiosVisibles.filter((a) => {
       const esHospital =
         a.es_hospital || (a.descripcion ?? '').toLowerCase().includes('hospital')
@@ -858,7 +856,7 @@ export default function CiudadanoView() {
       if (a.atiende_animales) return capas.tengo || capas.mascotas
       return capas.tengo
     })
-  }, [verDesap, acopiosVisibles, capas.tengo, capas.mascotas])
+  }, [verDesap, acopiosVisibles, capas.tengo, capas.mascotas, soloVerificados])
   const hayFiltro =
     tipoFiltro !== 'todos' ||
     urgFiltro !== 'todas'
@@ -942,7 +940,9 @@ export default function CiudadanoView() {
             resaltadaId={resaltadaId}
             resaltadaAcopioId={resaltadaAcopioId}
             verDesaparecidos={verDesap}
-            verOfertas={capas.tengo}
+            // Las ofertas tampoco se verifican, asi que con la estrella encendida
+            // no se muestran.
+            verOfertas={capas.tengo && !soloVerificados}
             busquedaDesap={busqDesap}
             paisDesap={paisDesap}
             tipoSerDesap={tipoSerDesap}
@@ -1077,7 +1077,17 @@ export default function CiudadanoView() {
                   ocupa sitio el resto del tiempo. */}
               {soloVerificados && (
                 <p className="mb-1.5 text-center text-[11px] font-bold text-sky-700">
-                  ★ Mostrando solo reportes verificados
+                  {porCapa.length > 0 ? (
+                    <>★ Mostrando {porCapa.length} reporte
+                    {porCapa.length === 1 ? '' : 's'} verificado
+                    {porCapa.length === 1 ? '' : 's'}</>
+                  ) : (
+                    // Un mapa vacío sin explicación se lee como que algo se
+                    // rompió. Aquí se dice que no hay ninguno todavía y quién
+                    // los marca, que es lo que resuelve la duda.
+                    <>★ Todavía no hay reportes verificados. Los marca el
+                    equipo de coordinación con la estrella.</>
+                  )}
                 </p>
               )}
               {/* Se quitó el desplegable "Todo tipo de ayuda": los cuatro
