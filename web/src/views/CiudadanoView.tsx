@@ -1574,7 +1574,14 @@ export default function CiudadanoView() {
         <SosModal onCerrar={() => setAbrirSos(false)} coordInicial={coordAuto} />
       )}
       {ofertaAbierta && (
-        <OfertaModal onCerrar={() => setOfertaAbierta(false)} />
+        <OfertaModal
+          onCerrar={() => setOfertaAbierta(false)}
+          // Volver a Reportar, que es de donde se entra a "Yo tengo".
+          onVolver={() => {
+            setOfertaAbierta(false)
+            setAbrirReporte(true)
+          }}
+        />
       )}
       {abrirTutorial && <TutorialModal onCerrar={cerrarTutorial} />}
       {chatNec && (

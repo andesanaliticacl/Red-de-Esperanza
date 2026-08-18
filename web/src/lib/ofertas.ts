@@ -20,6 +20,7 @@ export type OfertaTipo =
   | 'higiene'
   | 'herramientas'
   | 'comunidad'
+  | 'profesional'
   | 'otro'
 
 export type OfertaEstado = 'disponible' | 'agotada' | 'retirada'
@@ -114,6 +115,15 @@ export const OFERTA_META: Record<
     color: '#16A34A',
     ejemplo: 'Grupo de WhatsApp del barrio para coordinarnos',
   },
+  // Lo que más escasea tras un terremoto no es material, es alguien que sepa.
+  // Un médico, un veterinario, un eléctrico o un albañil que ofrezca sus
+  // horas es una oferta como cualquier otra y no tenía dónde publicarse.
+  profesional: {
+    etiqueta: 'Un profesional',
+    emoji: '🩺', // el mismo oficio que la categoría 'profesional' de entidades
+    color: '#0F766E',
+    ejemplo: 'Soy enfermera y puedo atender curaciones',
+  },
   otro: {
     etiqueta: 'Otro',
     emoji: '❓', // el mismo 'Otro' que en los tipos de necesidad
@@ -134,6 +144,7 @@ export const OFERTAS_ORDEN: OfertaTipo[] = [
   'transporte',
   'herramientas',
   'comunidad',
+  'profesional',
   'otro',
 ]
 

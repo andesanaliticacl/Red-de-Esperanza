@@ -7,6 +7,7 @@ import {
   Pill,
   Home,
   Building2,
+  TriangleAlert,
   Waves,
   Flame,
   Boxes,
@@ -49,6 +50,9 @@ export const ICONO_TIPO: Record<NecesidadTipo, LucideIcon> = {
   medicinas: Pill,
   refugio: Home,
   derrumbe: Building2,
+  // Mismo edificio que el derrumbe pero con la señal de alerta: en pie y
+  // peligroso, no caído.
+  edificio_inhabitable: TriangleAlert,
   inundacion: Waves,
   incendio: Flame,
   sacos_arena: Boxes,

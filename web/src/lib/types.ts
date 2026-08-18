@@ -7,6 +7,7 @@ export type NecesidadTipo =
   | 'medicinas'
   | 'refugio'
   | 'derrumbe'
+  | 'edificio_inhabitable'
   | 'inundacion'
   | 'incendio'
   | 'sacos_arena'
@@ -241,6 +242,15 @@ export const TIPO_META: Record<
   medicinas: { etiqueta: 'Medicinas', emoji: '💊', color: '#CF9B00' },
   refugio: { etiqueta: 'Refugio', emoji: '🏠', color: '#7C3AED' },
   derrumbe: { etiqueta: 'Edificio derrumbado', emoji: '🏚️', color: '#7F1D1D' },
+  // El que sigue EN PIE pero no se puede habitar. Es distinto del derrumbe y
+  // se atiende distinto: al derrumbado se va a buscar gente entre escombros,
+  // de este hay que SACARLA a tiempo. Por eso va en rojo más claro: grave,
+  // pero no es lo mismo.
+  edificio_inhabitable: {
+    etiqueta: 'Edificio no habitable',
+    emoji: '🏢',
+    color: '#B45309',
+  },
   inundacion: { etiqueta: 'Inundación', emoji: '🌊', color: '#0369A1' },
   incendio: { etiqueta: 'Incendio', emoji: '🔥', color: '#C2410C' },
   sacos_arena: { etiqueta: 'Material de construcción', emoji: '🧱', color: '#92400E' },
@@ -267,6 +277,7 @@ export const TIPOS_ALERTA: NecesidadTipo[] = [
   'medicinas',
   'refugio',
   'derrumbe',
+  'edificio_inhabitable',
   'inundacion',
   'incendio',
   'sacos_arena',
@@ -293,6 +304,7 @@ export const TIPOS_ALERTA: NecesidadTipo[] = [
  */
 export const TIPOS_PELIGRO = new Set<NecesidadTipo>([
   'derrumbe',
+  'edificio_inhabitable',
   'incendio',
   'inundacion',
   'zona_aislada',
