@@ -578,6 +578,10 @@ export default function CiudadanoView() {
   // Menú del botón Desaparecidos (Ver / Ingresar) y alta directa.
   const [menuDesap, setMenuDesap] = useState(false)
   const [abrirDesapNuevo, setAbrirDesapNuevo] = useState(false)
+  // El panel de desaparecidos arranca ABIERTO al encender la capa (es lo que
+  // se vino a hacer), pero se puede plegar a solo su barra para recuperar el
+  // mapa sin apagar la búsqueda.
+  const [panelDesapAbierto, setPanelDesapAbierto] = useState(true)
   const {
     encontrados,
     total: totalEncontrados,
@@ -1109,10 +1113,26 @@ export default function CiudadanoView() {
                   a un desaparecido lo puedes agregar tú JUSTO cuando estás
                   buscando y no lo encuentras. Lleva al formulario de siempre,
                   a elegir persona o mascota. */}
+              {/* La cabecera PLIEGA el panel. Abierto ocupa media pantalla
+                  —dos filtros, la paginación, país, tipo y el buscador— y
+                  tapa justo el mapa donde están los marcadores que se vinieron
+                  a mirar. Plegado deja solo esta barra, y la capa sigue
+                  encendida: se puede buscar, plegar y mirar el resultado. */}
               <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-xs font-bold text-purple-700">
+                <button
+                  type="button"
+                  onClick={() => setPanelDesapAbierto((v) => !v)}
+                  aria-expanded={panelDesapAbierto}
+                  className="flex items-center gap-1 text-xs font-bold text-purple-700"
+                >
                   🔍 Desaparecidos
-                </span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                      panelDesapAbierto ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
                 <button
                   type="button"
                   onClick={() => setAbrirDesapNuevo(true)}
@@ -1121,6 +1141,9 @@ export default function CiudadanoView() {
                   ＋ Ingresar
                 </button>
               </div>
+
+              {panelDesapAbierto && (
+                <>
               {/* Qué se está viendo, en números que SÍ cuadran con el mapa.
                   El contador del botón cuenta todo el país; el mapa solo
                   pinta los del recuadro visible y con un tope (13.000 pines
@@ -1401,6 +1424,8 @@ export default function CiudadanoView() {
                   )}
                 </div>
               )}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1440,6 +1465,8 @@ export default function CiudadanoView() {
                         // Ya no abre el filtro general: desaparecidos tiene
                         // su propio panel y mezclarlos era el problema.
                         setVerDesapManual(true)
+                        // Vuelve abierto: apretaste "Ver" esperando verlo.
+                        setPanelDesapAbierto(true)
                         setMenuDesap(false)
                       }}
                       className="flex items-center gap-1.5 rounded-full border-2 border-purple-700 bg-purple-700 text-white py-2 px-3.5 text-sm font-bold whitespace-nowrap"
