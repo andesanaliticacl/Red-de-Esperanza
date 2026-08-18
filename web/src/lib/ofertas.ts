@@ -143,18 +143,27 @@ export const OFERTA_META: Record<
   },
 }
 
-/** Orden en que se ofrecen al publicar. Lo más pedido primero. */
+/**
+ * Orden en que se ofrecen al publicar. Los SEIS PRIMEROS son los que se ven
+ * sin tocar "Ver más opciones", así que esta lista decide qué se descubre
+ * solo y qué hay que ir a buscar.
+ *
+ * 'comida_mascota' va sexta, por delante de 'internet'. Las cuatro primeras
+ * son las necesidades humanas básicas y no se mueven, pero entre ofrecer wifi
+ * y ofrecer comida para un animal que lleva días sin comer, la comida pesa
+ * más. Escondida tras "Ver más" no la encontraba nadie.
+ */
 export const OFERTAS_ORDEN: OfertaTipo[] = [
   'agua',
   'comida',
   'medicinas',
   'refugio',
   'electricidad',
+  'comida_mascota',
   'internet',
   'higiene',
   'transporte',
   'herramientas',
-  'comida_mascota',
   'comunidad',
   'profesional',
   'otro',
