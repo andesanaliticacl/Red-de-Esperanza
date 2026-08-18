@@ -32,9 +32,14 @@ export default function AvisosEnVivo() {
 
   useEffect(() => {
     for (const m of movimientos) {
-      if (m.en <= montadoEn.current) continue
       if (avisados.current.has(m.id)) continue
       avisados.current.add(m.id)
+
+      // Lo anterior al montaje son los últimos movimientos que ya habían
+      // pasado: entran a la campana pero NO saltan encima del mapa. Si
+      // saltaran, al abrir la app te caerían cinco avisos de golpe, y encima
+      // de cosas de hace horas.
+      const previo = m.en <= montadoEn.current
 
       const que = `${m.emoji} ${m.clase === 'oferta' ? 'Ofrecen' : 'Piden'} ${m.etiqueta}`
       notificar(
@@ -45,6 +50,9 @@ export default function AvisosEnVivo() {
         m.clase === 'necesidad'
           ? { ruta: `/?necesidad=${m.id}`, etiqueta: 'Ver en el mapa' }
           : undefined,
+        // Con la hora REAL del hecho, para que la campana los ordene bien y
+        // ninguno aparente ser más reciente de lo que es.
+        { silencioso: previo, ts: m.en },
       )
     }
   }, [movimientos, notificar])

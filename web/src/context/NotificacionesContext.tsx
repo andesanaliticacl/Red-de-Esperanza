@@ -40,7 +40,12 @@ export interface Aviso {
 
 interface NotiState {
   /** Muestra un aviso (toast + queda en la campana). */
-  notificar: (mensaje: string, tono?: Tono, accion?: AccionAviso) => void
+  notificar: (
+    mensaje: string,
+    tono?: Tono,
+    accion?: AccionAviso,
+    opciones?: { silencioso?: boolean; ts?: number },
+  ) => void
   /** Historial de avisos de esta sesión (lo que ve la campana). */
   historial: Aviso[]
   noLeidas: number
@@ -87,16 +92,31 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
   const limpiar = useCallback(() => setHistorial([]), [])
 
   const notificar = useCallback(
-    (mensaje: string, tono: Tono = 'info', accion?: AccionAviso) => {
+    (
+      mensaje: string,
+      tono: Tono = 'info',
+      accion?: AccionAviso,
+      // `silencioso`: entra a la campana pero NO salta como aviso encima del
+      // mapa. Es para lo que ya había pasado antes de que abrieras la app —
+      // los últimos movimientos de la red—: interesa poder consultarlo, pero
+      // saltaría media docena de avisos de golpe al entrar, y encima de cosas
+      // de hace horas.
+      opciones?: { silencioso?: boolean; ts?: number },
+    ) => {
       const aviso: Aviso = {
         id: Math.random().toString(36).slice(2),
         mensaje,
         tono,
-        ts: Date.now(),
+        // La hora REAL del hecho, no la de este momento: si no, todo lo
+        // cargado al abrir se leería como "recién ahora".
+        ts: opciones?.ts ?? Date.now(),
         leido: false,
         accion,
       }
-      setHistorial((prev) => [aviso, ...prev].slice(0, 50))
+      setHistorial((prev) =>
+        [aviso, ...prev].sort((a, b) => b.ts - a.ts).slice(0, 50),
+      )
+      if (opciones?.silencioso) return
       setToasts((prev) => [...prev, aviso])
       window.setTimeout(() => quitarToast(aviso.id), 8000)
     },

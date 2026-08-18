@@ -71,7 +71,7 @@ export const OFERTA_META: Record<
     ejemplo: 'Tengo remedios básicos y material de curación',
   },
   refugio: {
-    etiqueta: 'Techo',
+    etiqueta: 'Refugio',
     emoji: '🏠',
     color: '#7C3AED',
     ejemplo: 'Puedo alojar a una familia',
