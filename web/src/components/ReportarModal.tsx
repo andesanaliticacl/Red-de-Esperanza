@@ -30,7 +30,13 @@ import EntradaTelefono, {
   mensajeTelefono,
 } from './EntradaTelefono'
 import { paisPorIP } from '../lib/visitas'
-import { validarDocumentoFlexible } from '../lib/documentos'
+import {
+  validarDocumentoFlexible,
+  validarDocumentoPersona,
+  etiquetaDocumento,
+} from '../lib/documentos'
+import SelectorBandera from './SelectorBandera'
+import { PAISES_MUNDO } from '../lib/paises'
 import {
   ShoppingBasket,
   TriangleAlert,
@@ -173,6 +179,13 @@ const URGENCIAS: { v: NecesidadUrgencia; etiqueta: string; clase: string }[] = [
  * la dirección (Google Maps si hay clave; si no, OpenStreetMap), arrastrar el
  * pin, usar el GPS o pegar coordenadas. La "zona sin atender" añade un radio.
  */
+// Países con bandera, para decir de dónde ES la persona desaparecida.
+const OPCIONES_PAIS_DESAP = PAISES_MUNDO.map((p) => ({
+  value: p.nombre,
+  iso: p.iso,
+  etiqueta: p.nombre,
+}))
+
 export default function ReportarModal({
   onCerrar,
   onCreado,
@@ -243,6 +256,9 @@ export default function ReportarModal({
   const [nombreDesap, setNombreDesap] = useState('')
   const [edadDesap, setEdadDesap] = useState('')
   const [documentoDesap, setDocumentoDesap] = useState('')
+  // Nacionalidad de la persona desaparecida: puede ser distinta del país
+  // donde se perdió (un ecuatoriano en el terremoto de Colombia).
+  const [paisDocDesap, setPaisDocDesap] = useState('Colombia')
   const [fotoDesapFile, setFotoDesapFile] = useState<File | null>(null)
   const [fotoDesapPreview, setFotoDesapPreview] = useState<string>('')
   const [nombreHospital, setNombreHospital] = useState('')
@@ -561,12 +577,14 @@ export default function ReportarModal({
         }
         if (tipoSerDesap === 'persona') {
           const doc = documentoDesap.trim()
+          const { etiqueta } = etiquetaDocumento(paisDocDesap)
           if (!doc) {
-            throw new Error(
-              'Escribe su cédula (Venezuela o Colombia) o RUT (Chile).',
-            )
+            throw new Error(`Escribe su ${etiqueta.toLowerCase()}.`)
           }
-          const check = validarDocumentoFlexible(doc)
+          // Se valida contra SU país, no contra los tres de siempre: la
+          // cédula ecuatoriana tiene su propio dígito verificador y con el
+          // validador genérico pasaba cualquier cosa.
+          const check = validarDocumentoPersona(paisDocDesap, 'cedula', doc)
           if (!check.valido) throw new Error(check.mensaje)
         }
         if (edadDesap.trim()) {
@@ -652,6 +670,8 @@ export default function ReportarModal({
             estado: 'no_encontrado',
             fuente: 'reporte_ciudadano',
             pais,
+            // De dónde ES, distinto de `pais` (dónde se perdió).
+            nacionalidad: tipoSerDesap === 'persona' ? paisDocDesap : null,
             tipo_ser: tipoSerDesap,
             reportado_por: auth?.user?.id ?? null,
           })
@@ -925,21 +945,44 @@ export default function ReportarModal({
         />
       </label>
       {tipoSerDesap === 'persona' && (
-        <label className="block">
-          <span className="font-bold">
-            Cédula (Venezuela o Colombia) o RUT (Chile){' '}
-            <span className="text-bandera-rojo">*</span>
-          </span>
-          <input
-            className="input mt-1"
-            placeholder="Ej: V-12345678, 1023456789 o 12.345.678-5"
-            value={documentoDesap}
-            onChange={(e) => setDocumentoDesap(e.target.value)}
-          />
-          <span className="text-xs text-gray-500 mt-1 block">
-            Ayuda al equipo a verificar e identificar el caso. Es privado.
-          </span>
-        </label>
+        <>
+          {/* NACIONALIDAD, no el país del desastre: son cosas distintas. Un
+              ecuatoriano perdido en el terremoto de Colombia tiene cédula
+              ecuatoriana, y antes este campo solo aceptaba "Venezuela,
+              Colombia o Chile" — su documento no tenía dónde ponerse. */}
+          <label className="block">
+            <span className="font-bold">
+              ¿De qué país es? <span className="text-bandera-rojo">*</span>
+            </span>
+            <SelectorBandera
+              valor={paisDocDesap}
+              onChange={setPaisDocDesap}
+              opciones={OPCIONES_PAIS_DESAP}
+            />
+            <span className="text-xs text-gray-500 mt-1 block">
+              Su nacionalidad, aunque se haya perdido en otro país.
+            </span>
+          </label>
+          <label className="block">
+            <span className="font-bold">
+              {etiquetaDocumento(paisDocDesap).etiqueta}{' '}
+              <span className="text-bandera-rojo">*</span>
+            </span>
+            <input
+              className="input mt-1"
+              placeholder={
+                etiquetaDocumento(paisDocDesap).ejemplo
+                  ? `Ej: ${etiquetaDocumento(paisDocDesap).ejemplo}`
+                  : 'Documento de identidad'
+              }
+              value={documentoDesap}
+              onChange={(e) => setDocumentoDesap(e.target.value)}
+            />
+            <span className="text-xs text-gray-500 mt-1 block">
+              Ayuda al equipo a verificar e identificar el caso. Es privado.
+            </span>
+          </label>
+        </>
       )}
       <div>
         <p className="font-bold mb-1">

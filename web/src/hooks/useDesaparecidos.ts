@@ -23,11 +23,14 @@ export interface Desaparecido {
   /** Id en el sitio de origen, para los importados (ej. "ctb:<uuid>").
    *  Permite enlazar a la publicación original. Null en los de la app. */
   id_fuente: string | null
+  /** De qué país ES la persona (migración 81). Distinto de `pais`, que
+   *  es dónde se perdió: un ecuatoriano puede perderse en Colombia. */
+  nacionalidad: string | null
 }
 
 // Columnas justas para el mapa (sin traer de más).
 const COLS_DESAP =
-  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser, id_fuente'
+  'id, nombre, edad, genero, fecha_desaparicion, ultima_ubicacion, lat, lng, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser, id_fuente, nacionalidad'
 
 // Topes de cuántos marcadores se traen, puestos en 1000 porque ES EL MÁXIMO
 // QUE DEVUELVE EL SERVIDOR: Supabase (PostgREST) corta toda respuesta en 1000

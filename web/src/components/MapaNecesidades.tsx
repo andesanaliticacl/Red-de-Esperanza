@@ -36,6 +36,7 @@ import {
 } from '../lib/iconos'
 import { useOfertas } from '../hooks/useOfertas'
 import { OFERTA_META } from '../lib/ofertas'
+import { isoDe } from '../lib/paises'
 import IconoRuta from './IconoRuta'
 
 function IconoCompartir({ className = '' }: { className?: string }) {
@@ -1516,7 +1517,24 @@ export default function MapaNecesidades({
                     }}
                   />
                 )}
-                <div className="font-semibold">{d.nombre}</div>
+                {/* La bandera de SU país, que puede no ser el del desastre:
+                    un ecuatoriano perdido en el terremoto de Colombia. Es de
+                    lo que más ayuda a reconocer a alguien en una lista de
+                    miles de nombres. */}
+                <div className="font-semibold flex items-center gap-1.5">
+                  {d.nacionalidad && isoDe(d.nacionalidad) && (
+                    <img
+                      src={`https://flagcdn.com/24x18/${isoDe(d.nacionalidad)}.png`}
+                      alt={d.nacionalidad}
+                      title={d.nacionalidad}
+                      width={18}
+                      height={14}
+                      className="shrink-0 rounded-[2px]"
+                      loading="lazy"
+                    />
+                  )}
+                  {d.nombre}
+                </div>
                 {d.edad && (
                   <div className="text-xs text-gray-600">
                     {d.edad} años {d.genero ? `· ${d.genero}` : ''}

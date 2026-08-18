@@ -20,7 +20,7 @@ import type { Desaparecido } from './useDesaparecidos'
  * No pisa a los desaparecidos: es una capa que se suma, no que reemplaza.
  */
 const COLS =
-  'id, nombre, fecha_desaparicion, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser, id_fuente, lat, lng, edad, genero, ultima_ubicacion'
+  'id, nombre, fecha_desaparicion, foto_url, contacto_familiar, estado, fuente, creado_en, pais, tipo_ser, id_fuente, lat, lng, edad, genero, ultima_ubicacion, nacionalidad'
 
 export function useEncontrados(
   activo: boolean,
