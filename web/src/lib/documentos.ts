@@ -65,6 +65,83 @@ export function esPasaporteColombianoValido(valor: string): boolean {
 }
 
 /**
+ * Cédula ecuatoriana: 10 dígitos con verificador módulo 10. Los dos primeros
+ * son la provincia (01–24, o 30 para nacidos fuera) y el tercero es menor que
+ * 6 en las cédulas de personas naturales.
+ */
+export function esCedulaEcuatorianaValida(valor: string): boolean {
+  const limpio = valor.trim().replace(/[^0-9]/g, '')
+  if (!/^\d{10}$/.test(limpio)) return false
+  const provincia = Number(limpio.slice(0, 2))
+  if (!((provincia >= 1 && provincia <= 24) || provincia === 30)) return false
+  if (Number(limpio[2]) >= 6) return false
+  let suma = 0
+  for (let i = 0; i < 9; i++) {
+    let n = Number(limpio[i])
+    if (i % 2 === 0) {
+      n *= 2
+      if (n > 9) n -= 9
+    }
+    suma += n
+  }
+  const dv = (10 - (suma % 10)) % 10
+  return dv === Number(limpio[9])
+}
+
+/**
+ * CÓMO SE LLAMA EL DOCUMENTO EN CADA PAÍS.
+ *
+ * Sin esto la pantalla pedía "documento" a secas y validaba distinto por
+ * detrás: a un chileno le exigía un RUT sin decírselo nunca. Que el campo
+ * diga "RUT" o "DNI" según el país elegido no es cosmética — es la
+ * diferencia entre saber qué te están pidiendo y adivinar.
+ *
+ * `verificado: true` marca los países cuyo número trae dígito verificador y
+ * SE COMPRUEBA de verdad; en el resto solo se mira que tenga forma razonable,
+ * porque rechazar un documento legítimo de un país cuyo formato no conocemos
+ * sería peor que aceptarlo.
+ */
+export const DOCUMENTO_PAIS: Record<
+  string,
+  { etiqueta: string; ejemplo: string; verificado?: boolean }
+> = {
+  Chile: { etiqueta: 'RUT', ejemplo: '12.345.678-5', verificado: true },
+  Venezuela: { etiqueta: 'Cédula', ejemplo: 'V-12345678' },
+  Colombia: { etiqueta: 'Cédula', ejemplo: '1023456789' },
+  Ecuador: { etiqueta: 'Cédula', ejemplo: '1710034065', verificado: true },
+  Perú: { etiqueta: 'DNI', ejemplo: '12345678' },
+  Argentina: { etiqueta: 'DNI', ejemplo: '12345678' },
+  Bolivia: { etiqueta: 'Cédula de identidad', ejemplo: '1234567' },
+  Uruguay: { etiqueta: 'Cédula', ejemplo: '1.234.567-8' },
+  Paraguay: { etiqueta: 'Cédula', ejemplo: '1234567' },
+  Brasil: { etiqueta: 'CPF', ejemplo: '123.456.789-09' },
+  México: { etiqueta: 'CURP', ejemplo: 'AAAA000000AAAAAA00' },
+  'Costa Rica': { etiqueta: 'Cédula', ejemplo: '1-2345-6789' },
+  Panamá: { etiqueta: 'Cédula', ejemplo: '8-123-456' },
+  Guatemala: { etiqueta: 'DPI', ejemplo: '1234567890101' },
+  Honduras: { etiqueta: 'Identidad', ejemplo: '0801-1990-12345' },
+  Nicaragua: { etiqueta: 'Cédula', ejemplo: '001-123456-1000A' },
+  'El Salvador': { etiqueta: 'DUI', ejemplo: '12345678-9' },
+  'República Dominicana': { etiqueta: 'Cédula', ejemplo: '001-1234567-8' },
+  Cuba: { etiqueta: 'Carné de identidad', ejemplo: '90010112345' },
+  Indonesia: { etiqueta: 'NIK', ejemplo: '3201234567890001' },
+}
+
+/** Cómo llamar al campo de documento según el país y el tipo elegido. */
+export function etiquetaDocumento(
+  pais: string | null | undefined,
+  tipoDoc?: TipoDocumento,
+): { etiqueta: string; ejemplo: string } {
+  if (tipoDoc === 'pasaporte') {
+    return { etiqueta: 'Pasaporte', ejemplo: 'AB123456' }
+  }
+  const meta = pais ? DOCUMENTO_PAIS[pais] : undefined
+  return meta
+    ? { etiqueta: meta.etiqueta, ejemplo: meta.ejemplo }
+    : { etiqueta: 'Documento de identidad', ejemplo: '' }
+}
+
+/**
  * NIT colombiano (identificador fiscal de organizaciones): valida el dígito
  * verificador con el algoritmo oficial de la DIAN (módulo 11 con pesos
  * primos). Ej: 900.123.456-7.
@@ -221,9 +298,28 @@ export function validarDocumentoPersona(
         }
   }
 
+  if (pais === 'Ecuador') {
+    return esCedulaEcuatorianaValida(v)
+      ? { valido: true, mensaje: '' }
+      : {
+          valido: false,
+          mensaje:
+            'Esa cédula no es válida: el dígito verificador no calza. Ejemplo: 1710034065.',
+        }
+  }
+
+  // Resto de países: solo forma razonable. El mensaje SÍ nombra el documento
+  // del país elegido, para que la persona sepa qué se le está pidiendo en vez
+  // de leer un genérico "documento".
+  const { etiqueta, ejemplo } = etiquetaDocumento(pais, tipoDoc)
   return /^[A-Z0-9-]{5,20}$/i.test(v)
     ? { valido: true, mensaje: '' }
-    : { valido: false, mensaje: 'Ese documento no parece válido.' }
+    : {
+        valido: false,
+        mensaje: `Ese ${etiqueta.toLowerCase()} no parece válido.${
+          ejemplo ? ` Ejemplo: ${ejemplo}.` : ''
+        }`,
+      }
 }
 
 /**
