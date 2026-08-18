@@ -35,7 +35,7 @@ import {
   iconoOferta,
 } from '../lib/iconos'
 import { useOfertas } from '../hooks/useOfertas'
-import { OFERTA_META } from '../lib/ofertas'
+import { OFERTA_META, esOfertaDeMascota } from '../lib/ofertas'
 import { isoDe } from '../lib/paises'
 import IconoRuta from './IconoRuta'
 
@@ -709,6 +709,7 @@ export default function MapaNecesidades({
   ajustarVista = false,
   verDesaparecidos = false,
   verOfertas = false,
+  verOfertasMascotas = false,
   busquedaDesap = '',
   paisDesap = null,
   tipoSerDesap = null,
@@ -743,6 +744,10 @@ export default function MapaNecesidades({
   miFoto?: string | null
   /** Si la capa de desaparecidos está visible (controlada desde la vista). */
   verDesaparecidos?: boolean
+  /** Si el filtro de Mascotas está encendido: hace salir las ofertas de
+   *  animales (comida de mascota y veterinarios) aunque "Yo tengo" esté
+   *  apagado, porque también son cosas de mascotas. */
+  verOfertasMascotas?: boolean
   /** Si la capa de ofertas ("Yo tengo") está visible. Apagada por defecto:
    *  el mapa no debe llenarse solo, solo si la persona la pide. */
   verOfertas?: boolean
@@ -966,7 +971,7 @@ export default function MapaNecesidades({
   // Capa de ofertas ("Yo tengo"): igual que los desaparecidos, solo se
   // consulta si la capa está encendida. Quien no la pide no paga la consulta
   // ni ve el mapa más cargado.
-  const { ofertas } = useOfertas(verOfertas)
+  const { ofertas } = useOfertas(verOfertas || verOfertasMascotas)
 
   const [zona, setZona] = useState<ZonaMapa | null>(null)
   const {
@@ -1438,11 +1443,14 @@ export default function MapaNecesidades({
           y del círculo de los desaparecidos, no solo por color. */}
       {ofertas
         .filter((o) => o.lat != null && o.lng != null)
+        // Con "Yo tengo" apagado solo pasan las de animales: es lo que el
+        // filtro de Mascotas pidió ver, y nada más.
+        .filter((o) => verOfertas || esOfertaDeMascota(o))
         .map((o) => (
           <Marker
             key={`oferta-${o.id}`}
             position={[o.lat as number, o.lng as number]}
-            icon={iconoOferta(o.tipo, esMovil)}
+            icon={iconoOferta(o.tipo, esMovil, o.profesion)}
           >
             <Popup>
               <div className="min-w-0 max-w-[220px]">

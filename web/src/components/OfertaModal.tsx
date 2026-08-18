@@ -6,6 +6,8 @@ import {
   OFERTAS_ORDEN,
   OFERTA_META,
   TIPOS_CON_ENLACE,
+  PROFESIONES_RAPIDAS,
+  PROFESION_VETERINARIO,
   validarOferta,
   type OfertaTipo,
 } from '../lib/ofertas'
@@ -43,6 +45,10 @@ export default function OfertaModal({
   const [listo, setListo] = useState(false)
   // Especie a la que va dirigida la comida de mascota.
   const [especie, setEspecie] = useState<'Perro' | 'Gato' | 'Otro' | null>(null)
+  // Profesión ofrecida y si se está escribiendo una que no está en los
+  // atajos.
+  const [profesion, setProfesion] = useState('')
+  const [profesionOtra, setProfesionOtra] = useState(false)
 
   const necesitaEnlace = tipo != null && TIPOS_CON_ENLACE.includes(tipo)
 
@@ -72,7 +78,12 @@ export default function OfertaModal({
       lat: coord?.lat ?? null,
       lng: coord?.lng ?? null,
       enlace: enlace || null,
+      profesion: tipo === 'profesional' ? profesion : null,
       contacto: contacto || null,
+    }
+    if (tipo === 'profesional' && !profesion.trim()) {
+      setError('Dinos qué profesión ofreces.')
+      return
     }
     if (tipo === 'comida_mascota' && !especie) {
       setError('Dinos para qué animal es: perro, gato u otro.')
@@ -175,6 +186,61 @@ export default function OfertaModal({
           {/* ¿Para qué animal? Un saco de alimento para perro no le sirve a
               quien tiene un gato, y al revés. Va como botones y no como texto
               libre para que quien busca pueda filtrarlo después. */}
+          {/* ¿Qué profesión? Médico y veterinario con un toque, el resto se
+              escribe: son los dos que más se ofrecen en una emergencia, y la
+              lista completa de oficios no cabe. Elegir "Veterinario/a" hace
+              además que la oferta salga en el filtro 🐾 Mascotas. */}
+          {tipo === 'profesional' && (
+            <div>
+              <p className="text-sm font-bold mb-1.5">¿Cuál es tu profesión?</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[...PROFESIONES_RAPIDAS, 'Otra'].map((p) => {
+                  const activa =
+                    p === 'Otra' ? profesionOtra : profesion === p
+                  const esVet = p === PROFESION_VETERINARIO
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        if (p === 'Otra') {
+                          setProfesionOtra(true)
+                          setProfesion('')
+                        } else {
+                          setProfesionOtra(false)
+                          setProfesion(p)
+                        }
+                      }}
+                      aria-pressed={activa}
+                      className={`rounded-xl border-2 py-2 text-xs font-bold leading-tight ${
+                        activa
+                          ? esVet
+                            ? 'border-teal-600 bg-teal-50 text-teal-700'
+                            : 'border-bandera-azul bg-bandera-azul/10 text-bandera-azul'
+                          : 'border-gray-200 text-gray-500'
+                      }`}
+                    >
+                      {esVet ? '🐾 ' : ''}
+                      {p === 'Otra' ? 'Otra' : p.replace('/a', '')}
+                    </button>
+                  )
+                })}
+              </div>
+              {profesionOtra && (
+                <input
+                  value={profesion}
+                  onChange={(e) => setProfesion(e.target.value)}
+                  placeholder="¿Cuál? Ej: enfermera, eléctrico, albañil…"
+                  className="mt-2 w-full rounded-2xl border-2 border-gray-200 p-3 text-sm"
+                />
+              )}
+              {profesion === PROFESION_VETERINARIO && (
+                <p className="mt-1.5 text-xs font-semibold text-teal-700">
+                  🐾 Tu oferta saldrá también en el filtro de Mascotas.
+                </p>
+              )}
+            </div>
+          )}
+
           {tipo === 'comida_mascota' && (
             <div>
               <p className="text-sm font-bold mb-1.5">¿Para qué animal es?</p>

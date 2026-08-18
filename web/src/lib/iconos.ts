@@ -1,7 +1,11 @@
 import L from 'leaflet'
 import { TIPO_META, ES_RECURSO, type NecesidadTipo, type NecesidadEstado } from './types'
 import { svgIcono } from './svgTipos'
-import { OFERTA_META, type OfertaTipo } from './ofertas'
+import {
+  OFERTA_META,
+  PROFESION_VETERINARIO,
+  type OfertaTipo,
+} from './ofertas'
 
 /**
  * Íconos de Leaflet como divIcon (sin imágenes externas → evita el clásico
@@ -187,12 +191,26 @@ export function iconoNecesidad(
  */
 const _cacheOferta = new Map<string, L.DivIcon>()
 
-export function iconoOferta(tipo: OfertaTipo, compacto = false): L.DivIcon {
-  const clave = `${tipo}|${compacto ? 1 : 0}`
+export function iconoOferta(
+  tipo: OfertaTipo,
+  compacto = false,
+  /** Profesión ofrecida: el veterinario lleva huella y color propio. */
+  profesion?: string | null,
+): L.DivIcon {
+  const esVeterinario =
+    tipo === 'profesional' && profesion === PROFESION_VETERINARIO
+  const clave = `${tipo}|${compacto ? 1 : 0}|${esVeterinario ? 'vet' : ''}`
   const enCache = _cacheOferta.get(clave)
   if (enCache) return enCache
 
-  const { color, emoji } = OFERTA_META[tipo]
+  const meta = OFERTA_META[tipo]
+  // El veterinario se dibuja con HUELLA y en verde azulado: sigue siendo una
+  // oferta de profesional —mismo cuadrado, misma familia de color— pero la
+  // huella dice de un vistazo que es para animales. No se usa celeste a
+  // propósito: ese color ya significa "reporte verificado" en este mapa, y
+  // dos señales distintas del mismo color se confunden.
+  const color = esVeterinario ? '#0D9488' : meta.color
+  const emoji = esVeterinario ? '🐾' : meta.emoji
   const tam = compacto ? 34 : 42
   const fuente = Math.round(tam * 0.5)
   const icono = L.divIcon({

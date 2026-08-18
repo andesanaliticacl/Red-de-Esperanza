@@ -949,6 +949,8 @@ export default function CiudadanoView() {
             // Las ofertas tampoco se verifican, asi que con la estrella encendida
             // no se muestran.
             verOfertas={capas.tengo && !soloVerificados}
+            // Las de animales salen tambien con el filtro de Mascotas.
+            verOfertasMascotas={capas.mascotas && !soloVerificados}
             busquedaDesap={busqDesap}
             paisDesap={paisDesap}
             tipoSerDesap={tipoSerDesap}

@@ -37,6 +37,8 @@ export interface Oferta {
   /** Invitación pública: grupo de WhatsApp, sitio, formulario. */
   enlace: string | null
   estado: OfertaEstado
+  /** Qué profesión ofrece, cuando tipo = profesional. */
+  profesion: string | null
   ofrecido_por: string | null
   creado_en: string
   actualizado_en: string
@@ -172,6 +174,29 @@ export const OFERTAS_ORDEN: OfertaTipo[] = [
 /** La única que se publica con un enlace de invitación y sin dirección. */
 export const TIPOS_CON_ENLACE: OfertaTipo[] = ['comunidad']
 
+/**
+ * Atajos de profesión para no obligar a escribir lo más común. Los dos
+ * primeros cubren casi todo lo que se ofrece en una emergencia; el resto se
+ * escribe a mano, porque la lista completa de oficios no cabe y adivinarla
+ * sería peor.
+ */
+export const PROFESION_VETERINARIO = 'Veterinario/a'
+export const PROFESIONES_RAPIDAS = ['Médico/a', PROFESION_VETERINARIO] as const
+
+/**
+ * ¿Esta oferta tiene que ver con animales? Lo usa el filtro 🐾 Mascotas del
+ * mapa: la comida de mascota es obvia, y un VETERINARIO ofreciendo sus horas
+ * también —quien busca ayuda para su perro lo necesita tanto como el
+ * alimento, y sin esto quedaba escondido entre el resto de profesionales.
+ */
+export function esOfertaDeMascota(o: {
+  tipo: OfertaTipo
+  profesion?: string | null
+}): boolean {
+  if (o.tipo === 'comida_mascota') return true
+  return o.tipo === 'profesional' && o.profesion === PROFESION_VETERINARIO
+}
+
 export interface NuevaOferta {
   tipo: OfertaTipo
   descripcion: string
@@ -179,6 +204,7 @@ export interface NuevaOferta {
   lat?: number | null
   lng?: number | null
   enlace?: string | null
+  profesion?: string | null
   /** Se guarda en `contactos_oferta`, nunca en la tabla pública. */
   contacto?: string | null
 }
@@ -220,6 +246,7 @@ export async function crearOferta(o: NuevaOferta): Promise<Oferta> {
       lat: o.lat ?? null,
       lng: o.lng ?? null,
       enlace: o.enlace?.trim() || null,
+      profesion: o.profesion?.trim() || null,
       ofrecido_por: uid,
     })
     .select()
@@ -245,7 +272,7 @@ export async function listarOfertas(filtros?: {
   let q = supabase
     .from('ofertas')
     .select(
-      'id, tipo, descripcion, pais, zona, lat, lng, enlace, estado, ofrecido_por, creado_en, actualizado_en',
+      'id, tipo, descripcion, pais, zona, lat, lng, enlace, estado, ofrecido_por, creado_en, actualizado_en, profesion',
     )
     .eq('estado', 'disponible')
     .order('creado_en', { ascending: false })
