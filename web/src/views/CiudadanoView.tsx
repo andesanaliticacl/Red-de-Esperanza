@@ -20,7 +20,7 @@ import CampanaNotificaciones from '../components/CampanaNotificaciones'
 import ReportarModal from '../components/ReportarModal'
 import SosModal from '../components/SosModal'
 import OfertaModal from '../components/OfertaModal'
-import RegistroEnVivo from '../components/RegistroEnVivo'
+import AvisosEnVivo from '../components/AvisosEnVivo'
 import ChatGlobal from '../components/ChatGlobal'
 import ChatNecesidad from '../components/ChatNecesidad'
 import TutorialModal from '../components/TutorialModal'
@@ -976,27 +976,6 @@ export default function CiudadanoView() {
             </div>
           </div>
 
-          {/* Registro en vivo, justo bajo el logo. Estaba abajo, encima de
-              SOS y Reportar, donde competía por el borde inferior —el que más
-              se usa con una sola mano— y empujaba los botones. Arriba se lee
-              de paso al entrar y no le quita sitio a nada urgente. */}
-          <div className="mt-2">
-            <RegistroEnVivo
-              onIr={(m) => {
-                if (m.lat == null || m.lng == null) return
-                setIrACoordenada([m.lat, m.lng])
-                // Enciende la capa que corresponda, o el marcador al que
-                // llevamos no estaría dibujado y el mapa iría a un punto
-                // vacío: peor que no hacer nada.
-                if (m.clase === 'oferta') {
-                  setCapas((c) => ({ ...c, tengo: true }))
-                } else {
-                  setVerDesapManual(false)
-                }
-              }}
-            />
-          </div>
-
           {/* El acceso "Entra o crea tu cuenta" se retiró de aquí: el botón
               ❤️ Ayudar de la barra inferior ya cumple ese rol. Iniciar sesión
               sigue disponible desde el menú de usuario (arriba a la derecha). */}
@@ -1607,6 +1586,10 @@ export default function CiudadanoView() {
           }}
         />
       )}
+      {/* No pinta nada: avisa cuando entra un reporte o una oferta. Va aquí,
+          con los demás componentes sin interfaz, porque ya no ocupa un lugar
+          en la pantalla. */}
+      <AvisosEnVivo />
       {abrirTutorial && <TutorialModal onCerrar={cerrarTutorial} />}
       {chatNec && (
         <ChatNecesidad

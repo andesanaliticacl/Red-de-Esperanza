@@ -9,6 +9,7 @@ import {
   validarOferta,
   type OfertaTipo,
 } from '../lib/ofertas'
+import { ICONO_OFERTA } from '../lib/iconosTipo'
 
 /**
  * "Yo tengo": publicar algo que se OFRECE.
@@ -120,6 +121,7 @@ export default function OfertaModal({
       <div className="grid grid-cols-3 gap-2 mb-2">
         {lista.map((t) => {
           const meta = OFERTA_META[t]
+          const Icono = ICONO_OFERTA[t]
           const activo = tipo === t
           return (
             <button
@@ -133,7 +135,15 @@ export default function OfertaModal({
               }`}
               style={activo ? { backgroundColor: meta.color } : undefined}
             >
-              <span className="text-2xl leading-none">{meta.emoji}</span>
+              {/* Icono y no emoji: el resto de la app usa iconos en todos sus
+                  selectores, y las ofertas eran las únicas con emojis. Se
+                  veían como si vinieran de otra aplicación. */}
+              <Icono
+                className="h-6 w-6"
+                strokeWidth={2}
+                style={activo ? undefined : { color: meta.color }}
+                aria-hidden="true"
+              />
               <span className="text-[11px] font-bold leading-tight">
                 {meta.etiqueta}
               </span>

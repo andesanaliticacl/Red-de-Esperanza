@@ -8,6 +8,11 @@ import {
   Home,
   Building2,
   TriangleAlert,
+  Droplet,
+  Zap,
+  Wifi,
+  Truck,
+  ShowerHead,
   Waves,
   Flame,
   Boxes,
@@ -32,6 +37,7 @@ import {
 } from 'lucide-react'
 import type { NecesidadTipo, RolUsuario } from './types'
 import type { CategoriaEntidad, TierEntidad } from './entidades'
+import type { OfertaTipo } from './ofertas'
 
 /**
  * Icono profesional (trazo, un solo color) por tipo de necesidad. Sustituye a
@@ -104,4 +110,29 @@ export const ICONO_ROL: Record<RolUsuario, LucideIcon> = {
   verificador: BadgeCheck,
   admin: Shield,
   entidad: Building2,
+}
+
+/**
+ * Iconos de las ofertas ("Yo tengo").
+ *
+ * Se REUTILIZAN los mismos que ya usa la app donde el concepto coincide
+ * —comida es la misma sopa que "Agua / Comida", medicinas la misma pastilla,
+ * techo la misma casa, herramientas el mismo tractor de "Maquinaria"— para
+ * que un icono signifique lo mismo en toda la plataforma. Antes las ofertas
+ * eran las únicas que mostraban emojis mientras el resto de las pantallas
+ * mostraba iconos, y se veían como si fueran de otra aplicación.
+ */
+export const ICONO_OFERTA: Record<OfertaTipo, LucideIcon> = {
+  agua: Droplet,
+  comida: Soup, // el mismo de 'Agua / Comida'
+  medicinas: Pill, // el mismo de 'Medicinas'
+  refugio: Home, // el mismo de 'Refugio'
+  electricidad: Zap,
+  internet: Wifi,
+  transporte: Truck,
+  higiene: ShowerHead,
+  herramientas: Tractor, // el mismo de 'Maquinaria pesada'
+  comunidad: Users, // el mismo de 'Junta vecinal'
+  profesional: Stethoscope, // el mismo de la categoría 'profesional'
+  otro: CircleHelp, // el mismo de 'Otro'
 }
