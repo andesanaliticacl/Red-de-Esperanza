@@ -70,6 +70,15 @@ export function puedeVerNecesidad(
  */
 export const TIPOS_VERIFICABLES_POR_ENTIDAD: NecesidadTipo[] = ['mascota']
 
+/**
+ * Reportes que solo acredita el equipo de psicología. Son los datos más
+ * sensibles de la red y tienen su propio resguardo en RLS.
+ *
+ * En la base existe además el tipo heredado 'apoyo_emocional', que ya no se
+ * puede reportar desde la app; la migración 86 también lo excluye allá.
+ */
+export const TIPOS_PSICOLOGIA: NecesidadTipo[] = ['atencion_psicologica']
+
 export function esRolEntidad(rol: RolUsuario | null | undefined): boolean {
   return rol === 'entidad'
 }
@@ -93,6 +102,11 @@ export function puedeVerificarNecesidad(
   rol: RolUsuario | null | undefined,
   entidadVigente = false,
 ): boolean {
+  // El líder de acopios acredita todo menos psicología: esos reportes tienen
+  // equipo propio y su propio resguardo en RLS (migración 86).
+  if (rol === 'acopio_admin') {
+    return !TIPOS_PSICOLOGIA.includes(necesidad.tipo)
+  }
   if (puedeVerificarTodo(rol)) return true
   if (esRolEntidad(rol) && entidadVigente) {
     return TIPOS_VERIFICABLES_POR_ENTIDAD.includes(necesidad.tipo)

@@ -32,6 +32,7 @@ import {
   eliminarDelMapa,
   verificarNecesidad,
   verificarNecesidadComoEntidad,
+  verificarNecesidadComoAcopio,
 } from '../lib/reportes'
 import { tengoEntidadVigente } from '../lib/entidades'
 import { nombresPublicos } from '../lib/perfiles'
@@ -511,13 +512,16 @@ export default function CiudadanoView() {
 
   async function verificarHandler(n: Necesidad, verificar: boolean) {
     try {
-      // La entidad va por su propia función en la base: el rol 'entidad' no
-      // está en la política de UPDATE, así que un update directo suyo no
-      // tocaría nada.
-      if (puedeVerificarTodo(rol)) {
+      // Dos roles NO están en la política de UPDATE `"actualizar interno"`,
+      // así que un update directo suyo afecta cero filas y Postgres no
+      // devuelve error: el botón fallaría en silencio. Cada uno pasa por su
+      // propia función en la base.
+      if (rol === 'acopio_admin') {
+        await verificarNecesidadComoAcopio(n.id, verificar) // migración 86
+      } else if (puedeVerificarTodo(rol)) {
         await verificarNecesidad(n.id, verificar)
       } else {
-        await verificarNecesidadComoEntidad(n.id, verificar)
+        await verificarNecesidadComoEntidad(n.id, verificar) // migración 85
       }
       notificar(
         verificar

@@ -296,3 +296,25 @@ export async function verificarNecesidadComoEntidad(
   })
   if (error) throw error
 }
+
+/**
+ * Verificar como LÍDER DE ACOPIOS (migración 86).
+ *
+ * La migración 83 le dio permiso en el trigger y la pantalla le muestra el
+ * botón, pero 'acopio_admin' tampoco está en la política `"actualizar
+ * interno"`: su UPDATE directo afectaba cero filas y Postgres no devolvía
+ * error, así que el botón fallaba en silencio.
+ *
+ * No se le metió a esa política —es de tabla y le habría dado además
+ * reasignar y cerrar casos—: pasa por esta función, igual que la entidad.
+ */
+export async function verificarNecesidadComoAcopio(
+  id: string,
+  verificar = true,
+) {
+  const { error } = await supabase.rpc('acopio_verificar_reporte', {
+    p_id: id,
+    p_verificar: verificar,
+  })
+  if (error) throw error
+}
