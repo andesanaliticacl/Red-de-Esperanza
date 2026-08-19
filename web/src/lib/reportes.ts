@@ -276,3 +276,23 @@ export async function cambiarTipoNecesidad(id: string, tipo: NecesidadTipo) {
   })
   if (error) throw error
 }
+
+/**
+ * Verificar como ENTIDAD (migración 85).
+ *
+ * Camino aparte del de arriba a propósito: el rol 'entidad' no está en la
+ * política `"actualizar interno"` de la base, así que un UPDATE directo suyo
+ * no toca nada. Pasa por esta función, que valida en el servidor que el
+ * reporte sea de tipo 'mascota', que la entidad no esté suspendida y que
+ * solo pueda retirar la estrella que puso ella misma.
+ */
+export async function verificarNecesidadComoEntidad(
+  id: string,
+  verificar = true,
+) {
+  const { error } = await supabase.rpc('entidad_verificar_reporte', {
+    p_id: id,
+    p_verificar: verificar,
+  })
+  if (error) throw error
+}

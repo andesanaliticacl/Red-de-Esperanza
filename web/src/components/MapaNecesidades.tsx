@@ -702,6 +702,7 @@ export default function MapaNecesidades({
   onEliminarDelMapa,
   onCambiarTipo,
   onVerificar,
+  puedeVerificarNecesidad,
   mostrarEliminadas = false,
   puedeVerContacto = false,
   resaltadaId,
@@ -788,6 +789,11 @@ export default function MapaNecesidades({
   /** Marca o desmarca un reporte como verificado. Solo se pasa a quien
    *  puede hacerlo (verificador, líder o admin). */
   onVerificar?: (n: Necesidad, verificar: boolean) => void
+  /** Si se pasa, filtra en QUÉ reportes aparece el botón de verificar. Existe
+   *  porque una entidad aprobada acredita solo lo suyo —mascotas— mientras
+   *  que el equipo de coordinación acredita todo (migración 85). Sin esta
+   *  prop, el botón sale en todos, como antes. */
+  puedeVerificarNecesidad?: (n: Necesidad) => boolean
   /** Admin: muestra tambien solicitudes ocultas/eliminadas del mapa. */
   mostrarEliminadas?: boolean
   /**
@@ -1241,8 +1247,11 @@ export default function MapaNecesidades({
                 </div>
                 {/* Verificar: la estrella dice "el equipo confirmó que esto es
                     real". Solo se le muestra a quien puede darla; el aura
-                    celeste del marcador es la misma señal vista desde lejos. */}
-                {onVerificar && (
+                    celeste del marcador es la misma señal vista desde lejos.
+                    Una entidad aprobada la ve solo en los reportes que puede
+                    acreditar (mascotas), no en todos. */}
+                {onVerificar &&
+                  (!puedeVerificarNecesidad || puedeVerificarNecesidad(n)) && (
                   <button
                     type="button"
                     onClick={() => onVerificar(n, n.estado !== 'verificada')}

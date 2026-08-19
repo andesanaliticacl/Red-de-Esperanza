@@ -31,14 +31,19 @@ import {
   cambiarTipoNecesidad,
   eliminarDelMapa,
   verificarNecesidad,
+  verificarNecesidadComoEntidad,
 } from '../lib/reportes'
+import { tengoEntidadVigente } from '../lib/entidades'
 import { nombresPublicos } from '../lib/perfiles'
 import { geocodificarDireccion, VISTA_PAIS_DESAP } from '../lib/geo'
 import {
+  esRolEntidad,
   esRolRescatista,
   puedeAtenderNecesidades,
   puedeGestionarComoLider,
   puedeVerNecesidad,
+  puedeVerificarNecesidad,
+  puedeVerificarTodo,
 } from '../lib/roles'
 import type { Desaparecido } from '../hooks/useDesaparecidos'
 import { useEncontrados } from '../hooks/useEncontrados'
@@ -471,19 +476,49 @@ export default function CiudadanoView() {
   const puedeCambiarTipo = esAdmin
   // Verificar es dar una insignia de confianza, así que la da el equipo de
   // coordinación: líderes, verificador y admin. Un voluntario atiende, pero
-  // no acredita. (La migración 79 lo exige también en la base; hasta que
-  // corra, esto vive solo en la pantalla.)
+  // no acredita. (Las migraciones 79/83/85 lo exigen también en la base.)
   // Quién puede poner la estrella: los tres roles de coordinación (líder de
   // voluntarios, líder de acopios y admin) más el verificador, que existe
   // justamente para esto. Un voluntario ATIENDE, pero no acredita.
-  const puedeVerificar =
-    puedeGestionarComoLider(rol) ||
-    rol === 'verificador' ||
-    rol === 'acopio_admin'
+  //
+  // Desde la migración 85 se suma la ENTIDAD aprobada, pero solo en los
+  // reportes de mascotas: ya pasó por el filtro de un administrador y está
+  // en terreno, así que se le confía lo suyo y nada más.
+  const [entidadVigente, setEntidadVigente] = useState(false)
+  useEffect(() => {
+    if (!esRolEntidad(rol)) {
+      setEntidadVigente(false)
+      return
+    }
+    let vivo = true
+    tengoEntidadVigente()
+      .then((v) => {
+        if (vivo) setEntidadVigente(v)
+      })
+      // Si falla la consulta simplemente no se muestra el botón: la base
+      // valida igual, y un mapa que no carga por esto sería mucho peor.
+      .catch(() => {
+        if (vivo) setEntidadVigente(false)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [rol])
+
+  const puedeVerificar = puedeVerificarTodo(rol) || entidadVigente
+  const verificablePorMi = (n: Necesidad) =>
+    puedeVerificarNecesidad(n, rol, entidadVigente)
 
   async function verificarHandler(n: Necesidad, verificar: boolean) {
     try {
-      await verificarNecesidad(n.id, verificar)
+      // La entidad va por su propia función en la base: el rol 'entidad' no
+      // está en la política de UPDATE, así que un update directo suyo no
+      // tocaría nada.
+      if (puedeVerificarTodo(rol)) {
+        await verificarNecesidad(n.id, verificar)
+      } else {
+        await verificarNecesidadComoEntidad(n.id, verificar)
+      }
       notificar(
         verificar
           ? '★ Reporte verificado: ya se ve con aura celeste en el mapa.'
@@ -941,6 +976,7 @@ export default function CiudadanoView() {
             }
             onCambiarTipo={puedeCambiarTipo ? cambiarTipoHandler : undefined}
             onVerificar={puedeVerificar ? verificarHandler : undefined}
+            puedeVerificarNecesidad={verificablePorMi}
             idsAsignadoVerificado={idsVerificados}
             puedeVerContacto={puedeAtender}
             resaltadaId={resaltadaId}

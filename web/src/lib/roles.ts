@@ -57,3 +57,45 @@ export function puedeVerNecesidad(
 ): boolean {
   return puedeVerTipoNecesidad(necesidad.tipo, rol)
 }
+
+/**
+ * Lo único que una entidad aprobada puede acreditar (migración 85).
+ *
+ * Una entidad pasó por el filtro más caro de la red —un admin revisó su
+ * solicitud y la verificó por canal oficial—, así que se le confía la
+ * estrella. Pero solo en lo suyo: un veterinario o una organización de
+ * rescate animal sabe si un perro herido es real; sobre un derrumbe no
+ * sabe más que cualquiera, y una insignia que cubre todo deja de decir
+ * nada.
+ */
+export const TIPOS_VERIFICABLES_POR_ENTIDAD: NecesidadTipo[] = ['mascota']
+
+export function esRolEntidad(rol: RolUsuario | null | undefined): boolean {
+  return rol === 'entidad'
+}
+
+/** El equipo de coordinación: acredita cualquier reporte. */
+export function puedeVerificarTodo(rol: RolUsuario | null | undefined): boolean {
+  return (
+    puedeGestionarComoLider(rol) || rol === 'verificador' || rol === 'acopio_admin'
+  )
+}
+
+/**
+ * ¿Esta persona puede poner o quitar la estrella en ESTE reporte?
+ *
+ * `entidadVigente` lo decide la vista (rol 'entidad' + entidad no
+ * suspendida): aquí no se consulta la base. La base vuelve a validarlo
+ * igual — esto es solo para no mostrar un botón que va a fallar.
+ */
+export function puedeVerificarNecesidad(
+  necesidad: Pick<Necesidad, 'tipo'>,
+  rol: RolUsuario | null | undefined,
+  entidadVigente = false,
+): boolean {
+  if (puedeVerificarTodo(rol)) return true
+  if (esRolEntidad(rol) && entidadVigente) {
+    return TIPOS_VERIFICABLES_POR_ENTIDAD.includes(necesidad.tipo)
+  }
+  return false
+}

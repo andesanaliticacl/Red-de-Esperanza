@@ -551,3 +551,25 @@ export async function listarEquipoEntidad(
   if (error) throw error
   return (data ?? []) as MiembroEquipo[]
 }
+
+/**
+ * ¿La sesión actual pertenece a una entidad aprobada y NO suspendida?
+ *
+ * Versión liviana de `miEntidad()`: se usa en el mapa público, que lo carga
+ * cualquiera, así que no trae los datos fiscales ni la ficha entera — solo
+ * responde sí o no. La suspensión pesa más que el rol: el rol 'entidad'
+ * queda puesto para siempre al aprobar, pero suspender es justamente la
+ * forma de retirar del aire a una organización comprometida.
+ */
+export async function tengoEntidadVigente(): Promise<boolean> {
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth?.user?.id) return false
+  const { data, error } = await supabase
+    .from('entidad_miembros')
+    .select('entidad_id, entidades!inner(suspendida)')
+    .eq('perfil_id', auth.user.id)
+    .eq('entidades.suspendida', false)
+    .limit(1)
+  if (error) throw error
+  return (data ?? []).length > 0
+}
