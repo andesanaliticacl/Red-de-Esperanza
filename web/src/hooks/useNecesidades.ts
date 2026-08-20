@@ -41,7 +41,22 @@ export function useNecesidades(
   // Firma de la última lista de necesidades: si el sondeo trae lo mismo, NO
   // actualizamos el estado (evita redibujar todo el mapa cada 30 s sin motivo,
   // que era el "tirón" en el teléfono conforme crecen los datos).
-  const firmaRef = useRef('')
+  // `null` = todavía no cargó nunca, que NO es lo mismo que "cargó y vino
+  // vacío": con '' como inicio, una primera respuesta vacía se confundía con
+  // "no cambió nada".
+  const firmaRef = useRef<string | null>(null)
+
+  // Número de la última petición emitida. Sirve para descartar respuestas que
+  // llegan tarde.
+  //
+  // POR QUÉ: `tiempoReal` es `!!session`, y la sesión se restaura de forma
+  // asíncrona. O sea que este efecto corre DOS veces al abrir la página:
+  // primero como anónimo y después con sesión. Quedaban dos peticiones en el
+  // aire y ganaba la que llegara última — no la más nueva. Si la primera
+  // (anónima, y a veces más lenta) contestaba después de la buena, pisaba los
+  // datos y el mapa se quedaba sin reportes hasta el siguiente sondeo. Al
+  // recargar solo sale una petición, y por eso "recargar lo arreglaba".
+  const peticionRef = useRef(0)
 
   // ¿Una fila entra en el filtro de estados activo?
   function pasaFiltro(n: {
@@ -72,6 +87,7 @@ export function useNecesidades(
 
   // Solo las necesidades (lo que cambia seguido). Si nada cambió, no toca estado.
   async function cargar() {
+    const mia = ++peticionRef.current
     let q = supabase
       .from('necesidades')
       .select(COLS_NECESIDAD)
@@ -86,14 +102,24 @@ export function useNecesidades(
       .limit(LIMITE)
     if (filtroEstados && filtroEstados.length) q = q.in('estado', filtroEstados)
     const nec = await q
-    if (nec.error) setError(nec.error.message)
-    else {
+
+    // Llegó tarde: ya salió otra petición después de esta. Su contenido está
+    // obsoleto, así que se descarta en vez de pisar lo que ya hay en pantalla.
+    if (mia !== peticionRef.current) return
+
+    if (nec.error) {
+      // Un error NO vacía el mapa. Si ya había reportes dibujados, se quedan:
+      // datos de hace 30 segundos son mucho mejores que una pantalla vacía
+      // cuando alguien está buscando ayuda.
+      setError(nec.error.message)
+    } else {
       const lista = (nec.data ?? []) as unknown as Necesidad[]
       const firma = firmaDe(lista)
       if (firma !== firmaRef.current) {
         firmaRef.current = firma
         setNecesidades(lista)
       }
+      setError(null)
     }
     setCargando(false)
   }
@@ -110,10 +136,23 @@ export function useNecesidades(
     if (!ac.error) setAcopios((ac.data ?? []) as unknown as CentroAcopio[])
   }
 
+  // CARGA INICIAL — deliberadamente separada de la suscripción.
+  //
+  // Antes vivía en el mismo efecto que el Realtime, que depende de
+  // `tiempoReal` (= hay sesión). Como la sesión se restaura de forma
+  // asíncrona, ese efecto corría dos veces al abrir la página y disparaba dos
+  // cargas: quedaban dos peticiones compitiendo y el mapa mostraba la que
+  // llegara última, no la más nueva.
+  //
+  // Aquí solo depende del filtro, así que al entrar sale UNA petición — la
+  // misma situación que al recargar a mano, que es justo cuando funcionaba.
   useEffect(() => {
     cargar()
     cargarAcopios()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filtroEstados)])
 
+  useEffect(() => {
     // Anónimos (sin sesión): NADA de websocket. Refrescan por sondeo cada 30 s.
     // Evita abrir miles de conexiones realtime simultáneas. (Solo necesidades.)
     // Si la pestaña está oculta (en segundo plano), NO sondea: ahorra peticiones
@@ -122,7 +161,12 @@ export function useNecesidades(
       const id = window.setInterval(() => {
         if (!document.hidden) cargar()
       }, 30000)
-      return () => window.clearInterval(id)
+      return () => {
+        window.clearInterval(id)
+        // Invalida lo que haya quedado en vuelo: su respuesta ya no debe
+        // tocar el estado de un efecto que se está desmontando.
+        peticionRef.current++
+      }
     }
 
     // Con sesión (staff): Realtime incremental, parchea el estado en lugar de
@@ -159,6 +203,7 @@ export function useNecesidades(
 
     return () => {
       supabase.removeChannel(canal)
+      peticionRef.current++
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(filtroEstados), tiempoReal])
